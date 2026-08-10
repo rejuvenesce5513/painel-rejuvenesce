@@ -146,6 +146,7 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
     <input type="date" id="dtIni" style="display:none">
     <input type="date" id="dtFim" style="display:none">
     <button id="btnRefresh">Atualizar</button>
+    <button id="btnSync" style="display:none">Sincronizar agora</button>
     <button id="btnCfg">Configurar</button>
     <button id="btnAuth" class="primary">Entrar</button>
   </div>
@@ -282,6 +283,15 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
   </div>
 
   <hr>
+  <hr>
+  <div class="f"><label>Repositório do sync (usuário/repo)</label><input id="cGhRepo" placeholder="rejuvenesce5513/rd-vendas-sync">
+    <div class="h">Habilita o botão "Sincronizar agora", que dispara o job e espera a planilha mudar.</div></div>
+  <div class="row2">
+    <div class="f"><label>Arquivo do workflow</label><input id="cGhWf" value="sync.yml"></div>
+    <div class="f"><label>Token do GitHub (Actions: write)</label><input id="cGhToken" type="password" placeholder="github_pat_..."></div>
+  </div>
+  <div class="msg warn" style="margin-top:4px">O token fica apenas neste navegador e <b>não</b> entra no link de instalação. Use um token restrito a este repositório, só com permissão Actions.</div>
+  <hr>
   <label class="chk"><input type="checkbox" id="cAutoEntrar" checked><span>Entrar automaticamente ao abrir</span></label>
   <div style="display:flex;gap:9px;flex-wrap:wrap"><button class="primary" id="cSave">Salvar e recarregar</button><button id="cLink">Copiar link de instalação</button><button id="cClose">Fechar</button></div>
   <div class="notes" id="cfgNotes"></div>
@@ -296,7 +306,7 @@ const store={
   set(k,v){ try{localStorage.setItem(k,v);}catch(e){mem[k]=v;} },
   del(k){ try{localStorage.removeItem(k);}catch(e){delete mem[k];} }
 };
-const DEF={tenant:"89aed341-1dc6-4d0d-b5c7-e8df4293d21d",client:"",file:"",autoEntrar:true,shVendas:"Vendas",shMarc:"Marcações",shMetas:"Metas",
+const DEF={tenant:"89aed341-1dc6-4d0d-b5c7-e8df4293d21d",client:"",file:"",autoEntrar:true,ghRepo:"",ghWf:"sync.yml",ghToken:"",shVendas:"Vendas",shMarc:"Marcações",shMetas:"Metas",
   refresh:10,splitTC:90,splitTE:10,mapTC:"TC,TB,TS,BH",mapTE:"TEC",ignorar:"Sem deal comercial,—,JARVYS",onlyPrimeira:true,ignoraZero:true,coorte:"fechamento"};
 let CFG=Object.assign({},DEF,JSON.parse(store.get("rjv.cfg")||"{}"));
 const REDIRECT=location.origin+location.pathname;
@@ -597,9 +607,35 @@ function shareId(u){
   return "u!"+btoa(bin).replace(/=+$/,"").replace(/\//g,"_").replace(/\+/g,"-");
 }
 
+const REF={drive:null,item:null,nome:null,mod:null};
 async function resolveItem(tk){
-  const it=await gget("/shares/"+shareId(CFG.file)+"/driveItem?$select=id,name,parentReference",tk);
-  return {drive:it.parentReference.driveId,item:it.id,name:it.name};
+  const it=await gget("/shares/"+shareId(CFG.file)+"/driveItem?$select=id,name,parentReference,lastModifiedDateTime",tk);
+  REF.drive=it.parentReference.driveId; REF.item=it.id; REF.nome=it.name; REF.mod=it.lastModifiedDateTime;
+  return REF;
+}
+const hm=t=>t?new Date(t).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}):"—";
+
+async function sincronizar(){
+  if(!CFG.ghToken||!CFG.ghRepo){openCfg("Informe repositório e token do GitHub.");return;}
+  if(!REF.item){setStatus("warn","Conecte-se antes de sincronizar.");return;}
+  const b=$("btnSync"); b.disabled=true;
+  try{
+    setStatus("load","Disparando sincronização…");
+    const r=await fetch("https://api.github.com/repos/"+CFG.ghRepo+"/actions/workflows/"+CFG.ghWf+"/dispatches",{
+      method:"POST",headers:{Authorization:"Bearer "+CFG.ghToken,Accept:"application/vnd.github+json","Content-Type":"application/json"},
+      body:JSON.stringify({ref:"main",inputs:{modo:"gravar"}})});
+    if(r.status!==204)throw new Error("GitHub "+r.status+" — "+(await r.text()).slice(0,120));
+    const tk=await token(), antes=REF.mod;
+    for(let i=1;i<=24;i++){
+      await new Promise(s=>setTimeout(s,5000));
+      setStatus("load","Sincronizando… "+(i*5)+"s");
+      const it=await gget("/drives/"+REF.drive+"/items/"+REF.item+"?$select=lastModifiedDateTime",tk);
+      if(it.lastModifiedDateTime!==antes){await carregar();return;}
+    }
+    await carregar();
+    setStatus("warn","Job disparado, mas a planilha não mudou — provavelmente não havia venda nova");
+  }catch(e){setStatus("err",e.message);}
+  finally{b.disabled=false;}
 }
 function colLetter(n){let s="";while(n>0){const m=(n-1)%26;s=String.fromCharCode(65+m)+s;n=(n-m-1)/26;}return s;}
 async function readSheet(tk,ref,sheet){
@@ -628,7 +664,10 @@ async function carregar(){
     const [V,M,T]=await Promise.all([readSheet(tk,ref,CFG.shVendas),readSheet(tk,ref,CFG.shMarc),readSheet(tk,ref,CFG.shMetas)]);
     RAW={}; RAW[CFG.shVendas]=V; RAW[CFG.shMarc]=M; RAW[CFG.shMetas]=T;
     render();
-    setStatus("ok",ref.name+" · "+new Date().toLocaleTimeString("pt-BR"));
+    const atraso=Math.round((Date.now()-new Date(ref.mod).getTime())/60000);
+    setStatus(atraso>45?"warn":"ok",
+      ref.nome+" · planilha "+hm(ref.mod)+(atraso>=1?" ("+atraso+" min)":" (agora)")+" · painel "+hm(Date.now()));
+    $("btnSync").style.display=(CFG.ghToken&&CFG.ghRepo)?"":"none";
   }catch(e){
     setStatus("err",e.message);
     if(/401|InvalidAuthenticationToken/i.test(e.message)){store.del("rjv.at");store.del("rjv.rt");}
@@ -639,7 +678,7 @@ function setStatus(k,t){$("dot").className="dot "+k;$("statusTxt").textContent=t
 /* ============================ config UI ============================ */
 const F={cTenant:"tenant",cClient:"client",cFile:"file",cShVendas:"shVendas",cShMarc:"shMarc",cShMetas:"shMetas",
   cRefresh:"refresh",cSplitTC:"splitTC",cSplitTE:"splitTE",cMapTC:"mapTC",cMapTE:"mapTE",cIgnorar:"ignorar",
-  cOnlyPrimeira:"onlyPrimeira",cIgnoraZero:"ignoraZero",cCoorte:"coorte",cAutoEntrar:"autoEntrar"};
+  cOnlyPrimeira:"onlyPrimeira",cIgnoraZero:"ignoraZero",cCoorte:"coorte",cAutoEntrar:"autoEntrar",cGhRepo:"ghRepo",cGhWf:"ghWf",cGhToken:"ghToken"};
 function cfgToUI(){for(const id in F){const el=$(id);if(el.type==="checkbox")el.checked=!!CFG[F[id]];else el.value=CFG[F[id]];}
   $("cRedirect").textContent=REDIRECT;}
 function uiToCfg(){for(const id in F){const el=$(id);CFG[F[id]]=el.type==="checkbox"?el.checked:(el.type==="number"?+el.value:el.value);}
@@ -653,11 +692,12 @@ $("btnCfg").onclick=()=>{cfgToUI();openCfg();};
 $("cClose").onclick=()=>$("drawer").classList.remove("open");
 $("cSave").onclick=()=>{uiToCfg();$("drawer").classList.remove("open");agenda();render();carregar();};
 $("btnAuth").onclick=()=>login(false);
-$("cLink").onclick=()=>{uiToCfg();const c=Object.assign({},CFG);delete c.autoEntrar;
-  const url=REDIRECT+"#cfg="+b64uEnc(JSON.stringify(Object.assign({autoEntrar:true},c)));
+$("cLink").onclick=()=>{uiToCfg();const c=Object.assign({},CFG);delete c.autoEntrar;delete c.ghToken;
+  const url=REDIRECT+"#cfg="+b64uEnc(JSON.stringify(Object.assign({autoEntrar:true,ghRepo:"",ghWf:"sync.yml",ghToken:""},c)));
   navigator.clipboard.writeText(url).then(()=>{$("cfgNotes").textContent="Link copiado. Quem abrir esse link recebe toda a configuração e entra direto.";},
     ()=>{$("cfgNotes").textContent=url;});};
 $("btnRefresh").onclick=carregar;
+$("btnSync").onclick=sincronizar;
 $("periodo").onchange=()=>{const c=$("periodo").value==="custom";
   $("dtIni").style.display=$("dtFim").style.display=c?"":"none";render();};
 $("dtIni").onchange=$("dtFim").onchange=render;
