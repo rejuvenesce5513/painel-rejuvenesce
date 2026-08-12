@@ -203,9 +203,9 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
 
 <!-- BLOCO 2 -->
 <section class="evals">
-  <div class="ev a"><div class="l">Avaliações realizadas</div><div class="v disp num" id="evTot">0</div><div class="s" id="evTotS">—</div></div>
-  <div class="ev b"><div class="l">Convertidas</div><div class="v disp num" id="evConv">0</div><div class="s" id="evConvS">—</div></div>
-  <div class="ev c"><div class="l">Em andamento</div><div class="v disp num" id="evAnd">0</div><div class="s" id="evAndS">—</div></div>
+  <div class="ev a"><div class="l">Avaliações realizadas no período</div><div class="v disp num" id="evTot">0</div><div class="s" id="evTotS">—</div></div>
+  <div class="ev b"><div class="l">Convertidas (dessas avaliações)</div><div class="v disp num" id="evConv">0</div><div class="s" id="evConvS">—</div></div>
+  <div class="ev c"><div class="l">Em andamento (dessas avaliações)</div><div class="v disp num" id="evAnd">0</div><div class="s" id="evAndS">—</div></div>
   <div class="ev d"><div class="l">Perdidas</div><div class="v disp num" id="evPerd">0</div><div class="s" id="evPerdS">—</div></div>
 </section>
 
@@ -235,6 +235,32 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
     </thead>
     <tbody id="rankBody"></tbody>
     <tfoot id="rankFoot"></tfoot>
+  </table>
+  </div>
+</section>
+
+<section class="rank" style="margin-top:14px">
+  <div class="rank-head">
+    <h2>Extrato por mês de avaliação</h2>
+    <span class="eyebrow" id="extSub"></span>
+  </div>
+  <div style="overflow-x:auto">
+  <table>
+    <thead>
+      <tr class="grp">
+        <th></th>
+        <th colspan="2" class="sep">Vendido no período</th>
+        <th colspan="2" class="sep">Vendido acumulado</th>
+        <th colspan="2" class="sep">Coorte de avaliação</th>
+      </tr>
+      <tr>
+        <th class="l">Mês da avaliação</th>
+        <th class="sep">R$</th><th>Qtd</th>
+        <th class="sep">R$</th><th>Qtd</th>
+        <th class="sep">Avaliações</th><th>Conversão</th>
+      </tr>
+    </thead>
+    <tbody id="extBody"></tbody>
   </table>
   </div>
 </section>
@@ -452,6 +478,27 @@ function computar(){
   out.ev=ev;
 
   const ign=new Set(CFG.ignorar.split(",").map(norm).filter(Boolean));
+  /* ---- extrato por mes de avaliacao ---- */
+  const iK=pick(cv,"MM/AAAA da Avaliação","MM/AAAA da Avaliacao","MM/AAAA Avaliação");
+  const ex=new Map();
+  const em=k=>{ if(!ex.has(k))ex.set(k,{per:{v:0,q:0},tot:{v:0,q:0},aval:0}); return ex.get(k); };
+  if(iK>=0)for(const r of V.rows){
+    if(iEt>=0){const e=norm(r[iEt]); if(e&&e!=="FECHAMENTO")continue;}
+    const dk=toDate(r[iK]); if(!dk)continue;
+    const o=em(ymUTC(dk)), val=toNum(r[iVal]);
+    o.tot.v+=val; o.tot.q++;
+    const df=toDate(r[iDt]);
+    if(df&&df>=p.a&&df<=p.b){o.per.v+=val;o.per.q++;}
+  }
+  for(const r of M.rows){
+    const d=toDate(r[iDc]); if(!d)continue;
+    if(norm(r[iSt])!=="ATENDIDO")continue;
+    if(CFG.onlyPrimeira&&iTipo>=0&&!norm(r[iTipo]).startsWith("PRIMEIRA AVALIACAO"))continue;
+    em(ymUTC(d)).aval++;
+  }
+  out.extrato=[...ex.entries()].filter(([,o])=>o.tot.q||o.aval||o.per.q)
+    .sort((a,b)=>b[0].localeCompare(a[0])).slice(0,18).map(([mes,o])=>({mes,...o}));
+
   out.rank=[...vend.entries()].map(([k,s])=>({key:k,nome:nomes.get(k)||k,...s}))
     .filter(x=>(x.tot.q>0||x.aval>0)&&!ign.has(x.key))
     .sort((a,b)=>b.tot.v-a.tot.v||b.tot.q-a.tot.q);
@@ -529,6 +576,24 @@ function render(){
   $("rankFoot").innerHTML='<tr><td colspan="2" class="l">Total</td>'+celf(T.tc)+celf(T.te)+celf(T.tot)+
     '<td class="sep num">'+T.fech+"/"+T.aval+" · "+(T.aval?fpct(pct(T.fech,T.aval)):"—")+"</td></tr>";
   $("rankSub").textContent="ordenado por total em R$ · conversão por "+(CFG.coorte==="fechamento"?"data de fechamento":"coorte de avaliação");
+
+  const eb=$("extBody"); eb.innerHTML="";
+  let comAval=0;
+  for(const e of D.extrato){
+    const cv2=e.aval?pct(e.tot.q,e.aval):null;
+    if(e.aval)comAval++;
+    const [ano,mes]=e.mes.split("-");
+    const nm=new Date(Date.UTC(+ano,+mes-1,1)).toLocaleDateString("pt-BR",{month:"short",year:"numeric",timeZone:"UTC"});
+    eb.insertAdjacentHTML("beforeend",
+      '<tr><td class="l name">'+esc(nm)+'</td>'+
+      '<td class="sep v-money num">'+(e.per.v?BRL.format(e.per.v):"—")+'</td><td class="v-sub num">'+(e.per.q||"—")+'</td>'+
+      '<td class="sep v-money num">'+BRL.format(e.tot.v)+'</td><td class="v-sub num">'+INT.format(e.tot.q)+'</td>'+
+      '<td class="sep v-sub num">'+(e.aval?INT.format(e.aval):"—")+'</td>'+
+      '<td class="num" style="color:'+(cv2==null?"var(--dim)":cv2>=25?"var(--pos)":"var(--tec)")+'">'+
+      (cv2==null?"—":fpct(cv2))+'</td></tr>');
+  }
+  $("extSub").textContent=comAval?("conversão disponível em "+comAval+" mês(es) com dados em Marcações"):
+    "sem dados de avaliação na aba Marcações";
 
   const av=[];
   if(A.outro.q)av.push("R$ "+INT.format(Math.round(A.outro.v))+" em "+A.outro.q+" negócio(s) de serviços fora do mapeamento entram só na barra principal.");
