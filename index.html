@@ -360,6 +360,8 @@ function toDate(v){
   const s=String(v).trim();
   let m=s.match(/^(\d{4})-(\d{2})-(\d{2})/);            if(m)return new Date(Date.UTC(+m[1],+m[2]-1,+m[3]));
   m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);          if(m)return new Date(Date.UTC(+m[3],+m[2]-1,+m[1]));
+  m=s.match(/^(\d{1,2})[\/-](\d{4})$/);                  if(m)return new Date(Date.UTC(+m[2],+m[1]-1,1));
+  m=s.match(/^(\d{4})[\/-](\d{1,2})$/);                  if(m)return new Date(Date.UTC(+m[1],+m[2]-1,1));
   const n=Number(s.replace(",","."));                    if(isFinite(n)&&n>20000)return new Date(Date.UTC(1899,11,30)+n*864e5);
   return null;
 }
