@@ -204,7 +204,7 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
 <!-- BLOCO 2 -->
 <section class="evals">
   <div class="ev a"><div class="l">Avaliações realizadas no período</div><div class="v disp num" id="evTot">0</div><div class="s" id="evTotS">—</div></div>
-  <div class="ev b"><div class="l">Convertidas (dessas avaliações)</div><div class="v disp num" id="evConv">0</div><div class="s" id="evConvS">—</div></div>
+  <div class="ev b"><div class="l">Pacientes convertidos</div><div class="v disp num" id="evConv">0</div><div class="s" id="evConvS">—</div></div>
   <div class="ev c"><div class="l">Em andamento (dessas avaliações)</div><div class="v disp num" id="evAnd">0</div><div class="s" id="evAndS">—</div></div>
   <div class="ev d"><div class="l">Perdidas</div><div class="v disp num" id="evPerd">0</div><div class="s" id="evPerdS">—</div></div>
 </section>
@@ -250,13 +250,13 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
       <tr class="grp">
         <th></th>
         <th colspan="2" class="sep">Vendido no período</th>
-        <th colspan="2" class="sep">Vendido acumulado</th>
+        <th colspan="3" class="sep">Vendido acumulado</th>
         <th colspan="2" class="sep">Coorte de avaliação</th>
       </tr>
       <tr>
         <th class="l">Mês da avaliação</th>
         <th class="sep">R$</th><th>Qtd</th>
-        <th class="sep">R$</th><th>Qtd</th>
+        <th class="sep">R$</th><th>Negócios</th><th>Pacientes</th>
         <th class="sep">Avaliações</th><th>Conversão</th>
       </tr>
     </thead>
@@ -343,7 +343,7 @@ function b64uEnc(str){const b=new TextEncoder().encode(str);let x="";for(const c
 function b64uDec(s){s=s.replace(/-/g,"+").replace(/_/g,"/");const bin=atob(s);
   return new TextDecoder().decode(Uint8Array.from(bin,c=>c.charCodeAt(0)));}
 (function(){const m=location.hash.match(/#cfg=([A-Za-z0-9\-_]+)/);if(!m)return;
-  try{CFG=Object.assign({},DEF,JSON.parse(b64uDec(m[1])));store.set("rjv.cfg",JSON.stringify(CFG));
+  try{CFG=Object.assign({},DEF,CFG,JSON.parse(b64uDec(m[1])));store.set("rjv.cfg",JSON.stringify(CFG));
     history.replaceState({},"",REDIRECT);}catch(e){}})();
 
 /* ============================ util ============================ */
@@ -464,11 +464,14 @@ function computar(){
   if(metaTE==null)metaTE=meta*(CFG.splitTE/100);
   out.meta={total:meta,tc:metaTC,te:metaTE,estimada:(iMtc<0||iMte<0)};
 
+  const iK=pick(cv,"MM/AAAA da Avaliação","MM/AAAA da Avaliacao","MM/AAAA Avaliação");
+  const iNome=pick(cv,"Nome");
+
   /* ---- marcações / avaliações ---- */
   const cm=colmap(M.headers);
   const iDc=pick(cm,"Data consulta"), iTipo=pick(cm,"Tipo"), iSt=pick(cm,"Status atual"),
         iVc=pick(cm,"Vendedor comercial","Responsável"), iEc=pick(cm,"Etapa comercial"), iDf=pick(cm,"Data do fechamento");
-  const ev={tot:0,conv:0,and:0,perd:0};
+  const ev={tot:0,conv:0,and:0,perd:0,convMarc:0,negConv:0};
   for(const r of M.rows){
     const d=toDate(r[iDc]); if(!d||d<p.a||d>p.b)continue;
     if(norm(r[iSt])!=="ATENDIDO")continue;
@@ -478,24 +481,32 @@ function computar(){
     const df=iDf>=0?toDate(r[iDf]):null;
     const fechou=et==="FECHAMENTO";
     const contaFech=CFG.coorte==="avaliacao" ? fechou : (fechou&&(!df||(df>=p.a&&df<=p.b)));
-    if(fechou)ev.conv++; else if(et.includes("PERDID"))ev.perd++; else ev.and++;
+    if(fechou)ev.convMarc++; else if(et.includes("PERDID"))ev.perd++;
     const key=norm(r[iVc])||"—";
     if(!vend.has(key))vend.set(key,{tc:novo(),te:novo(),outro:novo(),tot:novo(),fech:0,aval:0});
     const s=vend.get(key); s.aval++; if(contaFech)s.fech++;
     if(!nomes.has(key))nomes.set(key,titled(r[iVc])||"—");
   }
+  // numerador vem da aba Vendas: venda cuja avaliacao caiu no periodo
+  const pacConv=new Set();
+  if(iK>=0)for(const r of V.rows){
+    if(!ehVenda(iEt>=0?r[iEt]:null))continue;
+    const dk=toDate(r[iK]); if(!dk||dk<p.a||dk>p.b)continue;
+    ev.negConv++; pacConv.add(norm(r[iNome>=0?iNome:0])+"|"+ymUTC(dk));
+  }
+  ev.conv=pacConv.size;
+  ev.and=Math.max(0,ev.tot-ev.conv-ev.perd);
   out.ev=ev;
 
   const ign=new Set(CFG.ignorar.split(",").map(norm).filter(Boolean));
   /* ---- extrato por mes de avaliacao ---- */
-  const iK=pick(cv,"MM/AAAA da Avaliação","MM/AAAA da Avaliacao","MM/AAAA Avaliação");
   const ex=new Map();
-  const em=k=>{ if(!ex.has(k))ex.set(k,{per:{v:0,q:0},tot:{v:0,q:0},aval:0}); return ex.get(k); };
+  const em=k=>{ if(!ex.has(k))ex.set(k,{per:{v:0,q:0},tot:{v:0,q:0},aval:0,pac:new Set()}); return ex.get(k); };
   if(iK>=0)for(const r of V.rows){
     if(!ehVenda(iEt>=0?r[iEt]:null))continue;
     const dk=toDate(r[iK]); if(!dk)continue;
     const o=em(ymUTC(dk)), val=toNum(r[iVal]);
-    o.tot.v+=val; o.tot.q++;
+    o.tot.v+=val; o.tot.q++; o.pac.add(norm(r[iNome>=0?iNome:0]));
     const df=toDate(r[iDt]);
     if(df&&df>=p.a&&df<=p.b){o.per.v+=val;o.per.q++;}
   }
@@ -506,7 +517,7 @@ function computar(){
     em(ymUTC(d)).aval++;
   }
   out.extrato=[...ex.entries()].filter(([,o])=>o.tot.q||o.aval||o.per.q)
-    .sort((a,b)=>b[0].localeCompare(a[0])).slice(0,18).map(([mes,o])=>({mes,...o}));
+    .sort((a,b)=>b[0].localeCompare(a[0])).slice(0,18).map(([mes,o])=>({mes,...o,pac:o.pac.size}));
 
   out.rank=[...vend.entries()].map(([k,s])=>({key:k,nome:nomes.get(k)||k,...s}))
     .filter(x=>(x.tot.q>0||x.aval>0)&&!ign.has(x.key))
@@ -559,9 +570,10 @@ function render(){
   $("evTot").textContent=INT.format(ev.tot);
   $("evTotS").textContent=(CFG.onlyPrimeira?"primeiras avaliações":"avaliações")+" com status Atendido";
   $("evConv").textContent=INT.format(ev.conv);
-  $("evConvS").textContent=fpct(pct(ev.conv,ev.tot))+" de conversão";
+  $("evConvS").innerHTML=fpct(pct(ev.conv,ev.tot))+" de conversão · "+
+    '<span style="color:var(--dim)">'+ev.negConv+" negócio(s)</span>";
   $("evAnd").textContent=INT.format(ev.and);
-  $("evAndS").textContent=fpct(pct(ev.and,ev.tot))+" sem desfecho registrado";
+  $("evAndS").textContent=fpct(pct(ev.and,ev.tot))+" sem venda até agora";
   $("evPerd").textContent=INT.format(ev.perd);
   $("evPerdS").textContent=ev.perd===0?"nenhuma etapa PERDIDO na planilha":fpct(pct(ev.perd,ev.tot))+" do total";
 
@@ -589,19 +601,21 @@ function render(){
   const eb=$("extBody"); eb.innerHTML="";
   let comAval=0;
   for(const e of D.extrato){
-    const cv2=e.aval?pct(e.tot.q,e.aval):null;
+    const parcial=e.aval>0&&e.tot.q>0&&e.aval<e.tot.q*0.5;
+    const cv2=(e.aval&&!parcial)?pct(e.pac,e.aval):null;
     if(e.aval)comAval++;
     const [ano,mes]=e.mes.split("-");
     const nm=new Date(Date.UTC(+ano,+mes-1,1)).toLocaleDateString("pt-BR",{month:"short",year:"numeric",timeZone:"UTC"});
     eb.insertAdjacentHTML("beforeend",
       '<tr><td class="l name">'+esc(nm)+'</td>'+
       '<td class="sep v-money num">'+(e.per.v?BRL.format(e.per.v):"—")+'</td><td class="v-sub num">'+(e.per.q||"—")+'</td>'+
-      '<td class="sep v-money num">'+BRL.format(e.tot.v)+'</td><td class="v-sub num">'+INT.format(e.tot.q)+'</td>'+
-      '<td class="sep v-sub num">'+(e.aval?INT.format(e.aval):"—")+'</td>'+
+      '<td class="sep v-money num">'+BRL.format(e.tot.v)+'</td><td class="v-sub num">'+INT.format(e.tot.q)+
+      '</td><td class="v-sub num">'+INT.format(e.pac)+'</td>'+
+      '<td class="sep v-sub num">'+(e.aval?INT.format(e.aval)+(parcial?"*":""):"—")+'</td>'+
       '<td class="num" style="color:'+(cv2==null?"var(--dim)":cv2>=25?"var(--pos)":"var(--tec)")+'">'+
       (cv2==null?"—":fpct(cv2))+'</td></tr>');
   }
-  $("extSub").textContent=comAval?("conversão disponível em "+comAval+" mês(es) com dados em Marcações"):
+  $("extSub").textContent=comAval?("* mês com registro parcial em Marcações — conversão omitida"):
     "sem dados de avaliação na aba Marcações";
 
   const av=[];
