@@ -294,6 +294,8 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
   <div class="f"><label>Serviços contados como Transplante</label><input id="cMapTC" value="TC,TB,TS,BH">
     <div class="h">Códigos da coluna "Serviço", separados por vírgula.</div></div>
   <div class="f"><label>Serviços contados como Terapia</label><input id="cMapTE" value="TEC"></div>
+  <div class="f"><label>Etapas contadas como venda</label><input id="cEtapas" value="FECHAMENTO,REVISAO DE PENDENCIAS">
+    <div class="h">Valores da coluna "Etapa", separados por vírgula. Acentos são ignorados.</div></div>
   <div class="f"><label>Rótulos a excluir do ranking</label><input id="cIgnorar" value="Sem deal comercial,—,JARVYS">
     <div class="h">Valores da coluna Responsável/Vendedor comercial que não são vendedores.</div></div>
 
@@ -333,7 +335,7 @@ const store={
   del(k){ try{localStorage.removeItem(k);}catch(e){delete mem[k];} }
 };
 const DEF={tenant:"89aed341-1dc6-4d0d-b5c7-e8df4293d21d",client:"",file:"",autoEntrar:true,ghRepo:"",ghWf:"sync.yml",ghToken:"",shVendas:"Vendas",shMarc:"Marcações",shMetas:"Metas",
-  refresh:10,splitTC:90,splitTE:10,mapTC:"TC,TB,TS,BH",mapTE:"TEC",ignorar:"Sem deal comercial,—,JARVYS",onlyPrimeira:true,ignoraZero:true,coorte:"fechamento"};
+  refresh:10,splitTC:90,splitTE:10,mapTC:"TC,TB,TS,BH",mapTE:"TEC",ignorar:"Sem deal comercial,—,JARVYS",etapasVenda:"FECHAMENTO,REVISAO DE PENDENCIAS",onlyPrimeira:true,ignoraZero:true,coorte:"fechamento"};
 let CFG=Object.assign({},DEF,JSON.parse(store.get("rjv.cfg")||"{}"));
 const REDIRECT=location.origin+location.pathname;
 function b64uEnc(str){const b=new TextEncoder().encode(str);let x="";for(const c of b)x+=String.fromCharCode(c);
@@ -400,6 +402,11 @@ let RAW=null;              // {Vendas:{headers,rows}, Marcações:{...}, Metas:{
 function colmap(headers){ const m={}; headers.forEach((h,i)=>{ if(h!=null&&h!=="") m[norm(h)]=i; }); return m; }
 function pick(m,...names){ for(const n of names){ const k=norm(n); if(k in m)return m[k]; } return -1; }
 
+function ehVenda(etapa){
+  const e=norm(etapa); if(!e)return true;
+  return CFG.etapasVenda.split(",").map(norm).filter(Boolean).some(t=>e.includes(t));
+}
+
 function grupoServico(cod){
   const c=norm(cod);
   if(CFG.mapTC.split(",").map(norm).filter(Boolean).includes(c))return "tc";
@@ -424,7 +431,7 @@ function computar(){
   function add(o,val,contaTicket){o.v+=val;o.q++;if(contaTicket){o.vTicket+=val;o.qTicket++;}}
 
   for(const r of V.rows){
-    if(iEt>=0){const e=norm(r[iEt]); if(e&&e!=="FECHAMENTO")continue;}
+    if(!ehVenda(iEt>=0?r[iEt]:null))continue;
     const d=toDate(r[iDt]); if(!d||d<p.a||d>p.b)continue;
     const val=toNum(r[iVal]);
     const contaTicket=!(CFG.ignoraZero&&val===0); if(!contaTicket)zero.n++;
@@ -485,7 +492,7 @@ function computar(){
   const ex=new Map();
   const em=k=>{ if(!ex.has(k))ex.set(k,{per:{v:0,q:0},tot:{v:0,q:0},aval:0}); return ex.get(k); };
   if(iK>=0)for(const r of V.rows){
-    if(iEt>=0){const e=norm(r[iEt]); if(e&&e!=="FECHAMENTO")continue;}
+    if(!ehVenda(iEt>=0?r[iEt]:null))continue;
     const dk=toDate(r[iK]); if(!dk)continue;
     const o=em(ymUTC(dk)), val=toNum(r[iVal]);
     o.tot.v+=val; o.tot.q++;
@@ -744,7 +751,7 @@ function setStatus(k,t){$("dot").className="dot "+k;$("statusTxt").textContent=t
 
 /* ============================ config UI ============================ */
 const F={cTenant:"tenant",cClient:"client",cFile:"file",cShVendas:"shVendas",cShMarc:"shMarc",cShMetas:"shMetas",
-  cRefresh:"refresh",cSplitTC:"splitTC",cSplitTE:"splitTE",cMapTC:"mapTC",cMapTE:"mapTE",cIgnorar:"ignorar",
+  cRefresh:"refresh",cSplitTC:"splitTC",cSplitTE:"splitTE",cMapTC:"mapTC",cMapTE:"mapTE",cIgnorar:"ignorar",cEtapas:"etapasVenda",
   cOnlyPrimeira:"onlyPrimeira",cIgnoraZero:"ignoraZero",cCoorte:"coorte",cAutoEntrar:"autoEntrar",cGhRepo:"ghRepo",cGhWf:"ghWf",cGhToken:"ghToken"};
 function cfgToUI(){for(const id in F){const el=$(id);if(el.type==="checkbox")el.checked=!!CFG[F[id]];else el.value=CFG[F[id]];}
   $("cRedirect").textContent=REDIRECT;}
