@@ -300,6 +300,7 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
   <hr>
   <label class="chk"><input type="checkbox" id="cOnlyPrimeira" checked><span>Contar apenas "Primeira Avaliação" (excluir reavaliações)</span></label>
   <label class="chk"><input type="checkbox" id="cIgnoraZero" checked><span>Excluir negócios com valor zero do ticket médio</span></label>
+  <label class="chk"><input type="checkbox" id="cOrfas"><span>Contar venda sem avaliação registrada como avaliação implícita — <b>enviesa para cima</b>, só enxergamos órfãos que compraram</span></label>
   <div class="f"><label>Coorte da conversão</label>
     <select id="cCoorte">
       <option value="fechamento">Fechamento no período (numerador pela data do fechamento)</option>
@@ -333,7 +334,7 @@ const store={
   del(k){ try{localStorage.removeItem(k);}catch(e){delete mem[k];} }
 };
 const DEF={tenant:"89aed341-1dc6-4d0d-b5c7-e8df4293d21d",client:"",file:"",autoEntrar:true,ghRepo:"",ghWf:"sync.yml",ghToken:"",shVendas:"Vendas",shMarc:"Marcações",shMetas:"Metas",
-  refresh:10,splitTC:90,splitTE:10,mapTC:"TC,TB,TS,BH",mapTE:"TEC",ignorar:"Sem deal comercial,—,JARVYS",etapasVenda:"FECHAMENTO,REVISAO DE PENDENCIAS",onlyPrimeira:true,ignoraZero:true,coorte:"fechamento"};
+  refresh:10,splitTC:90,splitTE:10,mapTC:"TC,TB,TS,BH",mapTE:"TEC",ignorar:"Sem deal comercial,—,JARVYS",incluirOrfas:false,etapasVenda:"FECHAMENTO,REVISAO DE PENDENCIAS",onlyPrimeira:true,ignoraZero:true,coorte:"fechamento"};
 let CFG=Object.assign({},DEF,JSON.parse(store.get("rjv.cfg")||"{}"));
 const REDIRECT=location.origin+location.pathname;
 function b64uEnc(str){const b=new TextEncoder().encode(str);let x="";for(const c of b)x+=String.fromCharCode(c);
@@ -400,6 +401,12 @@ let RAW=null;              // {Vendas:{headers,rows}, Marcações:{...}, Metas:{
 function colmap(headers){ const m={}; headers.forEach((h,i)=>{ if(h!=null&&h!=="") m[norm(h)]=i; }); return m; }
 function pick(m,...names){ for(const n of names){ const k=norm(n); if(k in m)return m[k]; } return -1; }
 
+function pacKey(v){
+  let n=norm(v);
+  n=n.split(/\s*[—–-]\s*AVALIA/)[0];
+  return n.replace(/\s*\(.*?\)\s*$/,"").trim();
+}
+
 function ehVenda(etapa){
   const e=norm(etapa); if(!e)return true;
   return CFG.etapasVenda.split(",").map(norm).filter(Boolean).some(t=>e.includes(t));
@@ -465,35 +472,65 @@ function computar(){
   const iK=pick(cv,"MM/AAAA da Avaliação","MM/AAAA da Avaliacao","MM/AAAA Avaliação");
   const iNome=pick(cv,"Nome");
 
+  /* ---- compradores da coorte: paciente -> mês da avaliação ---- */
+  const compradores=new Map(), compPeriodo=new Set(), casados=new Set(); let negConv=0;
+  if(iK>=0)for(const r of V.rows){
+    if(!ehVenda(iEt>=0?r[iEt]:null))continue;
+    const dk=toDate(r[iK]); if(!dk)continue;
+    const k=pacKey(r[iNome>=0?iNome:0])+"|"+ymUTC(dk);
+    if(!compradores.has(k))compradores.set(k,{v:0,pac:pacKey(r[iNome>=0?iNome:0]),ym:ymUTC(dk),
+      resp:norm(iResp>=0?r[iResp]:""),nome:titled(iResp>=0?r[iResp]:"")});
+    compradores.get(k).v+=toNum(r[iVal]);
+    if(dk>=p.a&&dk<=p.b){negConv++;compPeriodo.add(k);}
+  }
+
   /* ---- marcações / avaliações ---- */
   const cm=colmap(M.headers);
   const iDc=pick(cm,"Data consulta"), iTipo=pick(cm,"Tipo"), iSt=pick(cm,"Status atual"),
-        iVc=pick(cm,"Vendedor comercial","Responsável"), iEc=pick(cm,"Etapa comercial"), iDf=pick(cm,"Data do fechamento");
-  const ev={tot:0,conv:0,and:0,perd:0,convMarc:0,negConv:0};
+        iVc=pick(cm,"Vendedor comercial","Responsável"), iEc=pick(cm,"Etapa comercial"),
+        iDf=pick(cm,"Data do fechamento"), iPac=pick(cm,"Paciente");
+  const ev={tot:0,conv:0,and:0,perd:0,convMarc:0,negConv:0,orfaos:0};
+  let convTot=0; const convMes=new Map(), avalMes=new Map(), temAval=new Set();
   for(const r of M.rows){
-    const d=toDate(r[iDc]); if(!d||d<p.a||d>p.b)continue;
+    const d=toDate(r[iDc]); if(!d)continue;
     if(norm(r[iSt])!=="ATENDIDO")continue;
     if(CFG.onlyPrimeira&&iTipo>=0&&!norm(r[iTipo]).startsWith("PRIMEIRA AVALIACAO"))continue;
+    const ym=ymUTC(d);
+    const pkey=pacKey(r[iPac>=0?iPac:0]);
+    temAval.add(pkey);
+    const ck=pkey+"|"+ym;
+    const comprou=compradores.has(ck);
+    if(comprou){casados.add(ck);convMes.set(ym,(convMes.get(ym)||0)+1);}
+    if(d<p.a||d>p.b)continue;
     ev.tot++;
     const et=norm(r[iEc]);
-    const df=iDf>=0?toDate(r[iDf]):null;
     const fechou=et==="FECHAMENTO";
-    const contaFech=CFG.coorte==="avaliacao" ? fechou : (fechou&&(!df||(df>=p.a&&df<=p.b)));
     if(fechou)ev.convMarc++; else if(et.includes("PERDID"))ev.perd++;
     const key=norm(r[iVc])||"—";
     if(!vend.has(key))vend.set(key,{tc:novo(),te:novo(),outro:novo(),tot:novo(),fech:0,aval:0});
-    const s=vend.get(key); s.aval++; if(contaFech)s.fech++;
+    const s=vend.get(key); s.aval++;
+    if(comprou){ s.fech++; convTot++; }
     if(!nomes.has(key))nomes.set(key,titled(r[iVc])||"—");
   }
   // numerador vem da aba Vendas: venda cuja avaliacao caiu no periodo
-  const pacConv=new Set();
-  if(iK>=0)for(const r of V.rows){
-    if(!ehVenda(iEt>=0?r[iEt]:null))continue;
-    const dk=toDate(r[iK]); if(!dk||dk<p.a||dk>p.b)continue;
-    ev.negConv++; pacConv.add(norm(r[iNome>=0?iNome:0])+"|"+ymUTC(dk));
+  const orfas=[...compradores.entries()].filter(([k,o])=>!casados.has(k)&&!temAval.has(o.pac));
+  if(CFG.incluirOrfas){
+    for(const [k,o] of orfas){
+      convMes.set(o.ym,(convMes.get(o.ym)||0)+1);
+      avalMes.set(o.ym,(avalMes.get(o.ym)||0)+1);
+      if(!compPeriodo.has(k))continue;
+      ev.tot++; convTot++;
+      const key=o.resp||"—";
+      if(!vend.has(key))vend.set(key,{tc:novo(),te:novo(),outro:novo(),tot:novo(),fech:0,aval:0});
+      const sv=vend.get(key); sv.aval++; sv.fech++;
+      if(!nomes.has(key))nomes.set(key,o.nome||"—");
+    }
   }
-  ev.conv=pacConv.size;
+  ev.orfasAbsorvidas=CFG.incluirOrfas?orfas.filter(([k])=>compPeriodo.has(k)).length:0;
+  ev.conv=convTot;
   ev.and=Math.max(0,ev.tot-ev.conv-ev.perd);
+  ev.orfaos=[...compPeriodo].filter(k=>!casados.has(k)).length-ev.orfasAbsorvidas;
+  ev.negConv=negConv;
   out.ev=ev;
 
   const ign=new Set(CFG.ignorar.split(",").map(norm).filter(Boolean));
@@ -504,7 +541,7 @@ function computar(){
     if(!ehVenda(iEt>=0?r[iEt]:null))continue;
     const dk=toDate(r[iK]); if(!dk)continue;
     const o=em(ymUTC(dk)), val=toNum(r[iVal]);
-    o.tot.v+=val; o.tot.q++; o.pac.add(norm(r[iNome>=0?iNome:0]));
+    o.tot.v+=val; o.tot.q++; o.pac.add(pacKey(r[iNome>=0?iNome:0]));
     const df=toDate(r[iDt]);
     if(df&&df>=p.a&&df<=p.b){o.per.v+=val;o.per.q++;}
   }
@@ -515,7 +552,8 @@ function computar(){
     em(ymUTC(d)).aval++;
   }
   out.extrato=[...ex.entries()].filter(([,o])=>o.tot.q||o.aval||o.per.q)
-    .sort((a,b)=>b[0].localeCompare(a[0])).slice(0,18).map(([mes,o])=>({mes,...o,pac:o.pac.size}));
+    .sort((a,b)=>b[0].localeCompare(a[0])).slice(0,18).map(([mes,o])=>({mes,...o,pac:o.pac.size,conv:convMes.get(mes)||0,
+    aval:o.aval+(CFG.incluirOrfas?(avalMes.get(mes)||0):0)}));
 
   out.rank=[...vend.entries()].map(([k,s])=>({key:k,nome:nomes.get(k)||k,...s}))
     .filter(x=>(x.tot.q>0||x.aval>0)&&!ign.has(x.key))
@@ -569,7 +607,7 @@ function render(){
   $("evTotS").textContent=(CFG.onlyPrimeira?"primeiras avaliações":"avaliações")+" com status Atendido";
   $("evConv").textContent=INT.format(ev.conv);
   $("evConvS").innerHTML=fpct(pct(ev.conv,ev.tot))+" de conversão · "+
-    '<span style="color:var(--dim)">'+ev.negConv+" negócio(s)</span>";
+    '<span style="color:var(--dim)">'+ev.negConv+" negócio(s) fechado(s)</span>";
   $("evAnd").textContent=INT.format(ev.and);
   $("evAndS").textContent=fpct(pct(ev.and,ev.tot))+" sem venda até agora";
   $("evPerd").textContent=INT.format(ev.perd);
@@ -600,25 +638,27 @@ function render(){
   let comAval=0;
   for(const e of D.extrato){
     const parcial=e.aval>0&&e.tot.q>0&&e.aval<e.tot.q*0.5;
-    const cv2=(e.aval&&!parcial)?pct(e.pac,e.aval):null;
+    const cv2=(e.aval&&!parcial)?pct(e.conv,e.aval):null;
     if(e.aval)comAval++;
     const [ano,mes]=e.mes.split("-");
     const nm=new Date(Date.UTC(+ano,+mes-1,1)).toLocaleDateString("pt-BR",{month:"short",year:"numeric",timeZone:"UTC"});
     eb.insertAdjacentHTML("beforeend",
       '<tr><td class="l name">'+esc(nm)+'</td>'+
       '<td class="sep v-money num">'+(e.per.v?BRL.format(e.per.v):"—")+'</td><td class="v-sub num">'+(e.per.q||"—")+'</td>'+
-      '<td class="sep v-money num">'+INT.format(e.pac)+'</td>'+
+      '<td class="sep v-money num">'+INT.format(e.aval?e.conv:e.pac)+'</td>'+
       '<td class="v-sub num">'+(e.aval?INT.format(e.aval)+(parcial?"*":""):"—")+'</td>'+
       '<td class="num" style="color:'+(cv2==null?"var(--dim)":cv2>=25?"var(--pos)":"var(--tec)")+'">'+
       (cv2==null?"—":fpct(cv2))+'</td></tr>');
   }
-  $("extSub").textContent="receita do período selecionado · pacientes e conversão sobre a coorte inteira"+
+  $("extSub").textContent="receita do período · conversão casada paciente a paciente com a avaliação"+
     (D.extrato.some(x=>x.aval>0&&x.tot.q>0&&x.aval<x.tot.q*0.5)?" · * registro parcial em Marcações":"");
 
   const av=[];
   if(A.outro.q)av.push("R$ "+INT.format(Math.round(A.outro.v))+" em "+A.outro.q+" negócio(s) de serviços fora do mapeamento entram só na barra principal.");
   if(m.estimada)av.push("Meta por linha estimada pelo rateio "+CFG.splitTC+"/"+CFG.splitTE+"; a aba Metas não traz a divisão.");
   if(D.zero)av.push(D.zero+" negócio(s) com valor zero excluídos do ticket médio.");
+  if(D.ev.orfasAbsorvidas)av.push(D.ev.orfasAbsorvidas+" venda(s) sem avaliação registrada em Marcações contadas como avaliação implícita, atribuídas ao responsável pela venda.");
+  if(D.ev.orfaos)av.push(D.ev.orfaos+" venda(s) com mês de avaliação divergente da avaliação registrada — fora da conversão deste mês.");
   if(ev.tot&&A.tot.q&&D.rank.some(r=>r.tot.q&&!r.aval))av.push("Há vendedores com venda no período e nenhuma avaliação atribuída — venda originada de avaliação fora do período.");
   $("banner").innerHTML=av.length?'<div class="msg warn">'+av.map(esc).join("<br>")+"</div>":"";
 }
@@ -762,7 +802,7 @@ function setStatus(k,t){$("dot").className="dot "+k;$("statusTxt").textContent=t
 
 /* ============================ config UI ============================ */
 const F={cTenant:"tenant",cClient:"client",cFile:"file",cShVendas:"shVendas",cShMarc:"shMarc",cShMetas:"shMetas",
-  cRefresh:"refresh",cSplitTC:"splitTC",cSplitTE:"splitTE",cMapTC:"mapTC",cMapTE:"mapTE",cIgnorar:"ignorar",cEtapas:"etapasVenda",
+  cRefresh:"refresh",cSplitTC:"splitTC",cSplitTE:"splitTE",cMapTC:"mapTC",cMapTE:"mapTE",cIgnorar:"ignorar",cOrfas:"incluirOrfas",cEtapas:"etapasVenda",
   cOnlyPrimeira:"onlyPrimeira",cIgnoraZero:"ignoraZero",cCoorte:"coorte",cAutoEntrar:"autoEntrar",cGhRepo:"ghRepo",cGhWf:"ghWf",cGhToken:"ghToken"};
 function cfgToUI(){for(const id in F){const el=$(id);if(el.type==="checkbox")el.checked=!!CFG[F[id]];else el.value=CFG[F[id]];}
   $("cRedirect").textContent=REDIRECT;}
