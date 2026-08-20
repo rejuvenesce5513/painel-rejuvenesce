@@ -292,7 +292,7 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
   <div class="f"><label>Serviços contados como Transplante</label><input id="cMapTC" value="TC,TB,TS,BH">
     <div class="h">Códigos da coluna "Serviço", separados por vírgula.</div></div>
   <div class="f"><label>Serviços contados como Terapia</label><input id="cMapTE" value="TEC"></div>
-  <div class="f"><label>Etapas contadas como venda</label><input id="cEtapas" value="FECHAMENTO,REVISAO DE PENDENCIAS">
+  <div class="f"><label>Etapas contadas como venda</label><input id="cEtapas" value="FECHAMENTO,FINALIZADO,REVISAO DE PENDENCIAS">
     <div class="h">Valores da coluna "Etapa", separados por vírgula. Acentos são ignorados.</div></div>
   <div class="f"><label>Rótulos a excluir do ranking</label><input id="cIgnorar" value="Sem deal comercial,—,JARVYS">
     <div class="h">Valores da coluna Responsável/Vendedor comercial que não são vendedores.</div></div>
@@ -334,7 +334,7 @@ const store={
   del(k){ try{localStorage.removeItem(k);}catch(e){delete mem[k];} }
 };
 const DEF={tenant:"89aed341-1dc6-4d0d-b5c7-e8df4293d21d",client:"",file:"",autoEntrar:true,ghRepo:"",ghWf:"sync.yml",ghToken:"",shVendas:"Vendas",shMarc:"Marcações",shMetas:"Metas",
-  refresh:10,splitTC:90,splitTE:10,mapTC:"TC,TB,TS,BH",mapTE:"TEC",ignorar:"Sem deal comercial,—,JARVYS",incluirOrfas:false,etapasVenda:"FECHAMENTO,REVISAO DE PENDENCIAS",onlyPrimeira:true,ignoraZero:true,coorte:"fechamento"};
+  refresh:10,splitTC:90,splitTE:10,mapTC:"TC,TB,TS,BH",mapTE:"TEC",ignorar:"Sem deal comercial,—,JARVYS",incluirOrfas:false,etapasVenda:"FECHAMENTO,FINALIZADO,REVISAO DE PENDENCIAS",onlyPrimeira:true,ignoraZero:true,coorte:"fechamento"};
 let CFG=Object.assign({},DEF,JSON.parse(store.get("rjv.cfg")||"{}"));
 const REDIRECT=location.origin+location.pathname;
 function b64uEnc(str){const b=new TextEncoder().encode(str);let x="";for(const c of b)x+=String.fromCharCode(c);
