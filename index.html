@@ -201,6 +201,12 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
   </div>
 </section>
 
+<section class="evals" style="grid-template-columns:repeat(3,1fr)">
+  <div class="ev b"><div class="l">Cirurgias agendadas</div><div class="v disp num" id="cgAg">0</div><div class="s" id="cgAgS">—</div></div>
+  <div class="ev c"><div class="l">Cirurgias sem data</div><div class="v disp num" id="cgSem">0</div><div class="s" id="cgSemS">—</div></div>
+  <div class="ev a"><div class="l">Próxima cirurgia</div><div class="v disp num" id="cgProx" style="font-size:26px">—</div><div class="s" id="cgProxS">—</div></div>
+</section>
+
 <!-- BLOCO 2 -->
 <section class="evals">
   <div class="ev a"><div class="l">Avaliações realizadas no período</div><div class="v disp num" id="evTot">0</div><div class="s" id="evTotS">—</div></div>
@@ -263,6 +269,25 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
   </div>
 </section>
 
+<section class="rank" style="margin-top:14px">
+  <div class="rank-head">
+    <h2>Cirurgias por mês agendado</h2>
+    <span class="eyebrow" id="cirSub"></span>
+  </div>
+  <div style="overflow-x:auto">
+  <table>
+    <thead>
+      <tr>
+        <th class="l">Mês da cirurgia</th>
+        <th class="sep">Cirurgias</th><th>% do total</th><th>Valor vendido</th><th>Ticket médio</th>
+      </tr>
+    </thead>
+    <tbody id="cirBody"></tbody>
+    <tfoot id="cirFoot"></tfoot>
+  </table>
+  </div>
+</section>
+
 <!-- CONFIG -->
 <aside class="drawer" id="drawer">
   <h3>Configuração</h3>
@@ -294,6 +319,8 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
   <div class="f"><label>Serviços contados como Terapia</label><input id="cMapTE" value="TEC"></div>
   <div class="f"><label>Etapas contadas como venda</label><input id="cEtapas" value="FECHAMENTO,FINALIZADO,REVISAO DE PENDENCIAS">
     <div class="h">Valores da coluna "Etapa", separados por vírgula. Acentos são ignorados.</div></div>
+  <div class="f"><label>Valor de "Data Cirurgia foi marcada?" que significa agendada</label><input id="cAgendada" value="Data Agendada">
+    <div class="h">O campo manda: data preenchida com status diferente disso conta como sem agendamento.</div></div>
   <div class="f"><label>Rótulos a excluir do ranking</label><input id="cIgnorar" value="Sem deal comercial,—,JARVYS">
     <div class="h">Valores da coluna Responsável/Vendedor comercial que não são vendedores.</div></div>
 
@@ -334,7 +361,7 @@ const store={
   del(k){ try{localStorage.removeItem(k);}catch(e){delete mem[k];} }
 };
 const DEF={tenant:"89aed341-1dc6-4d0d-b5c7-e8df4293d21d",client:"",file:"",autoEntrar:true,ghRepo:"",ghWf:"sync.yml",ghToken:"",shVendas:"Vendas",shMarc:"Marcações",shMetas:"Metas",
-  refresh:10,splitTC:90,splitTE:10,mapTC:"TC,TB,TS,BH",mapTE:"TEC",ignorar:"Sem deal comercial,—,JARVYS",incluirOrfas:false,etapasVenda:"FECHAMENTO,FINALIZADO,REVISAO DE PENDENCIAS",onlyPrimeira:true,ignoraZero:true,coorte:"fechamento"};
+  refresh:10,splitTC:90,splitTE:10,mapTC:"TC,TB,TS,BH",mapTE:"TEC",ignorar:"Sem deal comercial,—,JARVYS",marcaAgendada:"Data Agendada",incluirOrfas:false,etapasVenda:"FECHAMENTO,FINALIZADO,REVISAO DE PENDENCIAS",onlyPrimeira:true,ignoraZero:true,coorte:"fechamento"};
 let CFG=Object.assign({},DEF,JSON.parse(store.get("rjv.cfg")||"{}"));
 const REDIRECT=location.origin+location.pathname;
 function b64uEnc(str){const b=new TextEncoder().encode(str);let x="";for(const c of b)x+=String.fromCharCode(c);
@@ -534,6 +561,31 @@ function computar(){
   out.ev=ev;
 
   const ign=new Set(CFG.ignorar.split(",").map(norm).filter(Boolean));
+  /* ---- cirurgias: só transplante, vendas fechadas no período ---- */
+  const iCir=pick(cv,"Data Prevista de Cirurgia"), iMarc=pick(cv,"Data Cirurgia foi marcada?","Data da Cirurgia foi marcada?");
+  const alvoAg=norm(CFG.marcaAgendada);
+  const cir={ag:0,sem:0,vAg:0,vSem:0,divergentes:0,prox:null,meses:new Map()};
+  for(const r of V.rows){
+    if(!ehVenda(iEt>=0?r[iEt]:null))continue;
+    if(grupoServico(iSrv>=0?r[iSrv]:"")!=="tc")continue;
+    const df=toDate(r[iDt]); if(!df||df<p.a||df>p.b)continue;
+    const val=toNum(r[iVal]);
+    const dc=iCir>=0?toDate(r[iCir]):null;
+    const agendada=iMarc>=0 ? norm(r[iMarc])===alvoAg : !!dc;
+    if(dc&&!agendada)cir.divergentes++;
+    if(agendada&&dc){
+      cir.ag++; cir.vAg+=val;
+      const k=ymUTC(dc);
+      if(!cir.meses.has(k))cir.meses.set(k,{q:0,v:0});
+      const o=cir.meses.get(k); o.q++; o.v+=val;
+      if(dc>=new Date(Date.UTC(new Date().getUTCFullYear(),new Date().getUTCMonth(),new Date().getUTCDate()))
+         &&(!cir.prox||dc<cir.prox))cir.prox=dc;
+    }else{
+      cir.sem++; cir.vSem+=val;
+    }
+  }
+  out.cir=cir;
+
   /* ---- extrato por mes de avaliacao ---- */
   const ex=new Map();
   const em=k=>{ if(!ex.has(k))ex.set(k,{per:{v:0,q:0},tot:{v:0,q:0},aval:0,pac:new Set()}); return ex.get(k); };
@@ -634,6 +686,36 @@ function render(){
     '<td class="sep num">'+T.fech+"/"+T.aval+" · "+(T.aval?fpct(pct(T.fech,T.aval)):"—")+"</td></tr>";
   $("rankSub").textContent="ordenado por total em R$ · conversão por "+(CFG.coorte==="fechamento"?"data de fechamento":"coorte de avaliação");
 
+  const C=D.cir, cgTot=C.ag+C.sem;
+  $("cgAg").textContent=INT.format(C.ag);
+  $("cgAgS").textContent=cgTot?fpct(pct(C.ag,cgTot))+" · "+BRL.format(C.vAg):"—";
+  $("cgSem").textContent=INT.format(C.sem);
+  $("cgSemS").textContent=cgTot?fpct(pct(C.sem,cgTot))+" · "+BRL.format(C.vSem):"—";
+  $("cgProx").textContent=C.prox?C.prox.toLocaleDateString("pt-BR",{day:"2-digit",month:"short",timeZone:"UTC"}):"—";
+  $("cgProxS").textContent=C.prox?"transplantes vendidos no período":"nenhuma agendada à frente";
+
+  const cb=$("cirBody"); cb.innerHTML="";
+  const linhasCir=[...C.meses.entries()].sort((a,b)=>a[0].localeCompare(b[0]));
+  const celCir=(rot,q,v,destaque)=>{
+    const tm=q?v/q:0;
+    return '<tr'+(destaque?' style="background:#1F1A12"':'')+'><td class="l name">'+esc(rot)+'</td>'+
+      '<td class="sep v-money num">'+INT.format(q)+'</td>'+
+      '<td class="v-sub num">'+(cgTot?fpct(pct(q,cgTot)):"—")+'</td>'+
+      '<td class="v-money num">'+BRL.format(v)+'</td>'+
+      '<td class="v-sub num">'+(q?BRL.format(tm):"—")+'</td></tr>';
+  };
+  if(C.sem)cb.insertAdjacentHTML("beforeend",celCir("Sem data agendada",C.sem,C.vSem,true));
+  for(const [mes,o] of linhasCir){
+    const [ano,m2]=mes.split("-");
+    const nm=new Date(Date.UTC(+ano,+m2-1,1)).toLocaleDateString("pt-BR",{month:"long",year:"numeric",timeZone:"UTC"});
+    cb.insertAdjacentHTML("beforeend",celCir(nm,o.q,o.v,false));
+  }
+  if(!cgTot)cb.innerHTML='<tr><td class="l" colspan="5" style="color:var(--dim)">nenhum transplante vendido no período</td></tr>';
+  $("cirFoot").innerHTML=cgTot?'<tr><td class="l">Total</td><td class="sep num">'+INT.format(cgTot)+
+    '</td><td class="num">100%</td><td class="num">'+BRL.format(C.vAg+C.vSem)+
+    '</td><td class="num">'+BRL.format((C.vAg+C.vSem)/cgTot)+'</td></tr>':"";
+  $("cirSub").textContent="somente transplante · vendas fechadas no período · status do CRM prevalece sobre a data";
+
   const eb=$("extBody"); eb.innerHTML="";
   let comAval=0;
   for(const e of D.extrato){
@@ -657,6 +739,7 @@ function render(){
   if(A.outro.q)av.push("R$ "+INT.format(Math.round(A.outro.v))+" em "+A.outro.q+" negócio(s) de serviços fora do mapeamento entram só na barra principal.");
   if(m.estimada)av.push("Meta por linha estimada pelo rateio "+CFG.splitTC+"/"+CFG.splitTE+"; a aba Metas não traz a divisão.");
   if(D.zero)av.push(D.zero+" negócio(s) com valor zero excluídos do ticket médio.");
+  if(D.cir.divergentes)av.push(D.cir.divergentes+" transplante(s) com data de cirurgia preenchida mas status \"Sem Data\" no CRM — contados como sem agendamento. Corrigir o campo no RD.");
   if(D.ev.orfasAbsorvidas)av.push(D.ev.orfasAbsorvidas+" venda(s) sem avaliação registrada em Marcações contadas como avaliação implícita, atribuídas ao responsável pela venda.");
   if(D.ev.orfaos)av.push(D.ev.orfaos+" venda(s) com mês de avaliação divergente da avaliação registrada — fora da conversão deste mês.");
   if(ev.tot&&A.tot.q&&D.rank.some(r=>r.tot.q&&!r.aval))av.push("Há vendedores com venda no período e nenhuma avaliação atribuída — venda originada de avaliação fora do período.");
@@ -802,7 +885,7 @@ function setStatus(k,t){$("dot").className="dot "+k;$("statusTxt").textContent=t
 
 /* ============================ config UI ============================ */
 const F={cTenant:"tenant",cClient:"client",cFile:"file",cShVendas:"shVendas",cShMarc:"shMarc",cShMetas:"shMetas",
-  cRefresh:"refresh",cSplitTC:"splitTC",cSplitTE:"splitTE",cMapTC:"mapTC",cMapTE:"mapTE",cIgnorar:"ignorar",cOrfas:"incluirOrfas",cEtapas:"etapasVenda",
+  cRefresh:"refresh",cSplitTC:"splitTC",cSplitTE:"splitTE",cMapTC:"mapTC",cMapTE:"mapTE",cIgnorar:"ignorar",cAgendada:"marcaAgendada",cOrfas:"incluirOrfas",cEtapas:"etapasVenda",
   cOnlyPrimeira:"onlyPrimeira",cIgnoraZero:"ignoraZero",cCoorte:"coorte",cAutoEntrar:"autoEntrar",cGhRepo:"ghRepo",cGhWf:"ghWf",cGhToken:"ghToken"};
 function cfgToUI(){for(const id in F){const el=$(id);if(el.type==="checkbox")el.checked=!!CFG[F[id]];else el.value=CFG[F[id]];}
   $("cRedirect").textContent=REDIRECT;}
