@@ -1,810 +1,841 @@
-"""
-RD Station CRM -> SharePoint (aba Vendas / Tabela4)
-Clinica Rejuvenesce
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Painel Comercial — Clínica Rejuvenesce</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;800&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#10161B; --panel:#16202A; --panel2:#1B2733; --line:#263543;
+  --txt:#E9F0F4; --muted:#8DA3B2; --dim:#5E7383;
+  --tc:#35C0CE; --tec:#E5A13C; --pos:#4FD79F; --neg:#E56A5D; --pace:#F2F6F8;
+  --r:4px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--ink);color:var(--txt);font-family:"IBM Plex Sans",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+body{padding:18px 22px 40px;min-height:100vh}
+.num{font-family:"IBM Plex Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1}
+.disp{font-family:"Archivo",system-ui,sans-serif;font-weight:800;letter-spacing:-.02em}
+.eyebrow{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);font-weight:600}
 
-Grava apenas negocios FECHADOS com data de fechamento >= CUTOFF.
-Uma linha por produto do negocio. Nao toca em nada anterior ao CUTOFF.
-Colunas L:O sao formulas da planilha e sao replicadas em R1C1 (nunca sobrescritas por valor).
-"""
+/* ---------- header ---------- */
+header{display:flex;align-items:flex-end;gap:20px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:14px;margin-bottom:20px}
+.brand{display:flex;flex-direction:column;gap:3px;margin-right:auto}
+.brand h1{font-family:"Archivo";font-weight:800;font-size:23px;letter-spacing:-.02em;line-height:1}
+.brand span{font-size:12px;color:var(--muted)}
+.ctl{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+select,input,button{background:var(--panel);color:var(--txt);border:1px solid var(--line);border-radius:var(--r);
+  font-family:inherit;font-size:13px;padding:7px 10px;outline:none}
+select:focus-visible,input:focus-visible,button:focus-visible{outline:2px solid var(--tc);outline-offset:1px}
+button{cursor:pointer;transition:border-color .15s,background .15s}
+button:hover{border-color:var(--tc)}
+button.primary{background:var(--tc);color:#06232A;border-color:var(--tc);font-weight:600}
+.status{font-size:11.5px;color:var(--muted);display:flex;align-items:center;gap:7px;white-space:nowrap}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--dim);flex:none}
+.dot.ok{background:var(--pos)} .dot.err{background:var(--neg)} .dot.warn{background:var(--tec)}
+@keyframes pulse{50%{opacity:.25}}
+.dot.load{background:var(--tc);animation:pulse 1s infinite}
 
-import os, sys, time, logging, datetime as dt
-import re
-import unicodedata
-import requests, msal
+/* ---------- goal ---------- */
+.goal{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:20px 22px 18px;margin-bottom:14px}
+.goal-top{display:flex;align-items:baseline;gap:16px;flex-wrap:wrap;margin-bottom:16px}
+.goal-val{font-size:clamp(34px,4.6vw,58px);line-height:.95}
+.goal-of{font-size:15px;color:var(--muted)}
+.goal-pct{margin-left:auto;font-size:clamp(30px,3.6vw,46px);line-height:.95;color:var(--tc)}
 
-# ─── configuracao (tudo via Secrets do GitHub) ────────────────────────────────
-_REQ = ["RD_TOKEN", "AZURE_TENANT_ID", "AZURE_CLIENT_ID", "AZURE_CLIENT_SECRET", "SHAREPOINT_DRIVE_ID"]
-_falta = [k for k in _REQ if not os.environ.get(k, "").strip()]
-if _falta:
-    print("ERRO: secrets ausentes ou vazios -> " + ", ".join(_falta))
-    print("Cadastre em Settings > Secrets and variables > Actions (nome exato, maiusculas).")
-    raise SystemExit(1)
+.track{position:relative;height:38px;background:var(--panel2);border:1px solid var(--line);border-radius:2px;overflow:visible}
+.fill{position:absolute;inset:0 auto 0 0;background:linear-gradient(90deg,#1E7F8B,var(--tc));border-right:1px solid #7FE4EE;transition:width .8s cubic-bezier(.22,1,.36,1);max-width:100%}
+.ticks{position:absolute;inset:0;pointer-events:none}
+.tick{position:absolute;top:0;bottom:0;width:1px;background:#33475699}
+.tick b{position:absolute;top:calc(100% + 5px);left:50%;transform:translateX(-50%);font-size:10px;color:var(--dim);font-weight:500;white-space:nowrap}
+/* signature: pace blade */
+.pace{position:absolute;top:-9px;bottom:-9px;width:2px;background:var(--pace);z-index:3;transition:left .8s cubic-bezier(.22,1,.36,1)}
+.pace::before{content:"";position:absolute;top:-1px;left:-4px;border-left:5px solid transparent;border-right:5px solid transparent;border-top:7px solid var(--pace)}
+.pace-lbl{position:absolute;bottom:calc(100% + 12px);transform:translateX(-50%);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--pace);white-space:nowrap;font-weight:600;z-index:3;transition:left .8s cubic-bezier(.22,1,.36,1)}
+.goal-foot{display:flex;gap:26px;flex-wrap:wrap;margin-top:26px;font-size:13px;align-items:baseline}
+.goal-foot .k{color:var(--muted);margin-right:6px}
 
-RD_TOKEN      = os.environ["RD_TOKEN"].strip()
-TENANT_ID     = os.environ["AZURE_TENANT_ID"].strip()
-CLIENT_ID     = os.environ["AZURE_CLIENT_ID"].strip()
-CLIENT_SECRET = os.environ["AZURE_CLIENT_SECRET"].strip()
-DRIVE_ID      = os.environ["SHAREPOINT_DRIVE_ID"].strip()
-FILE_ID       = os.environ.get("SHAREPOINT_FILE_ID", "").strip()
-FILE_PATH     = os.environ.get("SHAREPOINT_FILE_PATH", "/VENDAS_E_CAMPANHA.xlsx").strip()
+/* ---------- aux bars ---------- */
+.aux{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px}
+.card.tc{border-left:3px solid var(--tc)} .card.tec{border-left:3px solid var(--tec)}
+.card-head{display:flex;align-items:baseline;gap:10px;margin-bottom:12px}
+.card-head h2{font-family:"Archivo";font-weight:600;font-size:14px;letter-spacing:.04em;text-transform:uppercase}
+.card-pct{margin-left:auto;font-size:26px;line-height:1}
+.tc .card-pct{color:var(--tc)} .tec .card-pct{color:var(--tec)}
+.minitrack{height:9px;background:var(--panel2);border:1px solid var(--line);border-radius:2px;overflow:hidden;margin-bottom:12px;position:relative}
+.minifill{height:100%;transition:width .8s cubic-bezier(.22,1,.36,1);max-width:100%}
+.tc .minifill{background:var(--tc)} .tec .minifill{background:var(--tec)}
+.minipace{position:absolute;top:0;bottom:0;width:2px;background:var(--pace);opacity:.8}
+.stats{display:flex;gap:28px;flex-wrap:wrap}
+.stat .l{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);font-weight:600;margin-bottom:3px}
+.stat .v{font-size:20px;line-height:1.1}
+.stat .v small{font-size:12px;color:var(--muted)}
 
-SHEET   = os.environ.get("SHEET_NAME", "Vendas")
-TABLE   = os.environ.get("TABLE_NAME", "Tabela4")
-CUTOFF  = dt.date.fromisoformat(os.environ.get("CUTOFF_DATE", "2026-08-09"))
-STAGE_MATCH = os.environ.get("STAGE_MATCH", "FECHAMENTO,REVISAO DE PENDENCIAS,FINALIZADO")
-PIPES   = [p.strip() for p in os.environ.get("PIPELINE_IDS", "").split(",") if p.strip()]
-MAXPAG  = int(os.environ.get("MAX_PAGES", "250"))
-THREADS = int(os.environ.get("THREADS", "12"))
-DRYRUN  = "--dry-run" in sys.argv
-LISTAR  = "--listar" in sys.argv
-DIAG    = "--diagnostico" in sys.argv
-CAMPOS  = "--campos" in sys.argv
+/* ---------- evaluations ---------- */
+.evals{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:14px}
+.ev{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px}
+.ev .l{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);font-weight:600;margin-bottom:6px}
+.ev .v{font-size:34px;line-height:1}
+.ev .s{font-size:12px;color:var(--muted);margin-top:4px}
+.ev.a .v{color:var(--txt)} .ev.b .v{color:var(--pos)} .ev.c .v{color:var(--tec)} .ev.d .v{color:var(--neg)}
 
-RD_URL = "https://crm.rdstation.com/api/v1/deals"
-GRAPH  = "https://graph.microsoft.com/v1.0"
-WB     = None  # definido em resolver_arquivo()
+/* ---------- ranking ---------- */
+.rank{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.rank-head{display:flex;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid var(--line)}
+.rank-head h2{font-family:"Archivo";font-weight:600;font-size:14px;letter-spacing:.04em;text-transform:uppercase}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+thead th{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);font-weight:600;
+  padding:8px 10px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap;background:var(--panel2)}
+thead tr.grp th{text-align:center;padding:9px 10px 5px;border-bottom:none;color:var(--muted);letter-spacing:.14em}
+thead tr.grp th.g-tc{color:var(--tc)} thead tr.grp th.g-tec{color:var(--tec)}
+thead th.l,tbody td.l{text-align:left}
+tbody td{padding:11px 10px;text-align:right;border-bottom:1px solid #1E2A35;white-space:nowrap}
+tbody tr:hover{background:#1A2530}
+td.pos{position:relative;width:34px;color:var(--dim);font-size:12px}
+tbody tr:nth-child(-n+3) td.pos{color:var(--tc);font-weight:600}
+td.name{font-weight:500;max-width:230px;overflow:hidden;text-overflow:ellipsis}
+.sep{border-left:1px solid var(--line)}
+.v-money{font-weight:500}
+.v-sub{color:var(--muted);font-size:12.5px}
+.conv{display:inline-flex;align-items:baseline;gap:7px;justify-content:flex-end}
+.conv .p{font-weight:600;min-width:52px;text-align:right}
+.conv .f{color:var(--muted);font-size:12px}
+.bar-inline{display:block;height:3px;background:var(--panel2);margin-top:5px;position:relative}
+.bar-inline i{position:absolute;left:0;top:0;bottom:0;background:var(--tc);max-width:100%}
+tfoot td{padding:12px 10px;text-align:right;border-top:1px solid var(--line);font-weight:600;background:var(--panel2)}
 
-CF = {  # ids dos campos personalizados do RD
-    "avaliador":      os.environ.get("CF_AVALIADOR",  "691b0d0ab5e2d0001db1085d"),
-    "meio_avaliacao": os.environ.get("CF_MEIO",       "6740c07d840a380026d05b3e"),
-    "data_avaliacao": os.environ.get("CF_DATA_AVAL",  "691e0f68034fef0015ca1a3f"),
-    "mes_avaliacao":  os.environ.get("CF_MES_AVAL",   "69a5a8dc76cd5b00139e5063"),
-    "data_cirurgia":  os.environ.get("CF_DATA_CIR",   "691621537df794001c2666ae"),
-    "cirurgia_marcada": os.environ.get("CF_CIR_MARC", "6932c2a93aa1e5001318f8c7"),
+/* ---------- config ---------- */
+.drawer{position:fixed;inset:0 0 0 auto;width:min(460px,100%);background:var(--panel);border-left:1px solid var(--line);
+  padding:22px;overflow-y:auto;transform:translateX(100%);transition:transform .25s;z-index:50}
+.drawer.open{transform:none}
+.drawer h3{font-family:"Archivo";font-size:16px;margin-bottom:4px}
+.drawer p.hint{font-size:12px;color:var(--muted);line-height:1.55;margin-bottom:16px}
+.f{margin-bottom:13px}
+.f label{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);font-weight:600;margin-bottom:5px}
+.f input,.f select{width:100%}
+.f .h{font-size:11.5px;color:var(--dim);margin-top:4px;line-height:1.45}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.chk{display:flex;align-items:center;gap:9px;font-size:13px;margin-bottom:10px;cursor:pointer}
+.chk input{width:auto}
+hr{border:none;border-top:1px solid var(--line);margin:18px 0}
+.msg{padding:11px 13px;border-radius:var(--r);font-size:12.5px;line-height:1.5;margin-bottom:14px;border:1px solid}
+.msg.warn{background:#2A2114;border-color:#5C4520;color:#F0C880}
+.msg.err{background:#2B1817;border-color:#5C2B27;color:#F0A49C}
+.notes{margin-top:16px;font-size:11.5px;color:var(--dim);line-height:1.6}
+@media(max-width:1100px){.evals{grid-template-columns:repeat(2,1fr)}.aux{grid-template-columns:1fr}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <h1>Painel Comercial</h1>
+    <span id="periodLabel">—</span>
+  </div>
+  <div class="ctl">
+    <select id="periodo">
+      <option value="mes">Mês atual</option>
+      <option value="mesant">Mês anterior</option>
+      <option value="custom">Período personalizado</option>
+    </select>
+    <input type="date" id="dtIni" style="display:none">
+    <input type="date" id="dtFim" style="display:none">
+    <button id="btnRefresh">Atualizar</button>
+    <button id="btnSync" style="display:none">Sincronizar agora</button>
+    <button id="btnCfg">Configurar</button>
+    <button id="btnAuth" class="primary">Entrar</button>
+  </div>
+  <div class="status"><span class="dot" id="dot"></span><span id="statusTxt">Modo demonstração</span></div>
+</header>
+
+<div id="banner"></div>
+
+<!-- BLOCO 1 -->
+<section class="goal">
+  <div class="goal-top">
+    <div class="goal-val disp num" id="gVal">R$ 0</div>
+    <div class="goal-of">de <span class="num" id="gMeta">R$ 0</span> · <span class="num" id="gQtd">0</span> negócios</div>
+    <div class="goal-pct disp num" id="gPct">0%</div>
+  </div>
+  <div style="position:relative">
+    <div class="pace-lbl" id="paceLbl">Ritmo</div>
+    <div class="track">
+      <div class="fill" id="gFill" style="width:0%"></div>
+      <div class="ticks" id="gTicks"></div>
+      <div class="pace" id="gPace" style="left:0%"></div>
+    </div>
+  </div>
+  <div class="goal-foot">
+    <div><span class="k">Ritmo necessário</span><span class="num" id="fPace">—</span></div>
+    <div><span class="k">Desvio vs. ritmo</span><span class="num" id="fDelta">—</span></div>
+    <div><span class="k">Falta</span><span class="num" id="fFalta">—</span></div>
+    <div><span class="k">Média/dia útil restante</span><span class="num" id="fDia">—</span></div>
+  </div>
+</section>
+
+<section class="aux">
+  <div class="card tc">
+    <div class="card-head"><h2>Transplante Capilar</h2><span class="card-pct disp num" id="tcPct">0%</span></div>
+    <div class="minitrack"><div class="minifill" id="tcFill" style="width:0%"></div><div class="minipace" id="tcPace" style="left:0%"></div></div>
+    <div class="stats">
+      <div class="stat"><div class="l">Valor</div><div class="v num" id="tcVal">R$ 0</div></div>
+      <div class="stat"><div class="l">Quantidade</div><div class="v num" id="tcQtd">0</div></div>
+      <div class="stat"><div class="l">Ticket médio</div><div class="v num" id="tcTm">R$ 0</div></div>
+      <div class="stat"><div class="l">Meta</div><div class="v num" id="tcMeta">R$ 0</div></div>
+    </div>
+  </div>
+  <div class="card tec">
+    <div class="card-head"><h2>Terapia Capilar</h2><span class="card-pct disp num" id="tePct">0%</span></div>
+    <div class="minitrack"><div class="minifill" id="teFill" style="width:0%"></div><div class="minipace" id="tePace" style="left:0%"></div></div>
+    <div class="stats">
+      <div class="stat"><div class="l">Valor</div><div class="v num" id="teVal">R$ 0</div></div>
+      <div class="stat"><div class="l">Quantidade</div><div class="v num" id="teQtd">0</div></div>
+      <div class="stat"><div class="l">Ticket médio</div><div class="v num" id="teTm">R$ 0</div></div>
+      <div class="stat"><div class="l">Meta</div><div class="v num" id="teMeta">R$ 0</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- BLOCO 2 -->
+<section class="evals">
+  <div class="ev a"><div class="l">Avaliações realizadas no período</div><div class="v disp num" id="evTot">0</div><div class="s" id="evTotS">—</div></div>
+  <div class="ev b"><div class="l">Pacientes convertidos</div><div class="v disp num" id="evConv">0</div><div class="s" id="evConvS">—</div></div>
+  <div class="ev c"><div class="l">Em andamento (dessas avaliações)</div><div class="v disp num" id="evAnd">0</div><div class="s" id="evAndS">—</div></div>
+  <div class="ev d"><div class="l">Perdidas</div><div class="v disp num" id="evPerd">0</div><div class="s" id="evPerdS">—</div></div>
+</section>
+
+<!-- BLOCO 3 -->
+<section class="rank">
+  <div class="rank-head">
+    <h2>Ranking de vendedores</h2>
+    <span class="eyebrow" id="rankSub"></span>
+  </div>
+  <div style="overflow-x:auto">
+  <table>
+    <thead>
+      <tr class="grp">
+        <th colspan="2"></th>
+        <th colspan="3" class="g-tc sep">Transplante capilar</th>
+        <th colspan="3" class="g-tec sep">Terapia capilar</th>
+        <th colspan="3" class="sep">Total</th>
+        <th colspan="1" class="sep">Conversão</th>
+      </tr>
+      <tr>
+        <th class="l" colspan="2">Vendedor</th>
+        <th class="sep">R$</th><th>Qtd</th><th>Ticket</th>
+        <th class="sep">R$</th><th>Qtd</th><th>Ticket</th>
+        <th class="sep">R$</th><th>Qtd</th><th>Ticket</th>
+        <th class="sep">Fech. / Aval.</th>
+      </tr>
+    </thead>
+    <tbody id="rankBody"></tbody>
+    <tfoot id="rankFoot"></tfoot>
+  </table>
+  </div>
+</section>
+
+<section class="rank" style="margin-top:14px">
+  <div class="rank-head">
+    <h2>Extrato por mês de avaliação</h2>
+    <span class="eyebrow" id="extSub"></span>
+  </div>
+  <div style="overflow-x:auto">
+  <table>
+    <thead>
+      <tr class="grp">
+        <th></th>
+        <th colspan="2" class="sep">Vendido no período</th>
+        <th colspan="3" class="sep">Coorte de avaliação (total)</th>
+      </tr>
+      <tr>
+        <th class="l">Mês da avaliação</th>
+        <th class="sep">R$</th><th>Negócios</th>
+        <th class="sep">Pacientes</th><th>Avaliações</th><th>Conversão</th>
+      </tr>
+    </thead>
+    <tbody id="extBody"></tbody>
+  </table>
+  </div>
+</section>
+
+<!-- CONFIG -->
+<aside class="drawer" id="drawer">
+  <h3>Configuração</h3>
+  <p class="hint">Conexão direta ao arquivo no SharePoint via Microsoft Graph, autenticando no navegador (OAuth 2.0 + PKCE). Nenhum dado sai do M365.</p>
+
+  <div class="f"><label>Tenant ID (ou "organizations")</label><input id="cTenant" placeholder="00000000-0000-0000-0000-000000000000"></div>
+  <div class="f"><label>Client ID (App Registration — plataforma SPA)</label><input id="cClient" placeholder="00000000-0000-0000-0000-000000000000">
+    <div class="h">Redirect URI a cadastrar no Azure: <span class="num" id="cRedirect"></span></div></div>
+  <div class="f"><label>URL do arquivo no SharePoint</label><input id="cFile" placeholder="https://contoso.sharepoint.com/sites/.../VENDAS_E_CAMPANHA.xlsx">
+    <div class="h">Cole o endereço do arquivo (barra do navegador ou link de compartilhamento).</div></div>
+
+  <hr>
+  <div class="row2">
+    <div class="f"><label>Aba de vendas</label><input id="cShVendas" value="Vendas"></div>
+    <div class="f"><label>Aba de marcações</label><input id="cShMarc" value="Marcações"></div>
+  </div>
+  <div class="row2">
+    <div class="f"><label>Aba de metas</label><input id="cShMetas" value="Metas"></div>
+    <div class="f"><label>Atualizar a cada (min)</label><input id="cRefresh" type="number" min="0" value="10"></div>
+  </div>
+
+  <hr>
+  <div class="f"><label>Rateio da meta quando a aba Metas não traz a divisão</label>
+    <div class="row2"><input id="cSplitTC" type="number" step="1" min="0" max="100" value="90"><input id="cSplitTE" type="number" step="1" min="0" max="100" value="10"></div>
+    <div class="h">% transplante / % terapia. Se a aba Metas tiver 3ª e 4ª colunas (meta TC e meta TEC), elas prevalecem.</div>
+  </div>
+  <div class="f"><label>Serviços contados como Transplante</label><input id="cMapTC" value="TC,TB,TS,BH">
+    <div class="h">Códigos da coluna "Serviço", separados por vírgula.</div></div>
+  <div class="f"><label>Serviços contados como Terapia</label><input id="cMapTE" value="TEC"></div>
+  <div class="f"><label>Etapas contadas como venda</label><input id="cEtapas" value="FECHAMENTO,FINALIZADO,REVISAO DE PENDENCIAS">
+    <div class="h">Valores da coluna "Etapa", separados por vírgula. Acentos são ignorados.</div></div>
+  <div class="f"><label>Rótulos a excluir do ranking</label><input id="cIgnorar" value="Sem deal comercial,—,JARVYS">
+    <div class="h">Valores da coluna Responsável/Vendedor comercial que não são vendedores.</div></div>
+
+  <hr>
+  <label class="chk"><input type="checkbox" id="cOnlyPrimeira" checked><span>Contar apenas "Primeira Avaliação" (excluir reavaliações)</span></label>
+  <label class="chk"><input type="checkbox" id="cIgnoraZero" checked><span>Excluir negócios com valor zero do ticket médio</span></label>
+  <label class="chk"><input type="checkbox" id="cOrfas"><span>Contar venda sem avaliação registrada como avaliação implícita — <b>enviesa para cima</b>, só enxergamos órfãos que compraram</span></label>
+  <div class="f"><label>Coorte da conversão</label>
+    <select id="cCoorte">
+      <option value="fechamento">Fechamento no período (numerador pela data do fechamento)</option>
+      <option value="avaliacao">Coorte de avaliação (numerador = avaliações do período que fecharam)</option>
+    </select>
+    <div class="h">Denominador é sempre a avaliação realizada no período, atribuída ao vendedor comercial.</div>
+  </div>
+
+  <hr>
+  <hr>
+  <div class="f"><label>Repositório do sync (usuário/repo)</label><input id="cGhRepo" placeholder="rejuvenesce5513/rd-vendas-sync">
+    <div class="h">Habilita o botão "Sincronizar agora", que dispara o job e espera a planilha mudar.</div></div>
+  <div class="row2">
+    <div class="f"><label>Arquivo do workflow</label><input id="cGhWf" value="sync.yml"></div>
+    <div class="f"><label>Token do GitHub (Actions: write)</label><input id="cGhToken" type="password" placeholder="github_pat_..."></div>
+  </div>
+  <div class="msg warn" style="margin-top:4px">O token fica apenas neste navegador e <b>não</b> entra no link de instalação. Use um token restrito a este repositório, só com permissão Actions.</div>
+  <hr>
+  <label class="chk"><input type="checkbox" id="cAutoEntrar" checked><span>Entrar automaticamente ao abrir</span></label>
+  <div style="display:flex;gap:9px;flex-wrap:wrap"><button class="primary" id="cSave">Salvar e recarregar</button><button id="cLink">Copiar link de instalação</button><button id="cClose">Fechar</button></div>
+  <div class="notes" id="cfgNotes"></div>
+</aside>
+
+<script>
+"use strict";
+/* ============================ armazenamento ============================ */
+const mem={};
+const store={
+  get(k){ try{return localStorage.getItem(k);}catch(e){return k in mem?mem[k]:null;} },
+  set(k,v){ try{localStorage.setItem(k,v);}catch(e){mem[k]=v;} },
+  del(k){ try{localStorage.removeItem(k);}catch(e){delete mem[k];} }
+};
+const DEF={tenant:"89aed341-1dc6-4d0d-b5c7-e8df4293d21d",client:"",file:"",autoEntrar:true,ghRepo:"",ghWf:"sync.yml",ghToken:"",shVendas:"Vendas",shMarc:"Marcações",shMetas:"Metas",
+  refresh:10,splitTC:90,splitTE:10,mapTC:"TC,TB,TS,BH",mapTE:"TEC",ignorar:"Sem deal comercial,—,JARVYS",incluirOrfas:false,etapasVenda:"FECHAMENTO,FINALIZADO,REVISAO DE PENDENCIAS",onlyPrimeira:true,ignoraZero:true,coorte:"fechamento"};
+let CFG=Object.assign({},DEF,JSON.parse(store.get("rjv.cfg")||"{}"));
+const REDIRECT=location.origin+location.pathname;
+function b64uEnc(str){const b=new TextEncoder().encode(str);let x="";for(const c of b)x+=String.fromCharCode(c);
+  return btoa(x).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");}
+function b64uDec(s){s=s.replace(/-/g,"+").replace(/_/g,"/");const bin=atob(s);
+  return new TextDecoder().decode(Uint8Array.from(bin,c=>c.charCodeAt(0)));}
+(function(){const m=location.hash.match(/#cfg=([A-Za-z0-9\-_]+)/);if(!m)return;
+  try{CFG=Object.assign({},DEF,CFG,JSON.parse(b64uDec(m[1])));store.set("rjv.cfg",JSON.stringify(CFG));
+    history.replaceState({},"",REDIRECT);}catch(e){}})();
+
+/* ============================ util ============================ */
+const $=id=>document.getElementById(id);
+const BRL=new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL",maximumFractionDigits:0});
+const BRL2=new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL",minimumFractionDigits:2,maximumFractionDigits:2});
+const INT=new Intl.NumberFormat("pt-BR");
+const pct=(a,b)=>b>0?(a/b*100):0;
+const fpct=v=>INT.format(Math.round(v))+"%";
+const norm=s=>(s==null?"":String(s)).normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/\s+/g," ").trim().toUpperCase();
+const titled=s=>String(s||"").replace(/\s+/g," ").trim();
+
+function toDate(v){
+  if(v===null||v===undefined||v==="")return null;
+  if(typeof v==="number"&&isFinite(v))return new Date(Date.UTC(1899,11,30)+v*864e5);
+  const s=String(v).trim();
+  let m=s.match(/^(\d{4})-(\d{2})-(\d{2})/);            if(m)return new Date(Date.UTC(+m[1],+m[2]-1,+m[3]));
+  m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);          if(m)return new Date(Date.UTC(+m[3],+m[2]-1,+m[1]));
+  m=s.match(/^(\d{1,2})[\/-](\d{4})$/);                  if(m)return new Date(Date.UTC(+m[2],+m[1]-1,1));
+  m=s.match(/^(\d{4})[\/-](\d{1,2})$/);                  if(m)return new Date(Date.UTC(+m[1],+m[2]-1,1));
+  const n=Number(s.replace(",","."));                    if(isFinite(n)&&n>20000)return new Date(Date.UTC(1899,11,30)+n*864e5);
+  return null;
+}
+function toNum(v){
+  if(typeof v==="number")return v;
+  if(v==null||v==="")return 0;
+  let s=String(v).replace(/[R$\s\u00a0]/g,"");
+  if(s.includes(",")) s=s.replace(/\./g,"").replace(",",".");
+  const n=parseFloat(s); return isFinite(n)?n:0;
+}
+const iso=d=>d.toISOString().slice(0,10);
+const ymUTC=d=>d.toISOString().slice(0,7);
+
+/* ============================ período ============================ */
+function periodo(){
+  const t=$("periodo").value, now=new Date();
+  let a=new Date(Date.UTC(now.getFullYear(),now.getMonth(),1)),
+      b=new Date(Date.UTC(now.getFullYear(),now.getMonth()+1,0));
+  if(t==="mesant"){a=new Date(Date.UTC(now.getFullYear(),now.getMonth()-1,1));b=new Date(Date.UTC(now.getFullYear(),now.getMonth(),0));}
+  if(t==="custom"){
+    if($("dtIni").value)a=new Date($("dtIni").value+"T00:00:00Z");
+    if($("dtFim").value)b=new Date($("dtFim").value+"T00:00:00Z");
+  }
+  const hoje=new Date(Date.UTC(now.getFullYear(),now.getMonth(),now.getDate()));
+  const ref=hoje<a?a:(hoje>b?b:hoje);
+  const totalDias=Math.round((b-a)/864e5)+1, decorridos=Math.round((ref-a)/864e5)+1;
+  return {a,b,ref,totalDias,decorridos,frac:Math.min(1,decorridos/totalDias),mesChave:ymUTC(a)};
+}
+function diasUteisRestantes(p){
+  let n=0; for(let d=new Date(p.ref.getTime()+864e5);d<=p.b;d=new Date(d.getTime()+864e5)){const w=d.getUTCDay();if(w>=1&&w<=5)n++;}
+  return n;
 }
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)-7s %(message)s",
-                    datefmt="%H:%M:%S")
-log = logging.getLogger("sync")
-
-EPOCH = dt.date(1899, 12, 30)
-def _idx(letra):
-    n = 0
-    for ch in letra.strip().upper():
-        n = n * 26 + ord(ch) - 64
-    return n - 1
-
-
-COL_ID_L   = os.environ.get("COL_ID", "N").strip().upper()
-COL_CIR_L  = os.environ.get("COL_CIRURGIA", "O").strip().upper()
-COL_MARC_L = os.environ.get("COL_CIR_MARCADA", "P").strip().upper()
-LER_ATE    = os.environ.get("LER_ATE", "P").strip().upper()
-FORMULAS   = [tuple(x.split(":")) for x in
-              os.environ.get("FORMULA_RANGES", "L:M,Q:X").split(",") if ":" in x]
-
-I_ID, I_CIR, I_MARC = _idx(COL_ID_L), _idx(COL_CIR_L), _idx(COL_MARC_L)
-LARGURA = max(I_ID, I_CIR, I_MARC) + 1
-IDX_CMP = list(range(11)) + [I_CIR, I_MARC]
-
-
-# ─── helpers ──────────────────────────────────────────────────────────────────
-def serial(d):
-    """date -> numero de serie do Excel"""
-    return (d - EPOCH).days if d else None
-
-
-def parse_dt(v):
-    if v in (None, ""):
-        return None
-    txt = str(v).strip()
-    try:
-        return dt.datetime.fromisoformat(txt.replace("Z", "+00:00")).date()
-    except Exception:
-        pass
-    for f in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y"):
-        try:
-            return dt.datetime.strptime(txt[:10], f).date()
-        except Exception:
-            pass
-    m = re.fullmatch(r"(\d{1,2})[/-](\d{4})", txt)          # MM/AAAA -> dia 1
-    if m:
-        return dt.date(int(m.group(2)), int(m.group(1)), 1)
-    m = re.fullmatch(r"(\d{4})[/-](\d{1,2})", txt)          # AAAA-MM -> dia 1
-    if m:
-        return dt.date(int(m.group(1)), int(m.group(2)), 1)
-    return None
-
-
-def cf_value(deal, field_id):
-    for c in deal.get("deal_custom_fields", []):
-        cid = c.get("custom_field_id") or (c.get("custom_field") or {}).get("_id")
-        if cid == field_id:
-            return c.get("value")
-    return None
-
-
-def norm(v):
-    """Maiusculas, sem acento, espacos colapsados — comparacao tolerante."""
-    if v is None:
-        return ""
-    t = unicodedata.normalize("NFD", str(v))
-    t = "".join(c for c in t if unicodedata.category(c) != "Mn")
-    return re.sub(r"\s+", " ", t).strip().upper()
-
-
-# ─── RD Station ───────────────────────────────────────────────────────────────
-S = requests.Session()
-SAFETY_DAYS = int(os.environ.get("SAFETY_DAYS", "540"))
-LOOKBACK = int(os.environ.get("LOOKBACK_ROWS", "800"))   # 0 = ler a planilha inteira
-MAX_UPD  = int(os.environ.get("MAX_UPDATES", "60"))
-MARCAR_REV = os.environ.get("MARCAR_REVERTIDAS", "1") not in ("0", "false", "")      # teto por execucao; o resto vai no proximo ciclo
-
-
-ESPERAS = [3, 8, 20, 45, 90]
-
-
-def rd_get(params, tolerante=False):
-    """Chamada ao endpoint de negocios. tolerante=True devolve None em vez de abortar."""
-    p = dict(params); p["token"] = RD_TOKEN
-    ultimo = ""
-    for tent, espera in enumerate(ESPERAS):
-        try:
-            r = S.get(RD_URL, params=p, timeout=90)
-        except Exception as e:
-            ultimo = f"conexao: {e}"
-            log.warning("  tentativa %s falhou (%s) — aguardando %ss", tent + 1, ultimo, espera)
-            time.sleep(espera); continue
-        if r.ok:
-            time.sleep(0.4)                       # gentileza com o rate limit
-            try:
-                return r.json()
-            except Exception:
-                ultimo = f"HTTP 200 nao-JSON: {r.text[:200]}"
-                break
-        ultimo = f"HTTP {r.status_code}: {r.text[:200]}"
-        if r.status_code in (401, 403):
-            raise SystemExit(f"ERRO RD: token invalido ou sem permissao.\n{ultimo}")
-        if r.status_code == 400:
-            log.info("  RD recusou os parametros (400): %s", r.text[:200])
-            return None
-        ra = r.headers.get("Retry-After")
-        pausa = int(ra) if (ra or "").isdigit() else espera
-        log.warning("  tentativa %s -> %s | aguardando %ss", tent + 1, ultimo, pausa)
-        time.sleep(pausa)
-    if tolerante:
-        log.warning("  desistindo desta estrategia: %s", ultimo)
-        return None
-    raise SystemExit(f"ERRO RD: sem resposta valida apos {len(ESPERAS)} tentativas.\n"
-                     f"Ultima: {ultimo}")
-
-
-def diagnostico():
-    """Testa combinacoes de parametros e mostra o closed_at real de cada negocio."""
-    hoje = dt.date.today()
-    amanha = (hoje + dt.timedelta(days=1)).isoformat()
-    ini = CUTOFF.isoformat()
-    testes = [
-        ("A base",              {"limit": 3}),
-        ("B win",               {"limit": 3, "win": "true"}),
-        ("C closed_period",     {"limit": 3, "closed_at_period": "true",
-                                 "start_date": ini, "end_date": amanha}),
-        ("D closed+win",        {"limit": 3, "closed_at_period": "true", "win": "true",
-                                 "start_date": ini, "end_date": amanha}),
-        ("E order closed_at",   {"limit": 3, "order_by": "closed_at", "direction": "desc"}),
-        ("F updated_period",    {"limit": 3, "updated_at_period": "true",
-                                 "start_date": ini, "end_date": amanha}),
-    ]
-    for rot, par in [("etapas com win", {"limit": 200, "win": "true"}),
-                     ("etapas sem win", {"limit": 200})]:
-        q = dict(par); q["token"] = RD_TOKEN
-        try:
-            j = S.get(RD_URL, params=q, timeout=60).json()
-        except Exception as e:
-            log.info("%-18s excecao %s", rot, e); continue
-        c = {}
-        for d in j.get("deals", []):
-            k = (d.get("deal_stage") or {}).get("name") or "(sem etapa)"
-            c[k] = c.get(k, 0) + 1
-        log.info("%-18s %s", rot, ", ".join(f"{k}={v}" for k, v in sorted(c.items(), key=lambda x: -x[1])))
-        time.sleep(1.5)
-    for nome, par in testes:
-        q = dict(par); q["token"] = RD_TOKEN
-        try:
-            r = S.get(RD_URL, params=q, timeout=60)
-        except Exception as e:
-            log.info("%-18s EXCECAO %s", nome, e); continue
-        if not r.ok:
-            log.info("%-18s HTTP %s | %s", nome, r.status_code, r.text[:160]); time.sleep(1.5); continue
-        try:
-            j = r.json()
-        except Exception:
-            log.info("%-18s HTTP 200 nao-JSON", nome); time.sleep(1.5); continue
-        ds = j.get("deals", [])
-        log.info("%-18s HTTP 200 | total=%s devolvidos=%s", nome, j.get("total"), len(ds))
-        for d in ds:
-            st = (d.get("deal_stage") or {}).get("name")
-            log.info("%-18s   %-28s closed_at=%-28s status=%-9s win=%-5s etapa=%s",
-                     "", str(d.get("name"))[:28], str(d.get("closed_at")),
-                     d.get("status"), d.get("win"), st)
-        time.sleep(1.5)
-
-
-def _fechou_apos_corte(d):
-    f = parse_dt(d.get("closed_at"))
-    return bool(f and f >= CUTOFF)
-
-
-def estrategia_periodo():
-    """win=true + closed_at_period. O RD filtra em UTC, entao alargo 1 dia de cada lado
-    e reaplico o corte local em horario de Brasilia dentro de elegivel()."""
-    base = {"limit": 200, "win": "true", "closed_at_period": "true",
-            "start_date": (CUTOFF - dt.timedelta(days=1)).isoformat(),
-            "end_date": (dt.date.today() + dt.timedelta(days=2)).isoformat()}
-    j = rd_get(dict(base, page=1), tolerante=True)
-    if j is None:
-        return None
-    ds = j.get("deals", [])
-    if not ds:
-        log.warning("Filtro devolveu 0 ganhos no periodo — conferindo pelo cursor por seguranca")
-        return None
-    if not any(parse_dt(d.get("closed_at")) for d in ds):
-        log.info("closed_at veio vazio — filtro nao confiavel, usando cursor")
-        return None
-    log.info("Filtro na origem aceito (win + closed_at_period) — total=%s", j.get("total"))
-    todos, pag = list(ds), 2
-    while len(ds) == 200 and pag <= 50:
-        j = rd_get(dict(base, page=pag), tolerante=True)
-        if not j:
-            break
-        ds = j.get("deals", [])
-        todos.extend(ds)
-        if len(ds) < 200:
-            break
-        pag += 1
-    return todos
-
-
-def estrategia_cursor():
-    """Percorre os negocios ganhos com next_page. Sem teto de 10 mil."""
-    log.info("Cursor: percorrendo negocios ganhos (win=true)")
-    limite_criacao = CUTOFF - dt.timedelta(days=SAFETY_DAYS)
-    todos, params, n, secas = [], {"limit": 200, "win": "true"}, 0, 0
-    while n < 400:
-        j = rd_get(params)
-        if not j:
-            log.warning("RD recusou na pagina %s — interrompendo", n + 1)
-            break
-        lote = j.get("deals", [])
-        if not lote:
-            break
-        todos.extend(lote)
-        n += 1
-        criacoes = [parse_dt(d.get("created_at")) for d in lote]
-        if criacoes and all(c and c < limite_criacao for c in criacoes if c):
-            secas += 1
-            if secas >= 2:
-                log.info("Alcancado %s (corte - %s dias) — parando", limite_criacao, SAFETY_DAYS)
-                break
-        else:
-            secas = 0
-        nxt = j.get("next_page")
-        if not nxt or not j.get("has_more"):
-            break
-        params = {"limit": 200, "win": "true", "next_page": nxt}
-        if n % 10 == 0:
-            log.info("  %s paginas, %s negocios", n, len(todos))
-    return todos
-
-
-def buscar_deal(did):
-    """Consulta um negocio pelo id. Devolve dict, "404" ou None se nao conseguiu."""
-    for tent, espera in enumerate(ESPERAS):
-        try:
-            r = S.get(f"{RD_URL}/{did}", params={"token": RD_TOKEN}, timeout=60)
-        except Exception:
-            time.sleep(espera); continue
-        if r.status_code == 404:
-            return "404"
-        if r.ok:
-            try:
-                return r.json()
-            except Exception:
-                return None
-        if r.status_code in (429, 500, 502, 503, 504):
-            time.sleep(espera); continue
-        return None
-    return None
-
-
-def buscar_deals():
-    deals = estrategia_periodo()
-    if deals is None:
-        deals = estrategia_cursor()
-    log.info("RD: %s negocios lidos", len(deals))
-    return deals
-
-
-def nome_etapa(d):
-    return (d.get("deal_stage") or {}).get("name") or ""
-
-
-_STAGES = None
-
-
-def etapas_venda():
-    global _STAGES
-    if _STAGES is None:
-        _STAGES = [norm(x) for x in STAGE_MATCH.split(",") if x.strip()]
-    return _STAGES
-
-
-def etapa_de_venda(d):
-    n = norm(nome_etapa(d))
-    return any(t in n for t in etapas_venda())
-
-
-def elegivel(d):
-    if not etapa_de_venda(d):
-        return False
-    if PIPES:
-        pid = (d.get("deal_pipeline") or {}).get("id") or (d.get("deal_pipeline") or {}).get("_id")
-        if pid not in PIPES:
-            return False
-    fech = parse_dt(d.get("closed_at"))
-    return bool(fech and fech >= CUTOFF)
-
-
-def linhas_do_deal(d):
-    """UMA linha por negocio. Produtos concatenados por ', ' — mesmo padrao das
-    5.806 linhas existentes, de onde a formula da coluna L deriva TC/TEC/BH/etc."""
-    fech = parse_dt(d.get("closed_at"))
-    cria = parse_dt(d.get("created_at"))
-    aval = parse_dt(cf_value(d, CF["mes_avaliacao"])) or parse_dt(cf_value(d, CF["data_avaliacao"]))
-    if aval:
-        aval = aval.replace(day=1)
-    nome = (d.get("name") or "").strip()
-    if not nome:
-        cts = d.get("contacts") or []
-        nome = (cts[0].get("name") if cts else "") or ""
-
-    prods = d.get("deal_products") or []
-    nomes, soma = [], 0.0
-    for p in prods:
-        n = (p.get("name") or "").strip()
-        if n:
-            nomes.append(n)
-        try:
-            soma += float(p.get("total") or
-                          (float(p.get("price") or 0) * float(p.get("amount") or 1)))
-        except Exception:
-            pass
-
-    valor = soma
-    if not valor:
-        for campo in ("amount_total", "amount_unique"):
-            try:
-                v = float(d.get(campo) or 0)
-            except Exception:
-                v = 0.0
-            if v:
-                valor = v
-                break
-
-    base = [
-        nome,                                                   # A Nome
-        (d.get("deal_stage") or {}).get("name") or "FECHAMENTO",  # B Etapa
-        valor,                                                  # C Valor Único
-        serial(cria),                                           # D Data de criação
-        serial(fech),                                           # E Data de fechamento
-        (d.get("deal_source") or {}).get("name") or "",         # F Fonte
-        (d.get("user") or {}).get("name") or "",                # G Responsável
-        ", ".join(nomes),                                       # H Produtos
-        cf_value(d, CF["meio_avaliacao"]) or "",                # I Meio da avaliação
-        cf_value(d, CF["avaliador"]) or "",                     # J Avaliador
-        serial(aval),                                           # K Data da avaliação
-    ]
-    linha = base + [None] * (LARGURA - len(base))
-    linha[I_ID]   = str(d.get("id") or d.get("_id") or "")
-    linha[I_CIR]  = serial(parse_dt(cf_value(d, CF["data_cirurgia"])))
-    linha[I_MARC] = cf_value(d, CF["cirurgia_marcada"]) or ""
-    return [linha]
-
-
-# ─── Microsoft Graph ──────────────────────────────────────────────────────────
-def token():
-    app = msal.ConfidentialClientApplication(
-        CLIENT_ID, authority=f"https://login.microsoftonline.com/{TENANT_ID}",
-        client_credential=CLIENT_SECRET)
-    r = app.acquire_token_for_client(["https://graph.microsoft.com/.default"])
-    if "access_token" not in r:
-        raise SystemExit("Falha no token Graph: %s" % r.get("error_description"))
-    return r["access_token"]
-
-
-SESSAO = {"id": None}
-ESPERAS_G = [5, 12, 25, 45, 70, 100]
-
-
-def g(method, url, tk, **kw):
-    h = {"Authorization": f"Bearer {tk}", "Content-Type": "application/json"}
-    if SESSAO["id"] and "/workbook" in url:
-        h["workbook-session-id"] = SESSAO["id"]
-    ultimo = ""
-    for tent, espera in enumerate(ESPERAS_G):
-        try:
-            r = requests.request(method, url, headers=h, timeout=120, **kw)
-        except Exception as e:
-            ultimo = f"conexao: {e}"
-            log.warning("  Graph tentativa %s: %s — aguardando %ss", tent + 1, ultimo, espera)
-            time.sleep(espera); continue
-        if r.ok:
-            return r.json() if r.text else {}
-        ultimo = f"HTTP {r.status_code}: {r.text[:250]}"
-        if r.status_code in (429, 503, 504, 509):
-            ra = r.headers.get("Retry-After")
-            pausa = int(ra) if (ra or "").isdigit() else espera
-            log.warning("  Graph tentativa %s: %s | aguardando %ss", tent + 1, ultimo, pausa)
-            time.sleep(min(pausa, 120)); continue
-        if r.status_code == 400 and "InvalidSession" in r.text:
-            log.warning("  Graph tentativa %s: sessao expirou — reabrindo", tent + 1)
-            SESSAO["id"] = None
-            abrir_sessao(tk)
-            if SESSAO["id"]:
-                h["workbook-session-id"] = SESSAO["id"]
-            else:
-                h.pop("workbook-session-id", None)
-            time.sleep(2); continue
-        if r.status_code in (409, 423):     # arquivo travado / conflito de escrita
-            log.warning("  Graph tentativa %s: %s | arquivo em uso, aguardando %ss",
-                        tent + 1, ultimo, espera)
-            time.sleep(espera); continue
-        raise RuntimeError(f"Graph {ultimo}")
-    raise RuntimeError(f"Graph: sem sucesso apos {len(ESPERAS_G)} tentativas. Ultima -> {ultimo}")
-
-
-def abrir_sessao(tk):
-    """Sessao persistente reduz throttling e mantem o recalculo consistente."""
-    try:
-        j = g("POST", f"{WB}/createSession", tk, json={"persistChanges": True})
-        SESSAO["id"] = j.get("id")
-        log.info("Sessao do workbook aberta")
-    except Exception as e:
-        log.warning("Sem sessao persistente (%s) — seguindo sem ela", str(e)[:120])
-
-
-def fechar_sessao(tk):
-    if not SESSAO["id"]:
-        return
-    try:
-        g("POST", f"{WB}/closeSession", tk)
-    except Exception:
-        pass
-    SESSAO["id"] = None
-
-
-def listar_drive(tk):
-    """Imprime os arquivos da biblioteca para descobrir o caminho correto."""
-    def anda(url, prefixo, nivel):
-        for it in g("GET", url, tk).get("value", []):
-            tipo = "DIR " if "folder" in it else "FILE"
-            log.info("  %s %s%s   id=%s", tipo, prefixo, it["name"], it["id"])
-            if "folder" in it and nivel < 2:
-                anda(f"{GRAPH}/drives/{DRIVE_ID}/items/{it['id']}/children",
-                     prefixo + it["name"] + "/", nivel + 1)
-    log.info("Conteudo da biblioteca:")
-    anda(f"{GRAPH}/drives/{DRIVE_ID}/root/children", "/", 0)
-
-
-def resolver_arquivo(tk):
-    """Define WB a partir do FILE_ID ou, na falta dele, do caminho."""
-    global WB, FILE_ID
-    if not FILE_ID:
-        cam = FILE_PATH if FILE_PATH.startswith("/") else "/" + FILE_PATH
-        url = f"{GRAPH}/drives/{DRIVE_ID}/root:{requests.utils.quote(cam)}"
-        try:
-            it = g("GET", url, tk)
-        except RuntimeError as e:
-            raise SystemExit(
-                f"Arquivo nao encontrado em '{cam}'. Rode com --listar para ver os caminhos.\n{e}")
-        FILE_ID = it["id"]
-        log.info("Arquivo: %s  (id %s)", it.get("name"), FILE_ID)
-    WB = f"{GRAPH}/drives/{DRIVE_ID}/items/{FILE_ID}/workbook"
-
-
-def col_letra(n):
-    s = ""
-    while n > 0:
-        n, m = divmod(n - 1, 26)
-        s = chr(65 + m) + s
-    return s
-
-
-def ler_existentes(tk):
-    """Le A:K da aba e devolve o conjunto de chaves ja gravadas a partir do CUTOFF."""
-    ws = f"{WB}/worksheets('{SHEET}')"
-    ur = g("GET", f"{ws}/usedRange(valuesOnly=true)?$select=address,rowCount", tk)
-    total = int(ur.get("rowCount") or 0)
-    mapa, por_id, por_dvp, CH = {}, {}, {}, 2000
-    inicio = 2
-    if LOOKBACK and total > LOOKBACK:
-        inicio = max(2, total - LOOKBACK + 1)
-        log.info("Lendo apenas as ultimas %s linhas (a partir da %s)", LOOKBACK, inicio)
-    for ini in range(inicio, total + 1, CH):
-        fim = min(total, ini + CH - 1)
-        rg = g("GET", f"{ws}/range(address='A{ini}:{LER_ATE}{fim}')?$select=values", tk)
-        for j, v in enumerate(rg.get("values", [])):
-            linha = ini + j
-            rid = str(v[I_ID]).strip() if len(v) > I_ID and v[I_ID] not in (None, "") else ""
-            sk = softkey(v)
-            if rid:
-                por_id[rid] = (linha, v)
-            if sk:
-                mapa[sk] = (linha, v)
-            k3 = chave_sem_nome(v)
-            if k3:
-                por_dvp.setdefault(k3, []).append((linha, v))
-    log.info("Planilha: %s linhas lidas | %s com ID RD", total - 1, len(por_id))
-    return mapa, por_id, por_dvp, total
-
-
-def softkey(v):
-    """Nome | data de fechamento | produtos — sem o valor, para permitir correcao.
-    So considera linhas a partir do CUTOFF."""
-    try:
-        e = v[4]
-        if e in (None, ""):
-            return None
-        d = e if isinstance(e, dt.date) else EPOCH + dt.timedelta(days=int(float(e)))
-        if d < CUTOFF:
-            return None
-        return f"{norm(v[0])}|{d.isoformat()}|{norm(v[7])}"
-    except Exception:
-        return None
-
-
-def chave_sem_nome(v):
-    """Fechamento | valor | produtos | responsavel — casa negocios renomeados."""
-    try:
-        e = v[4]
-        if e in (None, ""):
-            return None
-        d = e if isinstance(e, dt.date) else EPOCH + dt.timedelta(days=int(float(e)))
-        if d < CUTOFF:
-            return None
-        return f"{d.isoformat()}|{round(float(v[2] or 0), 2)}|{norm(v[7])}|{norm(v[6])}"
-    except Exception:
-        return None
-
-
-def valor_de(v):
-    try:
-        return round(float(v[2] or 0), 2)
-    except Exception:
-        return 0.0
-
-
-def formulas_modelo(tk):
-    """Le cada bloco de colunas calculadas em R1C1 — independente da linha."""
-    mod = []
-    for a, b in FORMULAS:
-        rg = g("GET", f"{WB}/worksheets('{SHEET}')/range(address='{a}2:{b}2')?$select=formulasR1C1", tk)
-        mod.append((a, b, rg["formulasR1C1"][0]))
-    return mod
-
-
-def fim_da_tabela(tk):
-    """Ultima linha da Tabela4 na planilha."""
-    rg = g("GET", f"{WB}/tables('{TABLE}')/range?$select=address,rowCount", tk)
-    addr = str(rg["address"]).split("!")[-1]
-    m = re.search(r"[A-Z]+(\d+):[A-Z]+(\d+)", addr)
-    return int(m.group(2))
-
-
-def inserir(tk, linhas, modelo):
-    """Escreve direto no intervalo logo abaixo da tabela.
-
-    Nao usa tables/rows/add: com 5.800+ linhas, formula volatil (TODAY) e tabelas
-    dinamicas, aquele endpoint estoura o gateway do Graph em 504. Escrita por
-    endereco e idempotente — repetir a chamada grava o mesmo valor, sem duplicar.
-    """
-    ultima = fim_da_tabela(tk)
-    ini, fim = ultima + 1, ultima + len(linhas)
-    ws = f"{WB}/worksheets('{SHEET}')"
-
-    valores = [l[:11] for l in linhas]                      # A..K
-    g("PATCH", f"{ws}/range(address='A{ini}:K{fim}')", tk, json={"values": valores})
-
-    ids = [[l[I_ID]] for l in linhas]
-    if any(x[0] for x in ids):
-        g("PATCH", f"{ws}/range(address='{COL_ID_L}{ini}:{COL_ID_L}{fim}')", tk, json={"values": ids})
-
-    cir = [[l[I_CIR], l[I_MARC]] for l in linhas]
-    if any(x[0] not in (None, "") or x[1] not in (None, "") for x in cir):
-        g("PATCH", f"{ws}/range(address='{COL_CIR_L}{ini}:{COL_MARC_L}{fim}')", tk,
-          json={"values": cir})
-
-    for a, b, mod in (modelo or []):
-        g("PATCH", f"{ws}/range(address='{a}{ini}:{b}{fim}')", tk,
-          json={"formulasR1C1": [mod for _ in linhas]})
-
-    nova_ultima = fim_da_tabela(tk)
-    if nova_ultima >= fim:
-        log.info("  linhas %s-%s gravadas e absorvidas pela %s", ini, fim, TABLE)
-    else:
-        log.warning("  linhas %s-%s gravadas, mas a %s ainda termina na %s — "
-                    "expanda a tabela manualmente (as tabelas dinamicas nao verao os dados)",
-                    ini, fim, TABLE, nova_ultima)
-
-
-# ─── main ─────────────────────────────────────────────────────────────────────
-def main():
-    log.info("Config: drive=%s... file_id=%s path=%s", DRIVE_ID[:12], FILE_ID or "(vazio)", FILE_PATH)
-    if CAMPOS:
-        for d in [x for x in buscar_deals() if elegivel(x)][:3]:
-            log.info("=== %s | fechado %s", d.get("name"), d.get("closed_at"))
-            for c in d.get("deal_custom_fields", []):
-                cid = c.get("custom_field_id") or (c.get("custom_field") or {}).get("_id")
-                lab = (c.get("custom_field") or {}).get("label") or c.get("label") or ""
-                log.info("    %-26s %-34s = %r", cid, lab[:34], c.get("value"))
-            log.info("    deal_products: %r", d.get("deal_products"))
-        return
-    if DIAG:
-        diagnostico()
-        return
-    if LISTAR:
-        listar_drive(token())
-        return
-
-    log.info("CUTOFF %s | aba %s | tabela %s | dry-run=%s", CUTOFF, SHEET, TABLE, DRYRUN)
-
-    deals = buscar_deals()
-    elegiveis = [d for d in deals if elegivel(d)]
-    log.info("Elegiveis (fechados a partir de %s): %s", CUTOFF, len(elegiveis))
-
-    novas = []
-    for d in elegiveis:
-        novas.extend(linhas_do_deal(d))
-    log.info("Linhas candidatas (1 por negocio): %s", len(novas))
-    if not novas:
-        log.info("Nada a fazer.")
-        return
-
-    tk = token()
-    resolver_arquivo(tk)
-    abrir_sessao(tk)
-    existentes, por_id, por_dvp, _ = ler_existentes(tk)
-
-    def igual(a, b):
-        if isinstance(a, (int, float)) or isinstance(b, (int, float)):
-            try:
-                return abs(float(a or 0) - float(b or 0)) <= 0.005
-            except Exception:
-                pass
-        return norm(a) == norm(b)
-
-    inserir_agora, atualizar, vistas = [], [], set()
-    for l in novas:
-        rid = l[I_ID]
-        if rid and rid in vistas:
-            continue
-        vistas.add(rid)
-
-        alvo = por_id.get(rid)
-        origem = "id"
-        if alvo is None:                       # linha antiga, ainda sem ID gravado
-            sk = softkey(l)
-            if sk and sk in existentes:
-                alvo = existentes[sk]
-                origem = "chave"
-
-        if alvo is None:                       # negocio renomeado no RD
-            k3 = chave_sem_nome(l)
-            cands = [c for c in por_dvp.get(k3, [])
-                     if not (len(c[1]) > I_ID and str(c[1][I_ID]).strip())]
-            if len(cands) == 1:
-                alvo = cands[0]
-                origem = "renomeado"
-            elif len(cands) > 1:
-                log.warning("  %s: %s linhas candidatas com mesma data/valor/produto — inserindo nova",
-                            str(l[0])[:40], len(cands))
-
-        if alvo is None:
-            inserir_agora.append(l)
-            continue
-
-        linha, atual = alvo
-
-        def vazio(x):
-            return x is None or (isinstance(x, str) and not x.strip())
-
-        dif = []
-        for i in IDX_CMP:
-            cur = atual[i] if i < len(atual) else None
-            if igual(l[i], cur):
-                continue
-            if vazio(l[i]) and not vazio(cur):
-                continue            # RD sem dado nao apaga o que ja existe
-            dif.append(i)
-        for i in IDX_CMP:
-            if i not in dif:
-                l[i] = atual[i] if i < len(atual) else l[i]
-        falta_id = origem in ("chave", "renomeado") or not (len(atual) > I_ID and str(atual[I_ID]).strip())
-        if dif or falta_id:
-            atualizar.append((linha, l, dif, falta_id, origem, list(atual)))
-
-    if MAX_UPD and len(atualizar) > MAX_UPD:
-        log.warning("Atualizacoes pendentes: %s — processando %s agora, resto no proximo ciclo",
-                    len(atualizar), MAX_UPD)
-        atualizar = atualizar[:MAX_UPD]
-    ids_rd = {l[I_ID] for l in novas if l[I_ID]}
-    candidatas = [(rid, lin, v) for rid, (lin, v) in por_id.items()
-                  if rid and rid not in ids_rd
-                  and any(t in norm(v[1] if len(v) > 1 else "") for t in etapas_venda())]
-    if candidatas:
-        log.info("Conferindo no RD %s linha(s) que sumiram da consulta...", len(candidatas))
-    revertidas = []
-    for rid, lin, v in candidatas[:40]:
-        d = buscar_deal(rid)
-        if d is None:
-            log.warning("   linha %s (%s): nao consegui verificar no RD — mantida",
-                        lin, str(v[0])[:34])
-            continue
-        if d == "404":
-            revertidas.append((lin, v[0], "EXCLUIDO NO RD"))
-            continue
-        if d.get("win") is False or not etapa_de_venda(d):
-            revertidas.append((lin, v[0], (nome_etapa(d) or "REVERTIDO NO RD").upper()))
-        # caso contrario continua sendo venda (data mudou, etc) — nao mexe
-
-    if revertidas:
-        log.warning("%s venda(s) deixaram de valer no RD:", len(revertidas))
-        ws2 = f"{WB}/worksheets('{SHEET}')"
-        for lin, nome, novo_st in revertidas:
-            if DRYRUN or not MARCAR_REV:
-                log.warning("   DRY linha %s (%s) -> Etapa '%s'", lin, str(nome)[:34], novo_st)
-            else:
-                g("PATCH", f"{ws2}/range(address='B{lin}')", tk, json={"values": [[novo_st]]})
-                log.warning("   linha %s (%s) -> Etapa '%s' — fora do total", lin, str(nome)[:34], novo_st)
-
-    log.info("Novas: %s | atualizacoes: %s", len(inserir_agora), len(atualizar))
-
-    COLS = {0: "Nome", 1: "Etapa", 2: "Valor", 3: "Criacao", 4: "Fechamento", 5: "Fonte",
-            6: "Responsavel", 7: "Produtos", 8: "Meio", 9: "Avaliador", 10: "MesAval",
-            I_CIR: "DataCirurgia", I_MARC: "CirurgiaMarcada"}
-    ws = f"{WB}/worksheets('{SHEET}')"
-    def mostra(x):
-        if x is None or x == "":
-            return "(vazio)"
-        if isinstance(x, (int, float)) and 20000 < float(x) < 80000:
-            return (EPOCH + dt.timedelta(days=int(float(x)))).strftime("%d/%m/%Y")
-        return str(x)[:30]
-
-    for linha, l, dif, falta_id, origem, antes in atualizar:
-        campos = ", ".join(f"{COLS[i]}: {mostra(antes[i] if i < len(antes) else None)} -> {mostra(l[i])}"
-                           for i in dif) or "-"
-        if DRYRUN:
-            log.info("  DRY linha %s [%s] (%s): %s%s", linha, origem, str(l[0])[:26], campos,
-                     " +ID" if falta_id else "")
-            continue
-        if any(i <= 10 for i in dif):
-            g("PATCH", f"{ws}/range(address='A{linha}:K{linha}')", tk,
-              json={"values": [l[:11]]})
-        if any(i in (I_CIR, I_MARC) for i in dif):
-            g("PATCH", f"{ws}/range(address='{COL_CIR_L}{linha}:{COL_MARC_L}{linha}')", tk,
-              json={"values": [[l[I_CIR], l[I_MARC]]]})
-        if falta_id:
-            g("PATCH", f"{ws}/range(address='{COL_ID_L}{linha}')", tk, json={"values": [[l[I_ID]]]})
-        log.info("  linha %s [%s] (%s): %s%s", linha, origem, str(l[0])[:26], campos,
-                 " +ID" if falta_id else "")
-
-    if not inserir_agora:
-        fechar_sessao(tk)
-        return
-    if DRYRUN:
-        for l in inserir_agora[:20]:
-            log.info("  DRY %s", l[:8])
-        fechar_sessao(tk)
-        return
-
-    modelo = formulas_modelo(tk)
-    for i in range(0, len(inserir_agora), 20):
-        bloco = inserir_agora[i:i + 20]
-        inserir(tk, bloco, modelo)
-        log.info("  gravadas %s/%s", min(i + 20, len(inserir_agora)), len(inserir_agora))
-
-    fechar_sessao(tk)
-    log.info("OK — %s linhas inseridas", len(inserir_agora))
-
-
-if __name__ == "__main__":
-    main()
+/* ============================ dados ============================ */
+let RAW=null;              // {Vendas:{headers,rows}, Marcações:{...}, Metas:{...}}
+function colmap(headers){ const m={}; headers.forEach((h,i)=>{ if(h!=null&&h!=="") m[norm(h)]=i; }); return m; }
+function pick(m,...names){ for(const n of names){ const k=norm(n); if(k in m)return m[k]; } return -1; }
+
+function pacKey(v){
+  let n=norm(v);
+  n=n.split(/\s*[—–-]\s*AVALIA/)[0];
+  return n.replace(/\s*\(.*?\)\s*$/,"").trim();
+}
+
+function ehVenda(etapa){
+  const e=norm(etapa); if(!e)return true;
+  return CFG.etapasVenda.split(",").map(norm).filter(Boolean).some(t=>e.includes(t));
+}
+
+function grupoServico(cod){
+  const c=norm(cod);
+  if(CFG.mapTC.split(",").map(norm).filter(Boolean).includes(c))return "tc";
+  if(CFG.mapTE.split(",").map(norm).filter(Boolean).includes(c))return "te";
+  return "outro";
+}
+
+function computar(){
+  const p=periodo(), out={p};
+  const V=RAW[CFG.shVendas]||RAW.Vendas, M=RAW[CFG.shMarc]||RAW["Marcações"], T=RAW[CFG.shMetas]||RAW.Metas;
+  if(!V||!M)throw new Error("Abas não encontradas: verifique os nomes em Configurar.");
+  if(!T)out.semMetas=true;
+
+  /* ---- vendas ---- */
+  const cv=colmap(V.headers);
+  const iEt=pick(cv,"Etapa"), iVal=pick(cv,"Valor Único","Valor unico","Valor"),
+        iDt=pick(cv,"Data de fechamento"), iResp=pick(cv,"Responsável"), iSrv=pick(cv,"Serviço");
+  const zero={n:0};
+  const agg={tc:novo(),te:novo(),outro:novo(),tot:novo()};
+  const vend=new Map(), nomes=new Map();
+  function novo(){return {v:0,q:0,vTicket:0,qTicket:0};}
+  function add(o,val,contaTicket){o.v+=val;o.q++;if(contaTicket){o.vTicket+=val;o.qTicket++;}}
+
+  for(const r of V.rows){
+    if(!ehVenda(iEt>=0?r[iEt]:null))continue;
+    const d=toDate(r[iDt]); if(!d||d<p.a||d>p.b)continue;
+    const val=toNum(r[iVal]);
+    const contaTicket=!(CFG.ignoraZero&&val===0); if(!contaTicket)zero.n++;
+    const g=grupoServico(iSrv>=0?r[iSrv]:"");
+    add(agg[g],val,contaTicket); add(agg.tot,val,contaTicket);
+    const key=norm(iResp>=0?r[iResp]:"")||"—";
+    if(!vend.has(key))vend.set(key,{tc:novo(),te:novo(),outro:novo(),tot:novo(),fech:0,aval:0});
+    const s=vend.get(key); add(s[g],val,contaTicket); add(s.tot,val,contaTicket);
+    nomes.set(key,titled(iResp>=0?r[iResp]:"")||"—");
+  }
+  out.agg=agg; out.zero=zero.n;
+
+  /* ---- metas ---- */
+  const ct=colmap((T&&T.headers)||[]);
+  let iM=pick(ct,"Mês","Mes","Data","Competência"), iMv=pick(ct,"Meta","Valor");
+  if(iM<0)iM=0; if(iMv<0)iMv=1;
+  const iMtc=pick(ct,"Meta TC","Meta Transplante"), iMte=pick(ct,"Meta TEC","Meta Terapia");
+  let meta=0,metaTC=null,metaTE=null;
+  for(const r of ((T&&T.rows)||[])){
+    const d=toDate(r[iM]); if(!d)continue;
+    if(ymUTC(d)===p.mesChave){meta=toNum(r[iMv]);
+      if(iMtc>=0)metaTC=toNum(r[iMtc]); if(iMte>=0)metaTE=toNum(r[iMte]); break;}
+  }
+  if(!meta&&T&&T.rows.length)meta=toNum(T.rows[T.rows.length-1][iMv]);
+  if($("periodo").value==="custom"&&meta){ // pró-rata para período livre
+    const diasMes=new Date(Date.UTC(p.a.getUTCFullYear(),p.a.getUTCMonth()+1,0)).getUTCDate();
+    meta=meta*(p.totalDias/diasMes); metaTC=metaTC&&metaTC*(p.totalDias/diasMes); metaTE=metaTE&&metaTE*(p.totalDias/diasMes);
+  }
+  if(metaTC==null)metaTC=meta*(CFG.splitTC/100);
+  if(metaTE==null)metaTE=meta*(CFG.splitTE/100);
+  out.meta={total:meta,tc:metaTC,te:metaTE,estimada:(iMtc<0||iMte<0)};
+
+  const iK=pick(cv,"MM/AAAA da Avaliação","MM/AAAA da Avaliacao","MM/AAAA Avaliação");
+  const iNome=pick(cv,"Nome");
+
+  /* ---- compradores da coorte: paciente -> mês da avaliação ---- */
+  const compradores=new Map(), compPeriodo=new Set(), casados=new Set(); let negConv=0;
+  if(iK>=0)for(const r of V.rows){
+    if(!ehVenda(iEt>=0?r[iEt]:null))continue;
+    const dk=toDate(r[iK]); if(!dk)continue;
+    const k=pacKey(r[iNome>=0?iNome:0])+"|"+ymUTC(dk);
+    if(!compradores.has(k))compradores.set(k,{v:0,pac:pacKey(r[iNome>=0?iNome:0]),ym:ymUTC(dk),
+      resp:norm(iResp>=0?r[iResp]:""),nome:titled(iResp>=0?r[iResp]:"")});
+    compradores.get(k).v+=toNum(r[iVal]);
+    if(dk>=p.a&&dk<=p.b){negConv++;compPeriodo.add(k);}
+  }
+
+  /* ---- marcações / avaliações ---- */
+  const cm=colmap(M.headers);
+  const iDc=pick(cm,"Data consulta"), iTipo=pick(cm,"Tipo"), iSt=pick(cm,"Status atual"),
+        iVc=pick(cm,"Vendedor comercial","Responsável"), iEc=pick(cm,"Etapa comercial"),
+        iDf=pick(cm,"Data do fechamento"), iPac=pick(cm,"Paciente");
+  const ev={tot:0,conv:0,and:0,perd:0,convMarc:0,negConv:0,orfaos:0};
+  let convTot=0; const convMes=new Map(), avalMes=new Map(), temAval=new Set();
+  for(const r of M.rows){
+    const d=toDate(r[iDc]); if(!d)continue;
+    if(norm(r[iSt])!=="ATENDIDO")continue;
+    if(CFG.onlyPrimeira&&iTipo>=0&&!norm(r[iTipo]).startsWith("PRIMEIRA AVALIACAO"))continue;
+    const ym=ymUTC(d);
+    const pkey=pacKey(r[iPac>=0?iPac:0]);
+    temAval.add(pkey);
+    const ck=pkey+"|"+ym;
+    const comprou=compradores.has(ck);
+    if(comprou){casados.add(ck);convMes.set(ym,(convMes.get(ym)||0)+1);}
+    if(d<p.a||d>p.b)continue;
+    ev.tot++;
+    const et=norm(r[iEc]);
+    const fechou=et==="FECHAMENTO";
+    if(fechou)ev.convMarc++; else if(et.includes("PERDID"))ev.perd++;
+    const key=norm(r[iVc])||"—";
+    if(!vend.has(key))vend.set(key,{tc:novo(),te:novo(),outro:novo(),tot:novo(),fech:0,aval:0});
+    const s=vend.get(key); s.aval++;
+    if(comprou){ s.fech++; convTot++; }
+    if(!nomes.has(key))nomes.set(key,titled(r[iVc])||"—");
+  }
+  // numerador vem da aba Vendas: venda cuja avaliacao caiu no periodo
+  const orfas=[...compradores.entries()].filter(([k,o])=>!casados.has(k)&&!temAval.has(o.pac));
+  if(CFG.incluirOrfas){
+    for(const [k,o] of orfas){
+      convMes.set(o.ym,(convMes.get(o.ym)||0)+1);
+      avalMes.set(o.ym,(avalMes.get(o.ym)||0)+1);
+      if(!compPeriodo.has(k))continue;
+      ev.tot++; convTot++;
+      const key=o.resp||"—";
+      if(!vend.has(key))vend.set(key,{tc:novo(),te:novo(),outro:novo(),tot:novo(),fech:0,aval:0});
+      const sv=vend.get(key); sv.aval++; sv.fech++;
+      if(!nomes.has(key))nomes.set(key,o.nome||"—");
+    }
+  }
+  ev.orfasAbsorvidas=CFG.incluirOrfas?orfas.filter(([k])=>compPeriodo.has(k)).length:0;
+  ev.conv=convTot;
+  ev.and=Math.max(0,ev.tot-ev.conv-ev.perd);
+  ev.orfaos=[...compPeriodo].filter(k=>!casados.has(k)).length-ev.orfasAbsorvidas;
+  ev.negConv=negConv;
+  out.ev=ev;
+
+  const ign=new Set(CFG.ignorar.split(",").map(norm).filter(Boolean));
+  /* ---- extrato por mes de avaliacao ---- */
+  const ex=new Map();
+  const em=k=>{ if(!ex.has(k))ex.set(k,{per:{v:0,q:0},tot:{v:0,q:0},aval:0,pac:new Set()}); return ex.get(k); };
+  if(iK>=0)for(const r of V.rows){
+    if(!ehVenda(iEt>=0?r[iEt]:null))continue;
+    const dk=toDate(r[iK]); if(!dk)continue;
+    const o=em(ymUTC(dk)), val=toNum(r[iVal]);
+    o.tot.v+=val; o.tot.q++; o.pac.add(pacKey(r[iNome>=0?iNome:0]));
+    const df=toDate(r[iDt]);
+    if(df&&df>=p.a&&df<=p.b){o.per.v+=val;o.per.q++;}
+  }
+  for(const r of M.rows){
+    const d=toDate(r[iDc]); if(!d)continue;
+    if(norm(r[iSt])!=="ATENDIDO")continue;
+    if(CFG.onlyPrimeira&&iTipo>=0&&!norm(r[iTipo]).startsWith("PRIMEIRA AVALIACAO"))continue;
+    em(ymUTC(d)).aval++;
+  }
+  out.extrato=[...ex.entries()].filter(([,o])=>o.tot.q||o.aval||o.per.q)
+    .sort((a,b)=>b[0].localeCompare(a[0])).slice(0,18).map(([mes,o])=>({mes,...o,pac:o.pac.size,conv:convMes.get(mes)||0,
+    aval:o.aval+(CFG.incluirOrfas?(avalMes.get(mes)||0):0)}));
+
+  out.rank=[...vend.entries()].map(([k,s])=>({key:k,nome:nomes.get(k)||k,...s}))
+    .filter(x=>(x.tot.q>0||x.aval>0)&&!ign.has(x.key))
+    .sort((a,b)=>b.tot.v-a.tot.v||b.tot.q-a.tot.q);
+  return out;
+}
+
+/* ============================ render ============================ */
+function tm(o){return o.qTicket>0?o.vTicket/o.qTicket:0;}
+function render(){
+  if(!RAW)return;
+  let D; try{ D=computar(); }catch(e){ $("banner").innerHTML='<div class="msg err">'+esc(e.message)+'</div>'; return; }
+  const p=D.p, m=D.meta, A=D.agg;
+  const fmtP=d=>d.toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit",year:"numeric",timeZone:"UTC"});
+  $("periodLabel").textContent=fmtP(p.a)+" a "+fmtP(p.b)+"  ·  dia "+p.decorridos+" de "+p.totalDias;
+
+  const pctTot=pct(A.tot.v,m.total);
+  $("gVal").textContent=BRL.format(A.tot.v);
+  $("gMeta").textContent=BRL.format(m.total);
+  $("gQtd").textContent=INT.format(A.tot.q);
+  $("gPct").textContent=fpct(pctTot);
+  $("gFill").style.width=Math.min(100,pctTot)+"%";
+  $("gPace").style.left=(p.frac*100)+"%";
+  $("paceLbl").style.left=(p.frac*100)+"%";
+  $("paceLbl").textContent="Ritmo "+fpct(p.frac*100);
+
+  const tk=$("gTicks"); tk.innerHTML="";
+  for(let i=1;i<=4;i++){const d=document.createElement("div");d.className="tick";d.style.left=(i*20)+"%";
+    d.innerHTML="<b>"+BRL.format(m.total*i*0.2)+"</b>";tk.appendChild(d);}
+
+  const esperado=m.total*p.frac, delta=A.tot.v-esperado, du=diasUteisRestantes(p), falta=Math.max(0,m.total-A.tot.v);
+  $("fPace").textContent=BRL.format(esperado);
+  $("fDelta").innerHTML='<span style="color:'+(delta>=0?"var(--pos)":"var(--neg)")+'">'+(delta>=0?"+":"−")+BRL.format(Math.abs(delta))+"</span>";
+  $("fFalta").textContent=BRL.format(falta);
+  $("fDia").textContent=du>0?BRL.format(falta/du)+" ("+du+" dias)":"—";
+
+  const put=(pre,o,meta)=>{
+    const pc=pct(o.v,meta);
+    $(pre+"Pct").textContent=fpct(pc);
+    $(pre+"Fill").style.width=Math.min(100,pc)+"%";
+    $(pre+"Pace").style.left=(p.frac*100)+"%";
+    $(pre+"Val").textContent=BRL.format(o.v);
+    $(pre+"Qtd").textContent=INT.format(o.q);
+    $(pre+"Tm").textContent=BRL.format(tm(o));
+    $(pre+"Meta").textContent=BRL.format(meta);
+  };
+  put("tc",A.tc,m.tc); put("te",A.te,m.te);
+
+  const ev=D.ev;
+  $("evTot").textContent=INT.format(ev.tot);
+  $("evTotS").textContent=(CFG.onlyPrimeira?"primeiras avaliações":"avaliações")+" com status Atendido";
+  $("evConv").textContent=INT.format(ev.conv);
+  $("evConvS").innerHTML=fpct(pct(ev.conv,ev.tot))+" de conversão · "+
+    '<span style="color:var(--dim)">'+ev.negConv+" negócio(s) fechado(s)</span>";
+  $("evAnd").textContent=INT.format(ev.and);
+  $("evAndS").textContent=fpct(pct(ev.and,ev.tot))+" sem venda até agora";
+  $("evPerd").textContent=INT.format(ev.perd);
+  $("evPerdS").textContent=ev.perd===0?"nenhuma etapa PERDIDO na planilha":fpct(pct(ev.perd,ev.tot))+" do total";
+
+  const tb=$("rankBody"); tb.innerHTML="";
+  const maxConv=Math.max(...D.rank.map(r=>pct(r.fech,r.aval)),1);
+  D.rank.forEach((r,i)=>{
+    const cv=pct(r.fech,r.aval);
+    const cel=o=>'<td class="v-money sep num">'+BRL.format(o.v)+'</td><td class="v-sub num">'+INT.format(o.q)+
+      '</td><td class="v-sub num">'+(o.qTicket?BRL.format(tm(o)):"—")+'</td>';
+    tb.insertAdjacentHTML("beforeend",
+      '<tr><td class="pos num">'+(i+1)+'</td><td class="name l">'+esc(r.nome)+'</td>'+
+      cel(r.tc)+cel(r.te)+cel(r.tot)+
+      '<td class="sep"><span class="conv"><span class="f num">'+r.fech+"/"+r.aval+
+      '</span><span class="p num" style="color:'+(cv>=25?"var(--pos)":cv>0?"var(--tec)":"var(--dim)")+'">'+
+      (r.aval?fpct(cv):"—")+'</span></span>'+
+      (r.aval?'<span class="bar-inline"><i style="width:'+(cv/maxConv*100)+'%"></i></span>':"")+'</td></tr>');
+  });
+  const T=D.rank.reduce((a,r)=>{["tc","te","tot"].forEach(k=>{a[k].v+=r[k].v;a[k].q+=r[k].q;a[k].vTicket+=r[k].vTicket;a[k].qTicket+=r[k].qTicket;});
+    a.fech+=r.fech;a.aval+=r.aval;return a;},{tc:{v:0,q:0,vTicket:0,qTicket:0},te:{v:0,q:0,vTicket:0,qTicket:0},tot:{v:0,q:0,vTicket:0,qTicket:0},fech:0,aval:0});
+  const celf=o=>'<td class="sep num">'+BRL.format(o.v)+'</td><td class="num">'+INT.format(o.q)+'</td><td class="num">'+(o.qTicket?BRL.format(tm(o)):"—")+'</td>';
+  $("rankFoot").innerHTML='<tr><td colspan="2" class="l">Total</td>'+celf(T.tc)+celf(T.te)+celf(T.tot)+
+    '<td class="sep num">'+T.fech+"/"+T.aval+" · "+(T.aval?fpct(pct(T.fech,T.aval)):"—")+"</td></tr>";
+  $("rankSub").textContent="ordenado por total em R$ · conversão por "+(CFG.coorte==="fechamento"?"data de fechamento":"coorte de avaliação");
+
+  const eb=$("extBody"); eb.innerHTML="";
+  let comAval=0;
+  for(const e of D.extrato){
+    const parcial=e.aval>0&&e.tot.q>0&&e.aval<e.tot.q*0.5;
+    const cv2=(e.aval&&!parcial)?pct(e.conv,e.aval):null;
+    if(e.aval)comAval++;
+    const [ano,mes]=e.mes.split("-");
+    const nm=new Date(Date.UTC(+ano,+mes-1,1)).toLocaleDateString("pt-BR",{month:"short",year:"numeric",timeZone:"UTC"});
+    eb.insertAdjacentHTML("beforeend",
+      '<tr><td class="l name">'+esc(nm)+'</td>'+
+      '<td class="sep v-money num">'+(e.per.v?BRL.format(e.per.v):"—")+'</td><td class="v-sub num">'+(e.per.q||"—")+'</td>'+
+      '<td class="sep v-money num">'+INT.format(e.aval?e.conv:e.pac)+'</td>'+
+      '<td class="v-sub num">'+(e.aval?INT.format(e.aval)+(parcial?"*":""):"—")+'</td>'+
+      '<td class="num" style="color:'+(cv2==null?"var(--dim)":cv2>=25?"var(--pos)":"var(--tec)")+'">'+
+      (cv2==null?"—":fpct(cv2))+'</td></tr>');
+  }
+  $("extSub").textContent="receita do período · conversão casada paciente a paciente com a avaliação"+
+    (D.extrato.some(x=>x.aval>0&&x.tot.q>0&&x.aval<x.tot.q*0.5)?" · * registro parcial em Marcações":"");
+
+  const av=[];
+  if(A.outro.q)av.push("R$ "+INT.format(Math.round(A.outro.v))+" em "+A.outro.q+" negócio(s) de serviços fora do mapeamento entram só na barra principal.");
+  if(m.estimada)av.push("Meta por linha estimada pelo rateio "+CFG.splitTC+"/"+CFG.splitTE+"; a aba Metas não traz a divisão.");
+  if(D.zero)av.push(D.zero+" negócio(s) com valor zero excluídos do ticket médio.");
+  if(D.ev.orfasAbsorvidas)av.push(D.ev.orfasAbsorvidas+" venda(s) sem avaliação registrada em Marcações contadas como avaliação implícita, atribuídas ao responsável pela venda.");
+  if(D.ev.orfaos)av.push(D.ev.orfaos+" venda(s) com mês de avaliação divergente da avaliação registrada — fora da conversão deste mês.");
+  if(ev.tot&&A.tot.q&&D.rank.some(r=>r.tot.q&&!r.aval))av.push("Há vendedores com venda no período e nenhuma avaliação atribuída — venda originada de avaliação fora do período.");
+  $("banner").innerHTML=av.length?'<div class="msg warn">'+av.map(esc).join("<br>")+"</div>":"";
+}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+
+/* ============================ OAuth 2.0 PKCE ============================ */
+const SCOPES="openid profile offline_access Files.Read.All Sites.Read.All";
+const authBase=()=>"https://login.microsoftonline.com/"+encodeURIComponent(CFG.tenant||"organizations")+"/oauth2/v2.0/";
+function b64url(buf){return btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");}
+async function sha256(s){return crypto.subtle.digest("SHA-256",new TextEncoder().encode(s));}
+function rnd(n){return b64url(crypto.getRandomValues(new Uint8Array(n)));}
+
+async function login(silencioso){
+  if(!CFG.client){openCfg("Informe o Client ID antes de entrar.");return;}
+  const v=rnd(48), st=rnd(16);
+  store.set("rjv.pkce",v); store.set("rjv.state",st); store.set("rjv.silent",silencioso?"1":"");
+  const q=new URLSearchParams({client_id:CFG.client,response_type:"code",redirect_uri:REDIRECT,
+    response_mode:"query",scope:SCOPES,state:st,code_challenge:b64url(await sha256(v)),code_challenge_method:"S256",
+    prompt:silencioso?"none":"select_account"});
+  location.href=authBase()+"authorize?"+q;
+}
+async function tokenReq(body){
+  const r=await fetch(authBase()+"token",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},
+    body:new URLSearchParams(Object.assign({client_id:CFG.client,scope:SCOPES},body))});
+  const j=await r.json();
+  if(!r.ok)throw new Error(j.error_description||j.error||("HTTP "+r.status));
+  store.set("rjv.at",j.access_token);
+  store.set("rjv.exp",String(Date.now()+(j.expires_in-120)*1000));
+  if(j.refresh_token)store.set("rjv.rt",j.refresh_token);
+  return j.access_token;
+}
+async function handleRedirect(){
+  const q=new URLSearchParams(location.search);
+  if(q.get("error")){
+    const eraSilencioso=store.get("rjv.silent")==="1"; store.set("rjv.silent","");
+    history.replaceState({},"",REDIRECT);
+    if(eraSilencioso){await login(false);return false;}
+    setStatus("err","Falha no login: "+(q.get("error_description")||q.get("error")));return false;}
+  const code=q.get("code"); if(!code)return false;
+  if(q.get("state")!==store.get("rjv.state")){setStatus("err","state inválido — reinicie o login.");return false;}
+  const v=store.get("rjv.pkce"); history.replaceState({},"",REDIRECT);
+  await tokenReq({grant_type:"authorization_code",code,redirect_uri:REDIRECT,code_verifier:v});
+  store.del("rjv.pkce"); store.del("rjv.state"); store.del("rjv.silent"); store.del("rjv.tentou");
+  return true;
+}
+async function token(){
+  const at=store.get("rjv.at"), exp=+(store.get("rjv.exp")||0);
+  if(at&&Date.now()<exp)return at;
+  const rt=store.get("rjv.rt");
+  if(rt)return tokenReq({grant_type:"refresh_token",refresh_token:rt});
+  return null;
+}
+
+/* ============================ Microsoft Graph ============================ */
+const GRAPH="https://graph.microsoft.com/v1.0";
+async function gget(url,tk,tries){
+  tries=tries||0;
+  const r=await fetch(url.startsWith("http")?url:GRAPH+url,{headers:{Authorization:"Bearer "+tk}});
+  if(r.status===429||r.status>=500){
+    if(tries>3)throw new Error("Graph "+r.status+" após 4 tentativas");
+    await new Promise(s=>setTimeout(s,(+(r.headers.get("Retry-After")||0)||Math.pow(2,tries))*1000));
+    return gget(url,tk,tries+1);
+  }
+  if(!r.ok){let d="";try{d=(await r.json()).error.message;}catch(e){}
+    throw new Error("Graph "+r.status+(d?" — "+d:""));}
+  return r.json();
+}
+function shareId(u){
+  const b=new TextEncoder().encode(u); let bin="";
+  for(const x of b)bin+=String.fromCharCode(x);
+  return "u!"+btoa(bin).replace(/=+$/,"").replace(/\//g,"_").replace(/\+/g,"-");
+}
+
+const REF={drive:null,item:null,nome:null,mod:null};
+async function resolveItem(tk){
+  const it=await gget("/shares/"+shareId(CFG.file)+"/driveItem?$select=id,name,parentReference,lastModifiedDateTime",tk);
+  REF.drive=it.parentReference.driveId; REF.item=it.id; REF.nome=it.name; REF.mod=it.lastModifiedDateTime;
+  return REF;
+}
+const hm=t=>t?new Date(t).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}):"—";
+
+async function sincronizar(){
+  if(!CFG.ghToken||!CFG.ghRepo){openCfg("Informe repositório e token do GitHub.");return;}
+  if(!REF.item){setStatus("warn","Conecte-se antes de sincronizar.");return;}
+  const b=$("btnSync"); b.disabled=true;
+  try{
+    setStatus("load","Disparando sincronização…");
+    const r=await fetch("https://api.github.com/repos/"+CFG.ghRepo+"/actions/workflows/"+CFG.ghWf+"/dispatches",{
+      method:"POST",headers:{Authorization:"Bearer "+CFG.ghToken,Accept:"application/vnd.github+json","Content-Type":"application/json"},
+      body:JSON.stringify({ref:"main",inputs:{modo:"gravar"}})});
+    if(r.status!==204)throw new Error("GitHub "+r.status+" — "+(await r.text()).slice(0,120));
+    const tk=await token(), antes=REF.mod;
+    for(let i=1;i<=24;i++){
+      await new Promise(s=>setTimeout(s,5000));
+      setStatus("load","Sincronizando… "+(i*5)+"s");
+      const it=await gget("/drives/"+REF.drive+"/items/"+REF.item+"?$select=lastModifiedDateTime",tk);
+      if(it.lastModifiedDateTime!==antes){await carregar();return;}
+    }
+    await carregar();
+    setStatus("warn","Job disparado, mas a planilha não mudou — provavelmente não havia venda nova");
+  }catch(e){setStatus("err",e.message);}
+  finally{b.disabled=false;}
+}
+function colLetter(n){let s="";while(n>0){const m=(n-1)%26;s=String.fromCharCode(65+m)+s;n=(n-m-1)/26;}return s;}
+async function readSheet(tk,ref,sheet){
+  const base="/drives/"+ref.drive+"/items/"+ref.item+"/workbook/worksheets('"+encodeURIComponent(sheet.replace(/'/g,"''"))+"')";
+  const ur=await gget(base+"/usedRange(valuesOnly=true)?$select=address,rowCount,columnCount",tk);
+  const addr=String(ur.address).split("!").pop();
+  const m=addr.match(/([A-Z]+)(\d+):([A-Z]+)(\d+)/);
+  const c1=m[1],r1=+m[2],c2=m[3],r2=+m[4];
+  const CH=800; let headers=null; const rows=[];
+  for(let s=r1;s<=r2;s+=CH){
+    const e=Math.min(r2,s+CH-1);
+    const rg=await gget(base+"/range(address='"+c1+s+":"+c2+e+"')?$select=values",tk);
+    let vs=rg.values||[];
+    if(!headers){headers=vs[0]||[];vs=vs.slice(1);}
+    for(const v of vs)rows.push(v);
+  }
+  return {headers:headers||[],rows};
+}
+async function carregar(){
+  const tk=await token();
+  if(!tk){setStatus("warn","Não autenticado — exibindo dados de demonstração");return;}
+  if(!CFG.file){openCfg("Informe a URL do arquivo no SharePoint.");return;}
+  setStatus("load","Lendo planilha…");
+  try{
+    const ref=await resolveItem(tk);
+    const [V,M,T]=await Promise.all([readSheet(tk,ref,CFG.shVendas),readSheet(tk,ref,CFG.shMarc),readSheet(tk,ref,CFG.shMetas)]);
+    RAW={}; RAW[CFG.shVendas]=V; RAW[CFG.shMarc]=M; RAW[CFG.shMetas]=T;
+    render();
+    const atraso=Math.round((Date.now()-new Date(ref.mod).getTime())/60000);
+    setStatus(atraso>45?"warn":"ok",
+      ref.nome+" · planilha "+hm(ref.mod)+(atraso>=1?" ("+atraso+" min)":" (agora)")+" · painel "+hm(Date.now()));
+    $("btnSync").style.display=(CFG.ghToken&&CFG.ghRepo)?"":"none";
+  }catch(e){
+    setStatus("err",e.message);
+    if(/401|InvalidAuthenticationToken/i.test(e.message)){store.del("rjv.at");store.del("rjv.rt");}
+  }
+}
+function setStatus(k,t){$("dot").className="dot "+k;$("statusTxt").textContent=t;}
+
+/* ============================ config UI ============================ */
+const F={cTenant:"tenant",cClient:"client",cFile:"file",cShVendas:"shVendas",cShMarc:"shMarc",cShMetas:"shMetas",
+  cRefresh:"refresh",cSplitTC:"splitTC",cSplitTE:"splitTE",cMapTC:"mapTC",cMapTE:"mapTE",cIgnorar:"ignorar",cOrfas:"incluirOrfas",cEtapas:"etapasVenda",
+  cOnlyPrimeira:"onlyPrimeira",cIgnoraZero:"ignoraZero",cCoorte:"coorte",cAutoEntrar:"autoEntrar",cGhRepo:"ghRepo",cGhWf:"ghWf",cGhToken:"ghToken"};
+function cfgToUI(){for(const id in F){const el=$(id);if(el.type==="checkbox")el.checked=!!CFG[F[id]];else el.value=CFG[F[id]];}
+  $("cRedirect").textContent=REDIRECT;}
+function uiToCfg(){for(const id in F){const el=$(id);CFG[F[id]]=el.type==="checkbox"?el.checked:(el.type==="number"?+el.value:el.value);}
+  store.set("rjv.cfg",JSON.stringify(CFG));}
+function openCfg(msg){$("drawer").classList.add("open");$("cfgNotes").textContent=msg||"";}
+
+/* ============================ boot ============================ */
+let timer=null;
+function agenda(){if(timer)clearInterval(timer);if(CFG.refresh>0)timer=setInterval(carregar,CFG.refresh*60000);}
+$("btnCfg").onclick=()=>{cfgToUI();openCfg();};
+$("cClose").onclick=()=>$("drawer").classList.remove("open");
+$("cSave").onclick=()=>{uiToCfg();$("drawer").classList.remove("open");agenda();render();carregar();};
+$("btnAuth").onclick=()=>login(false);
+$("cLink").onclick=()=>{uiToCfg();const c=Object.assign({},CFG);delete c.autoEntrar;delete c.ghToken;
+  const url=REDIRECT+"#cfg="+b64uEnc(JSON.stringify(Object.assign({autoEntrar:true,ghRepo:"",ghWf:"sync.yml",ghToken:""},c)));
+  navigator.clipboard.writeText(url).then(()=>{$("cfgNotes").textContent="Link copiado. Quem abrir esse link recebe toda a configuração e entra direto.";},
+    ()=>{$("cfgNotes").textContent=url;});};
+$("btnRefresh").onclick=carregar;
+$("btnSync").onclick=sincronizar;
+$("periodo").onchange=()=>{const c=$("periodo").value==="custom";
+  $("dtIni").style.display=$("dtFim").style.display=c?"":"none";render();};
+$("dtIni").onchange=$("dtFim").onchange=render;
+
+RAW=null;
+(async()=>{
+  cfgToUI(); render(); agenda();
+  const logged=await handleRedirect().catch(e=>{setStatus("err",e.message);return false;});
+  if(logged||store.get("rjv.rt")||store.get("rjv.at")){$("btnAuth").textContent="Reconectar";await carregar();return;}
+  if(CFG.autoEntrar&&CFG.client&&CFG.file&&!store.get("rjv.tentou")){
+    store.set("rjv.tentou","1"); setStatus("load","Entrando…"); return login(true);}
+  setStatus("warn",CFG.client&&CFG.file?"Clique em Entrar":"Clique em Configurar para começar");
+})();
+</script>
+</body>
+</html>
