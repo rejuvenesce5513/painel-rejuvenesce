@@ -1444,6 +1444,7 @@ function emailAtual(){ return norm((USUARIO&&(USUARIO.mail||USUARIO.userPrincipa
 function abasPermitidas(){
   if(ADMIN)return ABAS.map(a=>a[0]);
   const e=emailAtual();
+  if(!e)return ABAS.map(a=>a[0]);          // antes do login nao ha o que restringir
   const lista=Array.isArray(CFG.acessos)?CFG.acessos:[];
   if(!lista.length)return ABAS.map(a=>a[0]);
   const achou=lista.find(x=>norm(x.e)===e&&e);
@@ -1460,7 +1461,8 @@ function aplicaAcessos(){
       esc(emailAtual()||"seu usuário")+'.</b><br>Peça acesso a quem administra.</div>';
     return;
   }
-  if(!ok.includes(ABA_ATUAL))aba(ok[0]);
+  $("banner").innerHTML="";                       // libera: limpa o aviso
+  aba(ok.includes(ABA_ATUAL)?ABA_ATUAL:ok[0]);    // e reexibe o conteúdo
 }
 
 function editorAcessos(){
@@ -1805,7 +1807,8 @@ $("btnTema").onclick=()=>{TEMA=TEMAS[(TEMAS.indexOf(TEMA)+1)%TEMAS.length];
   store.set("rjv.tema",TEMA); aplicaTema(TEMA);};
 $("btnCfg").onclick=()=>{cfgToUI();openCfg();};
 $("cClose").onclick=()=>$("drawer").classList.remove("open");
-$("cSave").onclick=()=>{if(!ADMIN){openCfg("Somente administradores podem salvar.");return;}uiToCfg();$("drawer").classList.remove("open");agenda();render();carregar();};
+$("cSave").onclick=()=>{if(!ADMIN){openCfg("Somente administradores podem salvar.");return;}
+  uiToCfg();$("drawer").classList.remove("open");agenda();aplicaAcessos();render();carregar();};
 $("btnAuth").onclick=()=>{mostrarAvisos=true;login(false);};
 $("cSairAdmin").onclick=()=>{store.del("rjv.destrava");$("drawer").classList.remove("open");atualizaAdmin();};
 $("acAdd").onclick=()=>{lerEditor();(CFG.acessos=CFG.acessos||[]).push({e:"",t:["com"]});editorAcessos();};
