@@ -675,6 +675,21 @@ function ehVenda(etapa){
   return CFG.etapasVenda.split(",").map(norm).filter(Boolean).some(t=>e.includes(t));
 }
 
+// codigo do servico: usa a coluna Serviço se existir, senao deriva de Produtos
+function codServico(r,iSrv,iProd){
+  const c=norm(iSrv>=0?r[iSrv]:"");
+  if(c)return c;
+  const h=norm(iProd>=0?r[iProd]:"");
+  if(!h)return "";
+  if(h.trim()==="BODY HAIR")return "BH";
+  if(h.includes("TRANSPLANTE CAPILAR")||h.includes("BODY HAIR"))return "TC";
+  if(h.includes("TRANSPLANTE DE BARBA"))return "TB";
+  if(h.includes("TRANSPLANTE DE SOBRANCELHA"))return "TS";
+  if(h.includes("TERAPIA CAPILAR"))return "TEC";
+  if(h.includes("CONSULTA MEDICA"))return "CM";
+  return h;
+}
+
 function grupoServico(cod){
   const c=norm(cod);
   if(CFG.mapTC.split(",").map(norm).filter(Boolean).includes(c))return "tc";
@@ -691,7 +706,8 @@ function computar(){
   /* ---- vendas ---- */
   const cv=colmap(V.headers);
   const iEt=pick(cv,"Etapa"), iVal=pick(cv,"Valor Único","Valor unico","Valor"),
-        iDt=pick(cv,"Data de fechamento"), iResp=pick(cv,"Responsável"), iSrv=pick(cv,"Serviço");
+        iDt=pick(cv,"Data de fechamento"), iResp=pick(cv,"Responsável"), iSrv=pick(cv,"Serviço"),
+        iProdV=pick(cv,"Produtos");
   const zero={n:0};
   const agg={tc:novo(),te:novo(),outro:novo(),tot:novo()};
   const vend=new Map(), nomes=new Map();
@@ -703,7 +719,7 @@ function computar(){
     const d=toDate(r[iDt]); if(!d||d<p.a||d>p.b)continue;
     const val=toNum(r[iVal]);
     const contaTicket=!(CFG.ignoraZero&&val===0); if(!contaTicket)zero.n++;
-    const g=grupoServico(iSrv>=0?r[iSrv]:"");
+    const g=grupoServico(codServico(r,iSrv,iProdV));
     add(agg[g],val,contaTicket); add(agg.tot,val,contaTicket);
     const key=norm(iResp>=0?r[iResp]:"")||"—";
     if(!vend.has(key))vend.set(key,{tc:novo(),te:novo(),outro:novo(),tot:novo(),fech:0,aval:0});
@@ -803,7 +819,7 @@ function computar(){
   const cir={ag:0,sem:0,vAg:0,vSem:0,divergentes:0,prox:null,meses:new Map()};
   for(const r of V.rows){
     if(!ehVenda(iEt>=0?r[iEt]:null))continue;
-    if(grupoServico(iSrv>=0?r[iSrv]:"")!=="tc")continue;
+    if(grupoServico(codServico(r,iSrv,iProdV))!=="tc")continue;
     const df=toDate(r[iDt]); if(!df||df<p.a||df>p.b)continue;
     const val=toNum(r[iVal]);
     const dc=iCir>=0?toDate(r[iCir]):null;
