@@ -648,10 +648,11 @@ function periodo(){
   const hoje=new Date(Date.UTC(now.getFullYear(),now.getMonth(),now.getDate()));
   const ref=hoje<a?a:(hoje>b?b:hoje);
   const totalDias=Math.round((b-a)/864e5)+1, decorridos=Math.round((ref-a)/864e5)+1;
-  const dentro=hoje>=a&&hoje<=b;
   if(!aLit){aLit=a;bLit=b;}
+  const dentro    = hoje>=aLit&&hoje<=bLit;   // literal — faixa da aba Pré-vendas
+  const dentroExp = hoje>=a&&hoje<=b;         // expandido — projeções
   return {a,b,aLit,bLit,ref,totalDias,decorridos,frac:Math.min(1,decorridos/totalDias),
-          mesChave:ymUTC(a),expandido,dentro};
+          mesChave:ymUTC(a),expandido,dentro,dentroExp};
 }
 function diasUteisRestantes(p){
   let n=0; for(let d=new Date(p.ref.getTime()+864e5);d<=p.b;d=new Date(d.getTime()+864e5)){const w=d.getUTCDay();if(w>=1&&w<=5)n++;}
@@ -1029,7 +1030,7 @@ function render(){
   $("fDelta").innerHTML='<span style="color:'+(delta>=0?"var(--pos)":"var(--neg)")+'">'+(delta>=0?"+":"−")+BRL.format(Math.abs(delta))+"</span>";
   $("fFalta").textContent=BRL.format(falta);
   $("fDia").textContent=du>0?BRL.format(falta/du)+" ("+du+" dias)":"—";
-  const emCurso=p.dentro&&p.decorridos<p.totalDias;
+  const emCurso=p.dentroExp&&p.decorridos<p.totalDias;
   const projecao=emCurso?A.tot.v*(p.totalDias/p.decorridos):A.tot.v;
   const pctProj=pct(projecao,m.total);
   $("gProj").style.width=(emCurso?Math.min(100,pctProj):0)+"%";
@@ -1265,7 +1266,7 @@ function renderComissoes(D,p){
 
   const hoje=new Date();
   const fim=new Date(Date.UTC(hoje.getUTCFullYear(),hoje.getUTCMonth(),hoje.getUTCDate()));
-  const corrente = p.dentro && fim<p.b;
+  const corrente = p.dentroExp && fim<p.b;
   const fator = corrente&&p.decorridos ? p.totalDias/p.decorridos : 1;
   const proj=v=>v*fator;
   const mesTxt=d=>d.toLocaleDateString("pt-BR",{month:"long",year:"numeric",timeZone:"UTC"});
