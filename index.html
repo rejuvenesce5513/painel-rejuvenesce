@@ -33,6 +33,10 @@ select:focus-visible,input:focus-visible,button:focus-visible{outline:2px solid 
 button{cursor:pointer;transition:border-color .15s,background .15s}
 button:hover{border-color:var(--tc)}
 button.primary{background:var(--tc);color:#06232A;border-color:var(--tc);font-weight:600}
+.tabs{display:flex;gap:2px;background:var(--panel2);border:1px solid var(--line);border-radius:var(--r);padding:2px}
+.tabs button{background:none;border:none;padding:6px 14px;font-size:13px;color:var(--muted);border-radius:2px}
+.tabs button.on{background:var(--tc);color:#06232A;font-weight:600}
+.tabs button:hover:not(.on){color:var(--txt);border-color:transparent}
 .status{font-size:11.5px;color:var(--muted);display:flex;align-items:center;gap:7px;white-space:nowrap}
 .dot{width:7px;height:7px;border-radius:50%;background:var(--dim);flex:none}
 .dot.ok{background:var(--pos)} .dot.err{background:var(--neg)} .dot.warn{background:var(--tec)}
@@ -137,6 +141,10 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
     <h1>Painel Comercial</h1>
     <span id="periodLabel">—</span>
   </div>
+  <div class="tabs">
+    <button id="tabCom" class="on">Comercial</button>
+    <button id="tabPre">Pré-vendas</button>
+  </div>
   <div class="ctl">
     <select id="periodo">
       <option value="mes">Mês atual</option>
@@ -155,6 +163,7 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
 
 <div id="banner"></div>
 
+<div id="viewComercial">
 <!-- BLOCO 1 -->
 <section class="goal">
   <div class="goal-top">
@@ -288,6 +297,42 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
   </div>
 </section>
 
+</div>
+
+<div id="viewPre" style="display:none">
+<section class="evals">
+  <div class="ev a"><div class="l">Avaliações agendadas</div><div class="v disp num" id="pvAg">0</div><div class="s" id="pvAgS">—</div></div>
+  <div class="ev b"><div class="l">Realizadas</div><div class="v disp num" id="pvRe">0</div><div class="s" id="pvReS">—</div></div>
+  <div class="ev d"><div class="l">No-show</div><div class="v disp num" id="pvNs">0</div><div class="s" id="pvNsS">—</div></div>
+  <div class="ev c"><div class="l">Remarcadas</div><div class="v disp num" id="pvRm">0</div><div class="s" id="pvRmS">—</div></div>
+</section>
+
+<section class="rank" style="margin-top:14px">
+  <div class="rank-head"><h2>Ranking de pré-vendedores</h2><span class="eyebrow" id="pvSub"></span></div>
+  <div style="overflow-x:auto">
+  <table>
+    <thead><tr>
+      <th class="l">Pré-vendedor</th>
+      <th class="sep">Agendadas</th><th>% do total</th><th>Realizadas</th><th>No-show</th><th>Remarcadas</th><th>Outras</th>
+      <th class="sep">Êxito</th>
+    </tr></thead>
+    <tbody id="pvBody"></tbody>
+    <tfoot id="pvFoot"></tfoot>
+  </table>
+  </div>
+</section>
+
+<section class="rank" style="margin-top:14px">
+  <div class="rank-head"><h2>Agendamentos por dia</h2><span class="eyebrow">período selecionado</span></div>
+  <div style="overflow-x:auto">
+  <table>
+    <thead><tr><th class="l">Dia</th><th class="sep">Agendadas</th><th>Realizadas</th><th>No-show</th><th>Remarcadas</th><th class="sep">Êxito</th></tr></thead>
+    <tbody id="pvDias"></tbody>
+  </table>
+  </div>
+</section>
+</div>
+
 <!-- CONFIG -->
 <aside class="drawer" id="drawer">
   <h3>Configuração</h3>
@@ -321,6 +366,16 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
     <div class="h">Valores da coluna "Etapa", separados por vírgula. Acentos são ignorados.</div></div>
   <div class="f"><label>Valor de "Data Cirurgia foi marcada?" que significa agendada</label><input id="cAgendada" value="Data Agendada">
     <div class="h">O campo manda: data preenchida com status diferente disso conta como sem agendamento.</div></div>
+  <hr>
+  <div class="row2">
+    <div class="f"><label>Status: realizada</label><input id="cStRe" value="Atendido"></div>
+    <div class="f"><label>Status: no-show</label><input id="cStNs" value="Não compareceu"></div>
+  </div>
+  <div class="f"><label>Status: remarcada</label><input id="cStRm" value="Remarcado">
+    <div class="h">Usados na aba Pré-vendas. Qualquer outro status entra em "Outras".</div></div>
+  <div class="f"><label>Equipe de pré-vendas</label><input id="cEquipe" value="Beatriz,Fabiana,Amanda">
+    <div class="h">Primeiro nome basta. Quem não estiver aqui entra como agendamento esporádico — soma no total, fora do resultado do setor.</div></div>
+  <hr>
   <div class="f"><label>Rótulos a excluir do ranking</label><input id="cIgnorar" value="Sem deal comercial,—,JARVYS">
     <div class="h">Valores da coluna Responsável/Vendedor comercial que não são vendedores.</div></div>
 
@@ -361,7 +416,7 @@ const store={
   del(k){ try{localStorage.removeItem(k);}catch(e){delete mem[k];} }
 };
 const DEF={tenant:"89aed341-1dc6-4d0d-b5c7-e8df4293d21d",client:"",file:"",autoEntrar:true,ghRepo:"",ghWf:"sync.yml",ghToken:"",shVendas:"Vendas",shMarc:"Marcações",shMetas:"Metas",
-  refresh:10,splitTC:90,splitTE:10,mapTC:"TC,TB,TS,BH",mapTE:"TEC",ignorar:"Sem deal comercial,—,JARVYS",marcaAgendada:"Data Agendada",incluirOrfas:false,etapasVenda:"FECHAMENTO,FINALIZADO,REVISAO DE PENDENCIAS",onlyPrimeira:true,ignoraZero:true,coorte:"fechamento"};
+  refresh:10,splitTC:90,splitTE:10,mapTC:"TC,TB,TS,BH",mapTE:"TEC",ignorar:"Sem deal comercial,—,JARVYS",marcaAgendada:"Data Agendada",stRealizada:"Atendido",stNoShow:"Não compareceu",stRemarcada:"Remarcado",equipePre:"Beatriz,Fabiana,Amanda",incluirOrfas:false,etapasVenda:"FECHAMENTO,FINALIZADO,REVISAO DE PENDENCIAS",onlyPrimeira:true,ignoraZero:true,coorte:"fechamento"};
 let CFG=Object.assign({},DEF,JSON.parse(store.get("rjv.cfg")||"{}"));
 const REDIRECT=location.origin+location.pathname;
 function b64uEnc(str){const b=new TextEncoder().encode(str);let x="";for(const c of b)x+=String.fromCharCode(c);
@@ -402,6 +457,7 @@ function toNum(v){
 }
 const iso=d=>d.toISOString().slice(0,10);
 const ymUTC=d=>d.toISOString().slice(0,7);
+const ymdUTC=d=>d.toISOString().slice(0,10);
 
 /* ============================ período ============================ */
 function periodo(){
@@ -607,6 +663,36 @@ function computar(){
     .sort((a,b)=>b[0].localeCompare(a[0])).slice(0,18).map(([mes,o])=>({mes,...o,pac:o.pac.size,conv:convMes.get(mes)||0,
     aval:o.aval+(CFG.incluirOrfas?(avalMes.get(mes)||0):0)}));
 
+  /* ---- pré-vendas ---- */
+  const iQa=pick(cm,"Quem agendou","Quem Agendou","Quem agendou?");
+  const sRe=norm(CFG.stRealizada), sNs=norm(CFG.stNoShow), sRm=norm(CFG.stRemarcada);
+  const zera=()=>({ag:0,re:0,ns:0,rm:0,ot:0});
+  const pre={mes:zera(),hoje:zera(),pessoas:new Map(),dias:new Map(),nomes:new Map()};
+  const hj=new Date(); const hojeK=ymdUTC(new Date(Date.UTC(hj.getFullYear(),hj.getMonth(),hj.getDate())));
+  for(const r of M.rows){
+    const d=toDate(r[iDc]); if(!d||d<p.a||d>p.b)continue;
+    const st=norm(r[iSt]);
+    const tipo = st===sRe?"re" : st===sNs?"ns" : st===sRm?"rm" : "ot";
+    const dia=ymdUTC(d);
+    const soma=o=>{o.ag++;o[tipo]++;};
+    soma(pre.mes);
+    if(dia===hojeK)soma(pre.hoje);
+    if(!pre.dias.has(dia))pre.dias.set(dia,zera());
+    soma(pre.dias.get(dia));
+    const k=norm(iQa>=0?r[iQa]:"")||"—";
+    if(!pre.pessoas.has(k))pre.pessoas.set(k,zera());
+    soma(pre.pessoas.get(k));
+    if(!pre.nomes.has(k))pre.nomes.set(k,titled(iQa>=0?r[iQa]:"")||"—");
+  }
+  const ignPre=new Set(CFG.ignorar.split(",").map(norm).filter(Boolean).concat(["BUSCANDO…","BUSCANDO..."]));
+  const termos=CFG.equipePre.split(",").map(norm).filter(Boolean);
+  const daEquipe=k=>termos.some(t=>k.includes(t));
+  const lista=[...pre.pessoas.entries()].filter(([k])=>!ignPre.has(k))
+    .map(([k,o])=>({nome:pre.nomes.get(k)||k,eq:daEquipe(k),...o}));
+  lista.sort((a,b)=>(b.eq-a.eq)||(b.re-a.re)||(b.ag-a.ag));
+  const soma=(f)=>lista.filter(f).reduce((a,x)=>({ag:a.ag+x.ag,re:a.re+x.re,ns:a.ns+x.ns,rm:a.rm+x.rm,ot:a.ot+x.ot}),zeraT());
+  out.pre={...pre,lista,equipe:soma(x=>x.eq),geral:soma(()=>true)};
+
   out.rank=[...vend.entries()].map(([k,s])=>({key:k,nome:nomes.get(k)||k,...s}))
     .filter(x=>(x.tot.q>0||x.aval>0)&&!ign.has(x.key))
     .sort((a,b)=>b.tot.v-a.tot.v||b.tot.q-a.tot.q);
@@ -735,6 +821,60 @@ function render(){
   $("extSub").textContent="receita do período · conversão casada paciente a paciente com a avaliação"+
     (D.extrato.some(x=>x.aval>0&&x.tot.q>0&&x.aval<x.tot.q*0.5)?" · * registro parcial em Marcações":"");
 
+  const P=D.pre, pm=P.mes, ph=P.hoje;
+  const EQ=P.equipe;
+  const setPv=(id,vm,vh,base,veq)=>{
+    $(id).textContent=INT.format(vm);
+    $(id+"S").innerHTML=(base?fpct(pct(vm,base))+" do agendado · ":"")+"hoje "+INT.format(vh)+
+      '<br><span style="color:var(--dim)">equipe: '+INT.format(veq)+" ("+fpct(pct(veq,vm))+" do total)</span>";
+  };
+  setPv("pvAg",pm.ag,ph.ag,0,EQ.ag);
+  setPv("pvRe",pm.re,ph.re,pm.ag,EQ.re);
+  setPv("pvNs",pm.ns,ph.ns,pm.ag,EQ.ns);
+  setPv("pvRm",pm.rm,ph.rm,pm.ag,EQ.rm);
+
+  const pb=$("pvBody"); pb.innerHTML="";
+  const maxEx=Math.max(...P.lista.filter(x=>x.eq).map(x=>pct(x.re,x.ag)),1);
+  let sepPosto=false;
+  P.lista.forEach((x,i)=>{
+    const ex=pct(x.re,x.ag);
+    if(!x.eq&&!sepPosto){sepPosto=true;
+      pb.insertAdjacentHTML("beforeend",'<tr><td colspan="8" class="l eyebrow" style="padding-top:14px;color:var(--dim)">Agendamentos esporádicos — fora do setor</td></tr>');}
+    pb.insertAdjacentHTML("beforeend",
+      '<tr'+(x.eq?"":' style="opacity:.6"')+'><td class="l name">'+
+      (x.eq?'<b style="color:var(--tc)">'+(i+1)+'</b> ':"")+esc(x.nome)+'</td>'+
+      '<td class="sep v-money num">'+INT.format(x.ag)+'</td>'+
+      '<td class="v-sub num">'+fpct(pct(x.ag,P.geral.ag))+'</td>'+
+      '<td class="v-money num" style="color:var(--pos)">'+INT.format(x.re)+'</td>'+
+      '<td class="v-sub num" style="color:'+(x.ns?"var(--neg)":"var(--dim)")+'">'+INT.format(x.ns)+'</td>'+
+      '<td class="v-sub num">'+INT.format(x.rm)+'</td>'+
+      '<td class="v-sub num">'+INT.format(x.ot)+'</td>'+
+      '<td class="sep num" style="color:'+(ex>=70?"var(--pos)":ex>=50?"var(--tec)":"var(--neg)")+'">'+fpct(ex)+
+      (x.eq?'<span class="bar-inline"><i style="width:'+Math.min(100,ex/maxEx*100)+'%"></i></span>':"")+'</td></tr>');
+  });
+  if(!P.lista.length)pb.innerHTML='<tr><td class="l" colspan="8" style="color:var(--dim)">sem agendamentos no período</td></tr>';
+  const linhaT=(rot,o,cor)=>'<tr'+(cor?' style="color:'+cor+'"':"")+'><td class="l">'+rot+'</td>'+
+    '<td class="sep num">'+INT.format(o.ag)+'</td><td class="num">'+fpct(pct(o.ag,P.geral.ag))+'</td>'+
+    '<td class="num">'+INT.format(o.re)+'</td><td class="num">'+INT.format(o.ns)+'</td>'+
+    '<td class="num">'+INT.format(o.rm)+'</td><td class="num">'+INT.format(o.ot)+'</td>'+
+    '<td class="sep num">'+(o.ag?fpct(pct(o.re,o.ag)):"—")+'</td></tr>';
+  $("pvFoot").innerHTML=P.geral.ag?linhaT("Equipe de pré-vendas",P.equipe,"var(--tc)")+linhaT("Total geral",P.geral,""):"";
+  $("pvSub").textContent="equipe ordenada por avaliações realizadas · êxito = realizadas ÷ agendadas";
+
+  const pd=$("pvDias"); pd.innerHTML="";
+  for(const [dia,o] of [...P.dias.entries()].sort((a,b)=>b[0].localeCompare(a[0])).slice(0,31)){
+    const dt2=new Date(dia+"T00:00:00Z");
+    const rot=dt2.toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit",weekday:"short",timeZone:"UTC"});
+    const ex=pct(o.re,o.ag);
+    pd.insertAdjacentHTML("beforeend",
+      '<tr'+(dia===ymdUTC(new Date(Date.now()))?' style="background:#1A2530"':'')+'><td class="l name">'+esc(rot)+'</td>'+
+      '<td class="sep v-money num">'+INT.format(o.ag)+'</td>'+
+      '<td class="v-sub num" style="color:var(--pos)">'+INT.format(o.re)+'</td>'+
+      '<td class="v-sub num" style="color:'+(o.ns?"var(--neg)":"var(--dim)")+'">'+INT.format(o.ns)+'</td>'+
+      '<td class="v-sub num">'+INT.format(o.rm)+'</td>'+
+      '<td class="sep num">'+fpct(ex)+'</td></tr>');
+  }
+
   const av=[];
   if(A.outro.q)av.push("R$ "+INT.format(Math.round(A.outro.v))+" em "+A.outro.q+" negócio(s) de serviços fora do mapeamento entram só na barra principal.");
   if(m.estimada)av.push("Meta por linha estimada pelo rateio "+CFG.splitTC+"/"+CFG.splitTE+"; a aba Metas não traz a divisão.");
@@ -745,6 +885,7 @@ function render(){
   if(ev.tot&&A.tot.q&&D.rank.some(r=>r.tot.q&&!r.aval))av.push("Há vendedores com venda no período e nenhuma avaliação atribuída — venda originada de avaliação fora do período.");
   $("banner").innerHTML=av.length?'<div class="msg warn">'+av.map(esc).join("<br>")+"</div>":"";
 }
+function zeraT(){return {ag:0,re:0,ns:0,rm:0,ot:0};}
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
 
 /* ============================ OAuth 2.0 PKCE ============================ */
@@ -885,7 +1026,7 @@ function setStatus(k,t){$("dot").className="dot "+k;$("statusTxt").textContent=t
 
 /* ============================ config UI ============================ */
 const F={cTenant:"tenant",cClient:"client",cFile:"file",cShVendas:"shVendas",cShMarc:"shMarc",cShMetas:"shMetas",
-  cRefresh:"refresh",cSplitTC:"splitTC",cSplitTE:"splitTE",cMapTC:"mapTC",cMapTE:"mapTE",cIgnorar:"ignorar",cAgendada:"marcaAgendada",cOrfas:"incluirOrfas",cEtapas:"etapasVenda",
+  cRefresh:"refresh",cSplitTC:"splitTC",cSplitTE:"splitTE",cMapTC:"mapTC",cMapTE:"mapTE",cIgnorar:"ignorar",cAgendada:"marcaAgendada",cStRe:"stRealizada",cStNs:"stNoShow",cStRm:"stRemarcada",cEquipe:"equipePre",cOrfas:"incluirOrfas",cEtapas:"etapasVenda",
   cOnlyPrimeira:"onlyPrimeira",cIgnoraZero:"ignoraZero",cCoorte:"coorte",cAutoEntrar:"autoEntrar",cGhRepo:"ghRepo",cGhWf:"ghWf",cGhToken:"ghToken"};
 function cfgToUI(){for(const id in F){const el=$(id);if(el.type==="checkbox")el.checked=!!CFG[F[id]];else el.value=CFG[F[id]];}
   $("cRedirect").textContent=REDIRECT;}
@@ -905,6 +1046,14 @@ $("cLink").onclick=()=>{uiToCfg();const c=Object.assign({},CFG);delete c.autoEnt
   navigator.clipboard.writeText(url).then(()=>{$("cfgNotes").textContent="Link copiado. Quem abrir esse link recebe toda a configuração e entra direto.";},
     ()=>{$("cfgNotes").textContent=url;});};
 $("btnRefresh").onclick=carregar;
+function aba(pre){
+  $("viewComercial").style.display=pre?"none":"";
+  $("viewPre").style.display=pre?"":"none";
+  $("tabCom").className=pre?"":"on";
+  $("tabPre").className=pre?"on":"";
+}
+$("tabCom").onclick=()=>aba(false);
+$("tabPre").onclick=()=>aba(true);
 $("btnSync").onclick=sincronizar;
 $("periodo").onchange=()=>{const c=$("periodo").value==="custom";
   $("dtIni").style.display=$("dtFim").style.display=c?"":"none";render();};
