@@ -629,6 +629,7 @@ const ymdUTC=d=>d.toISOString().slice(0,10);
 /* ============================ período ============================ */
 function periodo(){
   const t=$("periodo").value, now=new Date();
+  let aLit=null,bLit=null;
   let a=new Date(Date.UTC(now.getFullYear(),now.getMonth(),1)),
       b=new Date(Date.UTC(now.getFullYear(),now.getMonth()+1,0));
   if(t==="mesant"){a=new Date(Date.UTC(now.getFullYear(),now.getMonth()-1,1));b=new Date(Date.UTC(now.getFullYear(),now.getMonth(),0));}
@@ -636,6 +637,7 @@ function periodo(){
   if(t==="custom"){
     if($("dtIni").value)a=new Date($("dtIni").value+"T00:00:00Z");
     if($("dtFim").value)b=new Date($("dtFim").value+"T00:00:00Z");
+    aLit=a; bLit=b;
     if(CFG.mesesCheios){
       const a2=new Date(Date.UTC(a.getUTCFullYear(),a.getUTCMonth(),1));
       const b2=new Date(Date.UTC(b.getUTCFullYear(),b.getUTCMonth()+1,0));
@@ -647,7 +649,8 @@ function periodo(){
   const ref=hoje<a?a:(hoje>b?b:hoje);
   const totalDias=Math.round((b-a)/864e5)+1, decorridos=Math.round((ref-a)/864e5)+1;
   const dentro=hoje>=a&&hoje<=b;
-  return {a,b,ref,totalDias,decorridos,frac:Math.min(1,decorridos/totalDias),
+  if(!aLit){aLit=a;bLit=b;}
+  return {a,b,aLit,bLit,ref,totalDias,decorridos,frac:Math.min(1,decorridos/totalDias),
           mesChave:ymUTC(a),expandido,dentro};
 }
 function diasUteisRestantes(p){
@@ -860,7 +863,7 @@ function computar(){
     porPac.set(k,(porPac.get(k)||0)+1);
   }
   const zera=()=>({ag:0,re:0,ns:0,rm:0,fu:0,ot:0,vl:0});
-  const pre={mes:zera(),hoje:zera(),pessoas:new Map(),dias:new Map(),nomes:new Map(),status:new Map()};
+  const pre={mes:zera(),hoje:zera(),lit:zera(),pessoas:new Map(),dias:new Map(),nomes:new Map(),status:new Map()};
   let reclass=0;
   const hj=new Date(); const hojeK=ymdUTC(new Date(Date.UTC(hj.getFullYear(),hj.getMonth(),hj.getDate())));
   for(const r of M.rows){
@@ -883,6 +886,7 @@ function computar(){
     const vu=iVu>=0?toNum(r[iVu]):0;
     const soma=o=>{o.ag++;o[tipo]++;o.vl+=vu;};
     soma(pre.mes);
+    if(d>=p.aLit&&d<=p.bLit)soma(pre.lit);
     if(dia===hojeK)soma(pre.hoje);
     if(!pre.dias.has(dia))pre.dias.set(dia,zera());
     soma(pre.dias.get(dia));
@@ -1134,11 +1138,12 @@ function render(){
       '<span style="color:var(--dim)">equipe '+INT.format(veq)+" · esporádicos "+INT.format(vm-veq)+"</span>";
   };
   setPv("pvAg",pm.ag,ph.ag,0,EQ.ag);
-  const alvoH = p.dentro ? ph : pm;
-  $("hojeTit").textContent = p.dentro ? "Hoje" : "Total do período";
+  const fmtD=d=>d.toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit",year:"numeric",timeZone:"UTC"});
+  const alvoH = p.dentro ? ph : P.lit;
+  $("hojeTit").textContent = p.dentro ? "Hoje" : "Intervalo selecionado";
   $("hojeSub").textContent = p.dentro
     ? new Date().toLocaleDateString("pt-BR",{weekday:"long",day:"2-digit",month:"long"})
-    : "hoje está fora do intervalo selecionado";
+    : fmtD(p.aLit)+" a "+fmtD(p.bLit)+(p.expandido?" · os cards abaixo usam os meses completos":"");
   $("hojeNums").innerHTML=[["Agendadas",alvoH.ag,"var(--txt)"],["Realizadas",alvoH.re,"var(--pos)"],
     ["No-show",alvoH.ns,"var(--neg)"],["Remarcadas",alvoH.rm,"var(--tec)"],
     ["Por acontecer",alvoH.fu,"var(--tc)"],["Não ocorrerão",alvoH.ot,"var(--muted)"]]
