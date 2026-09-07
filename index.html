@@ -529,7 +529,10 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
   <div class="f"><label>Equipe de pré-vendas</label><input id="cEquipe" value="Beatriz,Fabiana,Amanda">
     <div class="h">Primeiro nome basta. Quem não estiver aqui entra como agendamento esporádico — soma no total, fora do resultado do setor.</div></div>
   <hr>
-  <div class="f"><label>Regras de comissão</label>
+  <div class="f"><label>Arquivo das regras no SharePoint</label><input id="cArqReg" placeholder="https://...&#47;Regras Comissao.xlsx">
+    <div class="h">Aba "Regras", coluna A, uma linha por regra. Em pasta restrita: quem não tem permissão recebe 403 e a aba trava. É o que faz a configuração seguir você em qualquer navegador.</div></div>
+  <div class="f"><label>Aba das regras</label><input id="cShReg" value="Parâmetros Comissões"></div>
+  <div class="f"><label>Regras de comissão (usado só se o arquivo acima estiver vazio)</label>
     <textarea id="cRegras" rows="16" style="width:100%;background:var(--panel);color:var(--txt);border:1px solid var(--line);border-radius:var(--r);font-family:'IBM Plex Mono';font-size:12px;padding:9px;resize:vertical"></textarea>
     <div class="h">Uma regra por linha. Linhas com # são comentário. Botão abaixo carrega o modelo.</div>
     <button id="cModelo" style="margin-top:6px">Carregar modelo das regras</button>
@@ -597,6 +600,10 @@ const NATIVO = {
   onlyPrimeira: true, ignoraZero: true, incluirOrfas: false,
   coorte: "fechamento", mesesCheios: true, autoEntrar: true,
   emailsComissao: "",
+  // Arquivo com as regras, em pasta restrita do SharePoint.
+  // Aba "Regras", coluna A, uma regra por linha. Segue o admin em qualquer navegador.
+  arqRegras: "https://rejuvenesce.sharepoint.com/sites/ClnicaRejuvenesce-Comercial/Documentos%20Compartilhados/Parametros%20Comissões.xlsx",
+  shRegras: "Parâmetros Comissões",
 
   // ATENÇÃO: repositório público. Regras de comissão NÃO ficam aqui —
   // vivem no navegador do administrador e viajam pelo link de instalação.
@@ -609,7 +616,7 @@ const store={
   set(k,v){ try{localStorage.setItem(k,v);}catch(e){mem[k]=v;} },
   del(k){ try{localStorage.removeItem(k);}catch(e){delete mem[k];} }
 };
-const DEF={versao:"",admins:"",regrasComissao:"",tenant:"89aed341-1dc6-4d0d-b5c7-e8df4293d21d",client:"",file:"",autoEntrar:true,ghRepo:"",ghWf:"sync.yml",ghToken:"",shVendas:"Vendas",shMarc:"Marcações",shMetas:"Metas",
+const DEF={versao:"",admins:"",arqRegras:"",shRegras:"Parâmetros Comissões",regrasComissao:"",tenant:"89aed341-1dc6-4d0d-b5c7-e8df4293d21d",client:"",file:"",autoEntrar:true,ghRepo:"",ghWf:"sync.yml",ghToken:"",shVendas:"Vendas",shMarc:"Marcações",shMetas:"Metas",
   refresh:10,splitTC:90,splitTE:10,mapTC:"TC,TB,TS,BH",mapTE:"TEC",ignorar:"Sem deal comercial,—,JARVYS",marcaAgendada:"Data Agendada",stRealizada:"Atendido",stNoShow:"Não compareceu",stRemarcada:"Remarcado",stFuturo:"Marcado",stCancelado:"Desmarcado pelo paciente,Cancelado pelo profissional",mesesCheios:true,shParams:"Parâmetros Comissões",arqParams:"",emailsComissao:"",equipePre:"Beatriz,Fabiana,Amanda",incluirOrfas:false,etapasVenda:"FECHAMENTO,FINALIZADO,REVISAO DE PENDENCIAS",onlyPrimeira:true,ignoraZero:true,coorte:"fechamento"};
 // versao nova zera preferencias, mas NUNCA o que e conexao/credencial
 if(store.get("rjv.cfgv")!==NATIVO.versao){
@@ -1079,8 +1086,33 @@ function faixaPct(v,linhas){          // [[de,ate,pct],...] -> pct da faixa atin
   return pct;
 }
 
+function parseGrade(rows){
+  if(!rows||!rows.length)return null;
+  const cel=ref=>{const m=/^([A-Z]+)(\d+)$/.exec(ref); if(!m)return null;
+    let c=0; for(const ch of m[1])c=c*26+ch.charCodeAt(0)-64;
+    const l=rows[+m[2]-1]; return l?l[c-1]:null;};
+  const n=r=>toNum(cel(r)), t=r=>String(cel(r)??"").trim();
+  if(!n("B15")&&!n("D8"))return null;                 // nao parece a planilha de parametros
+  const fx=[[n("B8"),n("C8"),n("D8")],[n("B9"),n("C9"),n("D9")],[n("B10"),Infinity,n("D10")]];
+  const faixa=(a,b,c)=>{const ate=String(cel(b)??"").toLowerCase().includes("acima")?Infinity:toNum(cel(b));
+    return [toNum(cel(a)),ate,toNum(cel(c))];};
+  return {
+    vigVend:toDate(cel("B5")), vigSup:toDate(cel("B14")), fx,
+    baseTC:n("B15"), grpTC:t("B16")||"TC,TB,TS,BH",
+    baseTE:n("B28"), grpTE:t("B29")||"TEC,CM",
+    fxTC:[18,19,20,21,22,23,24].map(r=>faixa("A"+r,"B"+r,"C"+r)),
+    fxTE:[31,32,33,34,35,36].map(r=>faixa("A"+r,"B"+r,"C"+r)),
+    pIni:n("B40"), pComp:n("B41"), pTE:n("B42"), defas:Math.round(n("B43"))||1,
+    etapas:[t("B49"),t("C49")].filter(Boolean),
+    legTC:n("B52"), gatilho:n("B53"), legTE:n("B54"),
+    excNome:t("B55"), excTE:n("B56"), excTC:n("B57")
+  };
+}
+
+function regrasAtivas(){ return REGRAS_REMOTAS || CFG.regrasComissao; }
+
 function comissoes(V,cv,p){
-  const P=parseRegras(CFG.regrasComissao);
+  const P=REGRAS_P||parseRegras(CFG.regrasComissao);
   if(!P)return null;
   const iEt=pick(cv,"Etapa"), iVal=pick(cv,"Valor Único","Valor unico"),
         iDt=pick(cv,"Data de fechamento"), iResp=pick(cv,"Responsável"),
@@ -1397,9 +1429,12 @@ function emailOk(){
 function renderComissoes(D,p){
   const K=D.com, lock=$("comLock"), body=$("comBody");
   const mostraLock=t=>{lock.style.display="";lock.innerHTML=t;body.style.display="none";};
-  if(!CFG.regrasComissao||!CFG.regrasComissao.trim()){
-    mostraLock("<b>Regras de comissão não configuradas.</b><br>"+
-      (ADMIN?"Abra Configurar e carregue o modelo das regras.":"Peça a quem administra o painel."));
+  if(!REGRAS_P&&!(CFG.regrasComissao||"").trim()){
+    mostraLock(REGRAS_ERRO
+      ? "<b>Sem acesso às regras de comissão.</b><br>"+esc(REGRAS_ERRO)+
+        "<br>Se o arquivo está em pasta restrita, é isso que se espera — peça acesso a quem administra."
+      : "<b>Regras de comissão não configuradas.</b><br>"+
+        (ADMIN?"Aponte o arquivo das regras no Configurar, ou carregue o modelo.":"Peça a quem administra o painel."));
     return;
   }
   if(!emailOk()){
@@ -1497,7 +1532,8 @@ function renderComissoes(D,p){
       (K.P.vigSup?mesTxt(K.P.vigSup):"—"))+'</td></tr>';
   $("cronFoot").innerHTML=(K.honTC+K.honTE)?'<tr><td class="l">Total</td><td class="sep"></td><td></td>'+
     '<td class="num">'+BRL2.format(K.honTC+K.honTE)+'</td></tr>':"";
-  $("cronSub").textContent="defasagem de "+K.P.defas+" mês(es) após o fato gerador";
+  $("cronSub").textContent="defasagem de "+K.P.defas+" mês(es) após o fato gerador"+
+    (REGRAS_FONTE?" · regras: "+REGRAS_FONTE:" · regras locais deste navegador");
 }
 
 function zeraT(){return {ag:0,re:0,ns:0,rm:0,fu:0,ot:0,vl:0};}
@@ -1573,7 +1609,7 @@ function shareId(u){
 }
 
 const REF={drive:null,item:null,nome:null,mod:null};
-let PARAMS=null, PARAMS_ERRO=null, USUARIO=null;
+let PARAMS=null, PARAMS_ERRO=null, USUARIO=null, REGRAS_REMOTAS=null, REGRAS_ERRO=null, REGRAS_P=null, REGRAS_FONTE="";
 async function resolveItem2(tk,url){
   const it=await gget("/shares/"+shareId(url)+"/driveItem?$select=id,name,parentReference",tk);
   return {drive:it.parentReference.driveId,item:it.id,nome:it.name};
@@ -1638,6 +1674,20 @@ async function carregar(){
       const refP = CFG.arqParams ? await resolveItem2(tk,CFG.arqParams) : ref;
       PARAMS=await readSheet(tk,refP,CFG.shParams,true);
     }catch(e){ PARAMS_ERRO=String(e.message||e); }
+    REGRAS_REMOTAS=null; REGRAS_ERRO=null; REGRAS_P=null; REGRAS_FONTE="";
+    if(CFG.arqRegras){
+      try{
+        const refR=await resolveItem2(tk,CFG.arqRegras);
+        const g2=await readSheet(tk,refR,CFG.shRegras,true);
+        const rows=g2.rows||[];
+        const txt=rows.map(l=>String((l&&l[0])??"")).join("\n").trim();
+        const pTxt=parseRegras(txt);
+        if(pTxt&&pTxt.fx.length){ REGRAS_P=pTxt; REGRAS_REMOTAS=txt; REGRAS_FONTE="texto no SharePoint"; }
+        else { const pG=parseGrade(rows);
+          if(pG){ REGRAS_P=pG; REGRAS_FONTE="planilha de parâmetros"; }
+          else REGRAS_ERRO="Arquivo lido, mas a aba \""+CFG.shRegras+"\" não tem formato reconhecido."; }
+      }catch(e){ REGRAS_ERRO=String(e.message||e); }
+    }
     try{ USUARIO=await gget("/me?$select=mail,userPrincipalName,displayName",tk); }catch(e){}
     atualizaAdmin();
     render();
@@ -1654,7 +1704,7 @@ function setStatus(k,t){$("dot").className="dot "+k;$("statusTxt").textContent=t
 
 /* ============================ config UI ============================ */
 const F={cTenant:"tenant",cClient:"client",cFile:"file",cShVendas:"shVendas",cShMarc:"shMarc",cShMetas:"shMetas",
-  cRefresh:"refresh",cSplitTC:"splitTC",cSplitTE:"splitTE",cMapTC:"mapTC",cMapTE:"mapTE",cIgnorar:"ignorar",cAgendada:"marcaAgendada",cStRe:"stRealizada",cStNs:"stNoShow",cStRm:"stRemarcada",cStFu:"stFuturo",cStCa:"stCancelado",cMeses:"mesesCheios",cRegras:"regrasComissao",cAdmins:"admins",cEmails:"emailsComissao",cEquipe:"equipePre",cOrfas:"incluirOrfas",cEtapas:"etapasVenda",
+  cRefresh:"refresh",cSplitTC:"splitTC",cSplitTE:"splitTE",cMapTC:"mapTC",cMapTE:"mapTE",cIgnorar:"ignorar",cAgendada:"marcaAgendada",cStRe:"stRealizada",cStNs:"stNoShow",cStRm:"stRemarcada",cStFu:"stFuturo",cStCa:"stCancelado",cMeses:"mesesCheios",cRegras:"regrasComissao",cAdmins:"admins",cArqReg:"arqRegras",cShReg:"shRegras",cEmails:"emailsComissao",cEquipe:"equipePre",cOrfas:"incluirOrfas",cEtapas:"etapasVenda",
   cOnlyPrimeira:"onlyPrimeira",cIgnoraZero:"ignoraZero",cCoorte:"coorte",cAutoEntrar:"autoEntrar",cGhRepo:"ghRepo",cGhWf:"ghWf",cGhToken:"ghToken"};
 function cfgToUI(){for(const id in F){const el=$(id);if(el.type==="checkbox")el.checked=!!CFG[F[id]];else el.value=CFG[F[id]];}
   $("cRedirect").textContent=REDIRECT;}
