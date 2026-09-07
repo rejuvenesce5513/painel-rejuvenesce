@@ -571,7 +571,7 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
   <hr>
   <div class="f"><label>Administradores do painel</label><input id="cAdmins" value="fabricio.araujo@clinicarejuvenesce.com.br">
     <div class="h">Só estes e-mails enxergam o botão Configurar. Os demais recebem a configuração pronta.</div></div>
-  <div style="display:flex;gap:9px;flex-wrap:wrap"><button class="primary" id="cSave">Salvar e recarregar</button><button id="cNativo">Copiar bloco nativo</button><button id="cLink">Copiar link de instalação</button><button id="cClose">Fechar</button></div>
+  <div style="display:flex;gap:9px;flex-wrap:wrap"><button class="primary" id="cSave">Salvar e recarregar</button><button id="cNativo">Copiar bloco nativo</button><button id="cSairAdmin" style="display:none">Sair do modo administrador</button><button id="cLink">Copiar link de instalação</button><button id="cClose">Fechar</button></div>
   <div class="notes" id="cfgNotes"></div>
 </aside>
 
@@ -585,6 +585,7 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
 const NATIVO = {
   versao: "2",              // suba este número para sobrescrever ajustes locais de todo mundo
   admins: "fabricio.araujo@clinicarejuvenesce.com.br",
+  chaveAdmin: "cfg_rjvnsc",   // acrescente #cfg_rjvnsc na URL para destravar o Configurar
   tenant: "89aed341-1dc6-4d0d-b5c7-e8df4293d21d",
   client: "b7a0f205-e154-42b3-a8c5-3a3df93ac749",
   file:   "https://rejuvenesce.sharepoint.com/sites/ClnicaRejuvenesce-Comercial/Documentos%20Compartilhados/VENDAS E CAMPANHA.xlsx",
@@ -616,7 +617,7 @@ const store={
   set(k,v){ try{localStorage.setItem(k,v);}catch(e){mem[k]=v;} },
   del(k){ try{localStorage.removeItem(k);}catch(e){delete mem[k];} }
 };
-const DEF={versao:"",admins:"",arqRegras:"",shRegras:"Parâmetros Comissões",regrasComissao:"",tenant:"89aed341-1dc6-4d0d-b5c7-e8df4293d21d",client:"",file:"",autoEntrar:true,ghRepo:"",ghWf:"sync.yml",ghToken:"",shVendas:"Vendas",shMarc:"Marcações",shMetas:"Metas",
+const DEF={versao:"",admins:"",chaveAdmin:"",arqRegras:"",shRegras:"Parâmetros Comissões",regrasComissao:"",tenant:"89aed341-1dc6-4d0d-b5c7-e8df4293d21d",client:"",file:"",autoEntrar:true,ghRepo:"",ghWf:"sync.yml",ghToken:"",shVendas:"Vendas",shMarc:"Marcações",shMetas:"Metas",
   refresh:10,splitTC:90,splitTE:10,mapTC:"TC,TB,TS,BH",mapTE:"TEC",ignorar:"Sem deal comercial,—,JARVYS",marcaAgendada:"Data Agendada",stRealizada:"Atendido",stNoShow:"Não compareceu",stRemarcada:"Remarcado",stFuturo:"Marcado",stCancelado:"Desmarcado pelo paciente,Cancelado pelo profissional",mesesCheios:true,shParams:"Parâmetros Comissões",arqParams:"",emailsComissao:"",equipePre:"Beatriz,Fabiana,Amanda",incluirOrfas:false,etapasVenda:"FECHAMENTO,FINALIZADO,REVISAO DE PENDENCIAS",onlyPrimeira:true,ignoraZero:true,coorte:"fechamento"};
 // versao nova zera preferencias, mas NUNCA o que e conexao/credencial
 if(store.get("rjv.cfgv")!==NATIVO.versao){
@@ -641,6 +642,10 @@ function b64uEnc(str){const b=new TextEncoder().encode(str);let x="";for(const c
   return btoa(x).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");}
 function b64uDec(s){s=s.replace(/-/g,"+").replace(/_/g,"/");const bin=atob(s);
   return new TextDecoder().decode(Uint8Array.from(bin,c=>c.charCodeAt(0)));}
+(function(){
+  const ch=(NATIVO.chaveAdmin||"").trim();
+  if(ch&&location.hash==="#"+ch){ store.set("rjv.destrava","1"); history.replaceState({},"",REDIRECT); }
+})();
 (function(){const m=location.hash.match(/#cfg=([A-Za-z0-9\-_]+)/);if(!m)return;
   try{CFG=Object.assign({},DEF,CFG,JSON.parse(b64uDec(m[1])));store.set("rjv.cfg",JSON.stringify(CFG));
     history.replaceState({},"",REDIRECT);}catch(e){}})();
@@ -1415,8 +1420,10 @@ function ehAdmin(){
   return !!e&&lista.includes(e);
 }
 function atualizaAdmin(){
-  ADMIN = (location.hash==="#config") || !!USUARIO&&ehAdmin() || (!USUARIO&&!CFG.client);
+  const destravado = store.get("rjv.destrava")==="1";
+  ADMIN = destravado || (!!USUARIO && ehAdmin()) || !CFG.client;
   $("btnCfg").style.display=ADMIN?"":"none";
+  $("cSairAdmin").style.display=destravado?"":"none";
 }
 
 function emailOk(){
@@ -1725,6 +1732,7 @@ $("btnCfg").onclick=()=>{cfgToUI();openCfg();};
 $("cClose").onclick=()=>$("drawer").classList.remove("open");
 $("cSave").onclick=()=>{if(!ADMIN){openCfg("Somente administradores podem salvar.");return;}uiToCfg();$("drawer").classList.remove("open");agenda();render();carregar();};
 $("btnAuth").onclick=()=>{mostrarAvisos=true;login(false);};
+$("cSairAdmin").onclick=()=>{store.del("rjv.destrava");$("drawer").classList.remove("open");atualizaAdmin();};
 $("cModelo").onclick=()=>{$("cRegras").value=REGRAS_MODELO;};
 $("cNativo").onclick=()=>{uiToCfg();
   const c={}; for(const k of Object.keys(NATIVO))c[k]=CFG[k];
