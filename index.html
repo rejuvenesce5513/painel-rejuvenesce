@@ -169,6 +169,11 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
 .msg{padding:11px 13px;border-radius:var(--r);font-size:12.5px;line-height:1.5;margin-bottom:14px;border:1px solid}
 .msg.warn{background:var(--wBg);border-color:var(--wLn);color:var(--wTx)}
 .msg.err{background:var(--eBg);border-color:var(--eLn);color:var(--eTx)}
+.hojebar{border-left:3px solid var(--tc);margin-bottom:14px}
+.hojebar .stats{gap:0;display:grid;grid-template-columns:repeat(6,1fr)}
+.hojebar .stat{padding-right:14px}
+.hojebar .stat .v{font-size:30px;font-family:"Archivo";font-weight:800;letter-spacing:-.02em}
+@media(max-width:1100px){.hojebar .stats{grid-template-columns:repeat(3,1fr);gap:14px 0}}
 .stack{display:flex;height:30px;border:1px solid var(--line);border-radius:2px;overflow:hidden;background:var(--panel2)}
 .stack i{display:block;height:100%;transition:width .6s cubic-bezier(.22,1,.36,1)}
 .leg{display:flex;flex-wrap:wrap;gap:8px 26px;margin-top:14px}
@@ -367,6 +372,11 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
 </div>
 
 <div id="viewPre" style="display:none">
+<section class="card hojebar">
+  <div class="card-head"><h2 id="hojeTit">Hoje</h2><span class="eyebrow" id="hojeSub"></span></div>
+  <div class="stats" id="hojeNums"></div>
+</section>
+
 <section class="evals">
   <div class="ev a"><div class="l">Avaliações agendadas</div><div class="v disp num" id="pvAg">0</div><div class="s" id="pvAgS">—</div></div>
   <div class="ev b"><div class="l">Realizadas</div><div class="v disp num" id="pvRe">0</div><div class="s" id="pvReS">—</div></div>
@@ -478,6 +488,7 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
   </div>
   <div class="msg warn" style="margin-top:4px">O token fica apenas neste navegador e <b>não</b> entra no link de instalação. Use um token restrito a este repositório, só com permissão Actions.</div>
   <hr>
+  <label class="chk"><input type="checkbox" id="cMeses" checked><span>Período personalizado assume os meses completos (27/08 a 04/09 vira 01/08 a 30/09)</span></label>
   <label class="chk"><input type="checkbox" id="cAutoEntrar" checked><span>Entrar automaticamente ao abrir</span></label>
   <div style="display:flex;gap:9px;flex-wrap:wrap"><button class="primary" id="cSave">Salvar e recarregar</button><button id="cLink">Copiar link de instalação</button><button id="cClose">Fechar</button></div>
   <div class="notes" id="cfgNotes"></div>
@@ -493,7 +504,7 @@ const store={
   del(k){ try{localStorage.removeItem(k);}catch(e){delete mem[k];} }
 };
 const DEF={tenant:"89aed341-1dc6-4d0d-b5c7-e8df4293d21d",client:"",file:"",autoEntrar:true,ghRepo:"",ghWf:"sync.yml",ghToken:"",shVendas:"Vendas",shMarc:"Marcações",shMetas:"Metas",
-  refresh:10,splitTC:90,splitTE:10,mapTC:"TC,TB,TS,BH",mapTE:"TEC",ignorar:"Sem deal comercial,—,JARVYS",marcaAgendada:"Data Agendada",stRealizada:"Atendido",stNoShow:"Não compareceu",stRemarcada:"Remarcado",stFuturo:"Marcado",equipePre:"Beatriz,Fabiana,Amanda",incluirOrfas:false,etapasVenda:"FECHAMENTO,FINALIZADO,REVISAO DE PENDENCIAS",onlyPrimeira:true,ignoraZero:true,coorte:"fechamento"};
+  refresh:10,splitTC:90,splitTE:10,mapTC:"TC,TB,TS,BH",mapTE:"TEC",ignorar:"Sem deal comercial,—,JARVYS",marcaAgendada:"Data Agendada",stRealizada:"Atendido",stNoShow:"Não compareceu",stRemarcada:"Remarcado",stFuturo:"Marcado",mesesCheios:true,equipePre:"Beatriz,Fabiana,Amanda",incluirOrfas:false,etapasVenda:"FECHAMENTO,FINALIZADO,REVISAO DE PENDENCIAS",onlyPrimeira:true,ignoraZero:true,coorte:"fechamento"};
 let CFG=Object.assign({},DEF,JSON.parse(store.get("rjv.cfg")||"{}"));
 const REDIRECT=location.origin+location.pathname;
 const TEMAS=["sistema","escuro","claro"], TEMA_ROT={sistema:"sistema",escuro:"escuro",claro:"claro"};
@@ -549,14 +560,23 @@ function periodo(){
   let a=new Date(Date.UTC(now.getFullYear(),now.getMonth(),1)),
       b=new Date(Date.UTC(now.getFullYear(),now.getMonth()+1,0));
   if(t==="mesant"){a=new Date(Date.UTC(now.getFullYear(),now.getMonth()-1,1));b=new Date(Date.UTC(now.getFullYear(),now.getMonth(),0));}
+  let expandido=false;
   if(t==="custom"){
     if($("dtIni").value)a=new Date($("dtIni").value+"T00:00:00Z");
     if($("dtFim").value)b=new Date($("dtFim").value+"T00:00:00Z");
+    if(CFG.mesesCheios){
+      const a2=new Date(Date.UTC(a.getUTCFullYear(),a.getUTCMonth(),1));
+      const b2=new Date(Date.UTC(b.getUTCFullYear(),b.getUTCMonth()+1,0));
+      expandido=(+a2!==+a)||(+b2!==+b);
+      a=a2; b=b2;
+    }
   }
   const hoje=new Date(Date.UTC(now.getFullYear(),now.getMonth(),now.getDate()));
   const ref=hoje<a?a:(hoje>b?b:hoje);
   const totalDias=Math.round((b-a)/864e5)+1, decorridos=Math.round((ref-a)/864e5)+1;
-  return {a,b,ref,totalDias,decorridos,frac:Math.min(1,decorridos/totalDias),mesChave:ymUTC(a)};
+  const dentro=hoje>=a&&hoje<=b;
+  return {a,b,ref,totalDias,decorridos,frac:Math.min(1,decorridos/totalDias),
+          mesChave:ymUTC(a),expandido,dentro};
 }
 function diasUteisRestantes(p){
   let n=0; for(let d=new Date(p.ref.getTime()+864e5);d<=p.b;d=new Date(d.getTime()+864e5)){const w=d.getUTCDay();if(w>=1&&w<=5)n++;}
@@ -797,7 +817,8 @@ function render(){
   let D; try{ D=computar(); }catch(e){ $("banner").innerHTML='<div class="msg err">'+esc(e.message)+'</div>'; return; }
   const p=D.p, m=D.meta, A=D.agg;
   const fmtP=d=>d.toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit",year:"numeric",timeZone:"UTC"});
-  $("periodLabel").textContent=fmtP(p.a)+" a "+fmtP(p.b)+"  ·  dia "+p.decorridos+" de "+p.totalDias;
+  $("periodLabel").textContent=fmtP(p.a)+" a "+fmtP(p.b)+"  ·  dia "+p.decorridos+" de "+p.totalDias+
+    (p.expandido?"  ·  ajustado para meses completos":"");
 
   const pctTot=pct(A.tot.v,m.total);
   $("gVal").textContent=BRL.format(A.tot.v);
@@ -916,13 +937,20 @@ function render(){
   const EQ=P.equipe;
   const setPv=(id,vm,vh,base,veq)=>{
     $(id).textContent=INT.format(vm);
-    $(id+"S").innerHTML=(base?fpct(pct(vm,base))+" do agendado · ":"")+"hoje "+INT.format(vh)+
-      '<br><span style="color:var(--dim)">equipe: '+INT.format(veq)+" ("+fpct(pct(veq,vm))+" do total)</span>";
+    $(id+"S").innerHTML=base?fpct(pct(vm,base))+" das agendadas":
+      '<span style="color:var(--dim)">equipe '+INT.format(veq)+" · esporádicos "+INT.format(vm-veq)+"</span>";
   };
   setPv("pvAg",pm.ag,ph.ag,0,EQ.ag);
-  $("pvAgS").innerHTML="hoje "+INT.format(ph.ag)+
-    '<br><span style="color:var(--dim)">equipe: '+INT.format(EQ.ag)+
-    " ("+fpct(pct(EQ.ag,pm.ag))+" do total)</span>";
+  const alvoH = p.dentro ? ph : pm;
+  $("hojeTit").textContent = p.dentro ? "Hoje" : "Total do período";
+  $("hojeSub").textContent = p.dentro
+    ? new Date().toLocaleDateString("pt-BR",{weekday:"long",day:"2-digit",month:"long"})
+    : "hoje está fora do intervalo selecionado";
+  $("hojeNums").innerHTML=[["Agendadas",alvoH.ag,"var(--txt)"],["Realizadas",alvoH.re,"var(--pos)"],
+    ["No-show",alvoH.ns,"var(--neg)"],["Remarcadas",alvoH.rm,"var(--tec)"],
+    ["Por acontecer",alvoH.fu,"var(--tc)"],["Não ocorrerão",alvoH.ot,"var(--muted)"]]
+    .map(([r,v,c])=>'<div class="stat"><div class="l">'+r+'</div><div class="v num" style="color:'+c+'">'+
+      INT.format(v)+'</div></div>').join("");
   setPv("pvRe",pm.re,ph.re,pm.ag,EQ.re);
   setPv("pvNs",pm.ns,ph.ns,pm.ag,EQ.ns);
   setPv("pvRm",pm.rm,ph.rm,pm.ag,EQ.rm);
@@ -1149,7 +1177,7 @@ function setStatus(k,t){$("dot").className="dot "+k;$("statusTxt").textContent=t
 
 /* ============================ config UI ============================ */
 const F={cTenant:"tenant",cClient:"client",cFile:"file",cShVendas:"shVendas",cShMarc:"shMarc",cShMetas:"shMetas",
-  cRefresh:"refresh",cSplitTC:"splitTC",cSplitTE:"splitTE",cMapTC:"mapTC",cMapTE:"mapTE",cIgnorar:"ignorar",cAgendada:"marcaAgendada",cStRe:"stRealizada",cStNs:"stNoShow",cStRm:"stRemarcada",cStFu:"stFuturo",cEquipe:"equipePre",cOrfas:"incluirOrfas",cEtapas:"etapasVenda",
+  cRefresh:"refresh",cSplitTC:"splitTC",cSplitTE:"splitTE",cMapTC:"mapTC",cMapTE:"mapTE",cIgnorar:"ignorar",cAgendada:"marcaAgendada",cStRe:"stRealizada",cStNs:"stNoShow",cStRm:"stRemarcada",cStFu:"stFuturo",cMeses:"mesesCheios",cEquipe:"equipePre",cOrfas:"incluirOrfas",cEtapas:"etapasVenda",
   cOnlyPrimeira:"onlyPrimeira",cIgnoraZero:"ignoraZero",cCoorte:"coorte",cAutoEntrar:"autoEntrar",cGhRepo:"ghRepo",cGhWf:"ghWf",cGhToken:"ghToken"};
 function cfgToUI(){for(const id in F){const el=$(id);if(el.type==="checkbox")el.checked=!!CFG[F[id]];else el.value=CFG[F[id]];}
   $("cRedirect").textContent=REDIRECT;}
