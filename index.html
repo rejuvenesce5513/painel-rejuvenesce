@@ -1272,16 +1272,16 @@ function renderComissoes(D,p){
   const mesTxt=d=>d.toLocaleDateString("pt-BR",{month:"long",year:"numeric",timeZone:"UTC"});
 
   const total=K.totVend+K.honTC+K.honTE;
-  const par=(id,v,sub)=>{$(id).textContent=BRL.format(v);$(id+"S").textContent=sub;};
+  const par=(id,v,sub,cent)=>{$(id).textContent=(cent?BRL2:BRL).format(v);$(id+"S").textContent=sub;};
   par("kFat",K.fatTot, corrente?"projeção "+BRL.format(proj(K.fatTot)):"mês encerrado");
-  par("kVend",K.totVend, corrente?"projeção "+BRL.format(K.prog?proj(K.totVend):0):
-      K.novaRegra?"regra progressiva":"regra anterior a mai/2026");
+  par("kVend",K.totVend, corrente?"projeção "+BRL2.format(K.lista.reduce((a,x)=>a+K.prog(proj(x.tot)),0)):
+      K.novaRegra?"regra progressiva":"regra anterior a mai/2026", true);
   const projSup=(base,linha,faixas)=>{const bp=proj(base);
     return K.supAtivo?Math.max(0,bp-linha)*faixaPct(bp,faixas):0;};
   const supProj=projSup(K.fatTC,K.P.baseTC,K.P.fxTC)+projSup(K.fatTE,K.P.baseTE,K.P.fxTE);
   par("kSup",K.honTC+K.honTE, !K.supAtivo?"vigência a partir de "+(K.P.vigSup?mesTxt(K.P.vigSup):"—")
-      : corrente?"projeção "+BRL.format(supProj):"TC "+BRL.format(K.honTC)+" · TEC "+BRL.format(K.honTE));
-  par("kTot",total, corrente?"parcial até dia "+p.decorridos+" de "+p.totalDias:"apurado");
+      : corrente?"projeção "+BRL2.format(supProj):"TC "+BRL2.format(K.honTC)+" · TEC "+BRL2.format(K.honTE), true);
+  par("kTot",total, corrente?"parcial até dia "+p.decorridos+" de "+p.totalDias:"apurado", true);
 
   const tb=$("cvBody"); tb.innerHTML="";
   for(const x of K.lista){
@@ -1292,15 +1292,15 @@ function renderComissoes(D,p){
       '<td class="v-sub num">'+BRL.format(x.te)+'</td>'+
       '<td class="sep v-sub">'+esc(x.regra)+'</td>'+
       '<td class="v-sub num">'+(x.taxa*100).toFixed(3).replace(".",",")+'%</td>'+
-      '<td class="v-money num" style="color:var(--pos)">'+BRL.format(x.com)+'</td>'+
-      '<td class="v-sub num">'+(corrente?BRL.format(K.prog(proj(x.tot))):"—")+'</td></tr>');
+      '<td class="v-money num" style="color:var(--pos)">'+BRL2.format(x.com)+'</td>'+
+      '<td class="v-sub num">'+(corrente?BRL2.format(K.prog(proj(x.tot))):"—")+'</td></tr>');
   }
   if(!K.lista.length)tb.innerHTML='<tr><td class="l" colspan="8" style="color:var(--dim)">sem vendas elegíveis no período</td></tr>';
   $("cvFoot").innerHTML=K.lista.length?'<tr><td class="l">Total</td>'+
     '<td class="sep num">'+BRL.format(K.fatTot)+'</td><td class="num">'+BRL.format(K.fatTC)+
     '</td><td class="num">'+BRL.format(K.fatTE)+'</td><td class="sep"></td><td></td>'+
-    '<td class="num">'+BRL.format(K.totVend)+'</td>'+
-    '<td class="num">'+(corrente?BRL.format(K.lista.reduce((a,x)=>a+K.prog(proj(x.tot)),0)):"—")+'</td></tr>':"";
+    '<td class="num">'+BRL2.format(K.totVend)+'</td>'+
+    '<td class="num">'+(corrente?BRL2.format(K.lista.reduce((a,x)=>a+K.prog(proj(x.tot)),0)):"—")+'</td></tr>':"";
   $("cvSub").textContent=(K.novaRegra?"faixas progressivas sobre o faturamento próprio":"regra anterior a mai/2026")+
     (corrente?" · projeção linear pelos dias decorridos":"");
   $("thProj").textContent=corrente?"Projeção do mês":"—";
@@ -1310,12 +1310,12 @@ function renderComissoes(D,p){
     $(pre+"Base").textContent=BRL.format(base);
     $(pre+"Linha").textContent=BRL.format(linha);
     $(pre+"Exc").textContent=BRL.format(exc);
-    $(pre+"Hon").textContent=BRL.format(hon);
+    $(pre+"Hon").textContent=BRL2.format(hon);
     $(pre+"Fill").style.width=Math.min(100,linha?base/linha*100:0)+"%";
     if(corrente){
       const bp=proj(base), pcp=faixaPct(bp,faixas);
       const hp=K.supAtivo?Math.max(0,bp-linha)*pcp:0;
-      $(pre+"Proj").textContent=BRL.format(hp);
+      $(pre+"Proj").textContent=BRL2.format(hp);
       $(pre+"ProjS").textContent="base "+BRL.format(bp)+" · faixa "+(pcp*100).toFixed(2).replace(".",",")+"%"+
         (bp<linha?" · abaixo da linha":"");
       $(pre+"Proj").style.color=hp>0?"var(--pos)":"var(--dim)";
@@ -1329,7 +1329,7 @@ function renderComissoes(D,p){
   const cb=$("cronBody"); cb.innerHTML="";
   const linhaC=(rot,mes,base,v)=>'<tr><td class="l name">'+esc(rot)+'</td>'+
     '<td class="sep v-sub">'+esc(mes)+'</td><td class="v-sub num">'+base+'</td>'+
-    '<td class="v-money num">'+BRL.format(v)+'</td></tr>';
+    '<td class="v-money num">'+BRL2.format(v)+'</td></tr>';
   if(K.honTC)cb.insertAdjacentHTML("beforeend",
     linhaC("Transplante — parcela inicial",mesTxt(K.mesPag),fpct(K.P.pIni*100)+" do honorário TC",K.honTC*K.P.pIni));
   if(K.honTE)cb.insertAdjacentHTML("beforeend",
@@ -1345,12 +1345,12 @@ function renderComissoes(D,p){
     '<tr style="background:var(--hl2)"><td class="l name">Transplante — parcela complementar</td>'+
     '<td class="sep v-sub" style="color:var(--tec)">aguardando data da cirurgia</td>'+
     '<td class="v-sub num">'+fpct(K.P.pComp*100)+'</td>'+
-    '<td class="v-money num">'+BRL.format(K.semData)+'</td></tr>');
+    '<td class="v-money num">'+BRL2.format(K.semData)+'</td></tr>');
   if(!cb.innerHTML)cb.innerHTML='<tr><td class="l" colspan="4" style="color:var(--dim)">'+
     (K.supAtivo?"sem honorário no período":"vigência da supervisão começa em "+
       (K.P.vigSup?mesTxt(K.P.vigSup):"—"))+'</td></tr>';
   $("cronFoot").innerHTML=(K.honTC+K.honTE)?'<tr><td class="l">Total</td><td class="sep"></td><td></td>'+
-    '<td class="num">'+BRL.format(K.honTC+K.honTE)+'</td></tr>':"";
+    '<td class="num">'+BRL2.format(K.honTC+K.honTE)+'</td></tr>':"";
   $("cronSub").textContent="defasagem de "+K.P.defas+" mês(es) após o fato gerador";
 }
 
