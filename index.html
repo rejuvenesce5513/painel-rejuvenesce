@@ -460,6 +460,8 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
     <div class="h">Usados na aba Pré-vendas. Qualquer outro status entra em "Outras".</div></div>
   <div class="f"><label>Status: ainda por acontecer</label><input id="cStFu" value="Marcado">
     <div class="h">Casamento por trecho — "Marcado" cobre confirmado e não confirmado.</div></div>
+  <div class="f"><label>Status: cancelado</label><input id="cStCa" value="Desmarcado pelo paciente,Cancelado pelo profissional">
+    <div class="h">Se o mesmo paciente tiver outro agendamento no período, o cancelamento é reclassificado como remarcação.</div></div>
   <div class="f"><label>Equipe de pré-vendas</label><input id="cEquipe" value="Beatriz,Fabiana,Amanda">
     <div class="h">Primeiro nome basta. Quem não estiver aqui entra como agendamento esporádico — soma no total, fora do resultado do setor.</div></div>
   <hr>
@@ -504,7 +506,7 @@ const store={
   del(k){ try{localStorage.removeItem(k);}catch(e){delete mem[k];} }
 };
 const DEF={tenant:"89aed341-1dc6-4d0d-b5c7-e8df4293d21d",client:"",file:"",autoEntrar:true,ghRepo:"",ghWf:"sync.yml",ghToken:"",shVendas:"Vendas",shMarc:"Marcações",shMetas:"Metas",
-  refresh:10,splitTC:90,splitTE:10,mapTC:"TC,TB,TS,BH",mapTE:"TEC",ignorar:"Sem deal comercial,—,JARVYS",marcaAgendada:"Data Agendada",stRealizada:"Atendido",stNoShow:"Não compareceu",stRemarcada:"Remarcado",stFuturo:"Marcado",mesesCheios:true,equipePre:"Beatriz,Fabiana,Amanda",incluirOrfas:false,etapasVenda:"FECHAMENTO,FINALIZADO,REVISAO DE PENDENCIAS",onlyPrimeira:true,ignoraZero:true,coorte:"fechamento"};
+  refresh:10,splitTC:90,splitTE:10,mapTC:"TC,TB,TS,BH",mapTE:"TEC",ignorar:"Sem deal comercial,—,JARVYS",marcaAgendada:"Data Agendada",stRealizada:"Atendido",stNoShow:"Não compareceu",stRemarcada:"Remarcado",stFuturo:"Marcado",stCancelado:"Desmarcado pelo paciente,Cancelado pelo profissional",mesesCheios:true,equipePre:"Beatriz,Fabiana,Amanda",incluirOrfas:false,etapasVenda:"FECHAMENTO,FINALIZADO,REVISAO DE PENDENCIAS",onlyPrimeira:true,ignoraZero:true,coorte:"fechamento"};
 let CFG=Object.assign({},DEF,JSON.parse(store.get("rjv.cfg")||"{}"));
 const REDIRECT=location.origin+location.pathname;
 const TEMAS=["sistema","escuro","claro"], TEMA_ROT={sistema:"sistema",escuro:"escuro",claro:"claro"};
@@ -772,15 +774,40 @@ function computar(){
   const sRe=norm(CFG.stRealizada), sNs=norm(CFG.stNoShow), sRm=norm(CFG.stRemarcada),
         sFu=norm(CFG.stFuturo);
   const iVu=pick(cm,"Valor único","Valor Único","Valor");
+  const sCa=CFG.stCancelado.split(",").map(norm).filter(Boolean);
+  const sFuL=CFG.stFuturo.split(",").map(norm).filter(Boolean);
+  const ehFuturoSt=t=>sFuL.some(x=>t.startsWith(x));   // startsWith: "DESMARCADO" nao casa com "MARCADO"
+  const iIdPac=pick(cm,"ID Paciente","Id Paciente","ID paciente");
+  const chavePac=r=>{
+    const id=iIdPac>=0?String(r[iIdPac]??"").trim().replace(/\.0+$/,""):"";
+    return id||pacKey(r[iPac>=0?iPac:0]);
+  };
+  // quantos agendamentos cada paciente tem no periodo
+  const porPac=new Map();
+  for(const r of M.rows){
+    const d=toDate(r[iDc]); if(!d||d<p.a||d>p.b)continue;
+    const k=chavePac(r); if(!k)continue;
+    porPac.set(k,(porPac.get(k)||0)+1);
+  }
   const zera=()=>({ag:0,re:0,ns:0,rm:0,fu:0,ot:0,vl:0});
   const pre={mes:zera(),hoje:zera(),pessoas:new Map(),dias:new Map(),nomes:new Map(),status:new Map()};
+  let reclass=0;
   const hj=new Date(); const hojeK=ymdUTC(new Date(Date.UTC(hj.getFullYear(),hj.getMonth(),hj.getDate())));
   for(const r of M.rows){
     const d=toDate(r[iDc]); if(!d||d<p.a||d>p.b)continue;
     const st=norm(r[iSt]);
-    const tipo = st===sRe?"re" : st===sNs?"ns" : st===sRm?"rm"
-               : (sFu&&st.includes(sFu))?"fu" : "ot";
-    const rot=titled(r[iSt])||"(sem status)";
+    // ordem importa: cancelado antes de futuro, senao "Desmarcado" casa com "Marcado"
+    let tipo = st===sRe ? "re"
+             : st===sNs ? "ns"
+             : st===sRm ? "rm"
+             : sCa.some(t=>st===t||st.startsWith(t)) ? "ca"
+             : ehFuturoSt(st) ? "fu"
+             : "ot";
+    let rot=titled(r[iSt])||"(sem status)";
+    if(tipo==="ca"){
+      if((porPac.get(chavePac(r))||0)>1){ tipo="rm"; rot+=" · reagendado"; reclass++; }
+      else tipo="ot";
+    }
     pre.status.set(rot,(pre.status.get(rot)||0)+1);
     const dia=ymdUTC(d);
     const vu=iVu>=0?toNum(r[iVu]):0;
@@ -802,7 +829,7 @@ function computar(){
   lista.sort((a,b)=>(b.eq-a.eq)||(b.re-a.re)||(b.ag-a.ag));
   const soma=(f)=>lista.filter(f).reduce((a,x)=>({ag:a.ag+x.ag,re:a.re+x.re,ns:a.ns+x.ns,
     rm:a.rm+x.rm,fu:a.fu+x.fu,ot:a.ot+x.ot,vl:a.vl+x.vl}),zeraT());
-  out.pre={...pre,lista,equipe:soma(x=>x.eq),geral:soma(()=>true)};
+  out.pre={...pre,lista,equipe:soma(x=>x.eq),geral:soma(()=>true),reclass};
 
   out.rank=[...vend.entries()].map(([k,s])=>({key:k,nome:nomes.get(k)||k,...s}))
     .filter(x=>(x.tot.q>0||x.aval>0)&&!ign.has(x.key))
@@ -959,11 +986,13 @@ function render(){
 
   const CORES={[norm(CFG.stRealizada)]:"var(--pos)",[norm(CFG.stNoShow)]:"var(--neg)",
                [norm(CFG.stRemarcada)]:"var(--tec)"};
-  const ehFuturo=r=>sFuR&&norm(r).includes(sFuR);
+  const sFuLr=CFG.stFuturo.split(",").map(norm).filter(Boolean);
+  const ehFuturo=r=>sFuLr.some(x=>norm(r).startsWith(x));
   const PAL=["#6C8CA6","#8E7BB0","#A3785E","#4E8F8F","#9AA4AE","#7E6B8F"];
   const comp=[...P.status.entries()].sort((a,b)=>b[1]-a[1]);
   let iPal=0;
-  const cor=rot=>CORES[norm(rot)]||(ehFuturo(rot)?"var(--tc)":PAL[iPal++%PAL.length]);
+  const cor=rot=>CORES[norm(rot)]||(norm(rot).includes("REAGENDADO")?"var(--tec)":
+                ehFuturo(rot)?"var(--tc)":PAL[iPal++%PAL.length]);
   const pintadas=comp.map(([rot,q])=>({rot,q,c:cor(rot)}));
   $("cmpBar").innerHTML=pintadas.map(x=>
     '<i style="width:'+(pm.ag?x.q/pm.ag*100:0)+'%;background:'+x.c+'" title="'+esc(x.rot)+': '+x.q+'"></i>').join("");
@@ -971,7 +1000,8 @@ function render(){
     '<div><b style="background:'+x.c+'"></b><span>'+esc(x.rot)+'</span>'+
     '<span class="n">'+INT.format(x.q)+'</span>'+
     '<span class="p">'+fpct(pct(x.q,pm.ag))+'</span></div>').join("");
-  $("cmpTot").textContent=INT.format(pm.ag)+" agendamentos no período · "+comp.length+" status distintos";
+  $("cmpTot").textContent=INT.format(pm.ag)+" agendamentos · "+comp.length+" status"+
+    (P.reclass?" · "+P.reclass+" cancelamento(s) reclassificado(s) como remarcação":"");
 
   const pb=$("pvBody"); pb.innerHTML="";
   const maxEx=Math.max(...P.lista.filter(x=>x.eq).map(x=>pct(x.re,x.ag)),1);
@@ -1177,7 +1207,7 @@ function setStatus(k,t){$("dot").className="dot "+k;$("statusTxt").textContent=t
 
 /* ============================ config UI ============================ */
 const F={cTenant:"tenant",cClient:"client",cFile:"file",cShVendas:"shVendas",cShMarc:"shMarc",cShMetas:"shMetas",
-  cRefresh:"refresh",cSplitTC:"splitTC",cSplitTE:"splitTE",cMapTC:"mapTC",cMapTE:"mapTE",cIgnorar:"ignorar",cAgendada:"marcaAgendada",cStRe:"stRealizada",cStNs:"stNoShow",cStRm:"stRemarcada",cStFu:"stFuturo",cMeses:"mesesCheios",cEquipe:"equipePre",cOrfas:"incluirOrfas",cEtapas:"etapasVenda",
+  cRefresh:"refresh",cSplitTC:"splitTC",cSplitTE:"splitTE",cMapTC:"mapTC",cMapTE:"mapTE",cIgnorar:"ignorar",cAgendada:"marcaAgendada",cStRe:"stRealizada",cStNs:"stNoShow",cStRm:"stRemarcada",cStFu:"stFuturo",cStCa:"stCancelado",cMeses:"mesesCheios",cEquipe:"equipePre",cOrfas:"incluirOrfas",cEtapas:"etapasVenda",
   cOnlyPrimeira:"onlyPrimeira",cIgnoraZero:"ignoraZero",cCoorte:"coorte",cAutoEntrar:"autoEntrar",cGhRepo:"ghRepo",cGhWf:"ghWf",cGhToken:"ghToken"};
 function cfgToUI(){for(const id in F){const el=$(id);if(el.type==="checkbox")el.checked=!!CFG[F[id]];else el.value=CFG[F[id]];}
   $("cRedirect").textContent=REDIRECT;}
