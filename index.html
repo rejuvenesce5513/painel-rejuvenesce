@@ -165,6 +165,13 @@ tfoot td{padding:12px 10px;text-align:right;border-top:1px solid var(--line);fon
 .f input,.f select{width:100%}
 .f .h{font-size:11.5px;color:var(--dim);margin-top:4px;line-height:1.45}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.acr{display:grid;grid-template-columns:1fr auto;gap:6px;align-items:center;margin-bottom:8px;
+  padding:8px;border:1px solid var(--line);border-radius:var(--r);background:var(--panel2)}
+.acr input[type=text]{width:100%}
+.acr .tp{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--muted);grid-column:1/3}
+.acr .tp label{display:flex;align-items:center;gap:5px;cursor:pointer}
+.acr .tp input{width:auto}
+.acx{background:none;border:none;color:var(--neg);font-size:16px;padding:0 6px;line-height:1}
 .chk{display:flex;align-items:center;gap:9px;font-size:13px;margin-bottom:10px;cursor:pointer}
 .chk input{width:auto}
 hr{border:none;border-top:1px solid var(--line);margin:18px 0}
@@ -538,6 +545,16 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
     <button id="cModelo" style="margin-top:6px">Carregar modelo das regras</button>
   </div>
   <div class="msg warn" style="margin-top:4px">Se estas regras entrarem no bloco nativo e o repositório for público, elas ficam visíveis na internet. Em repositório público, mantenha aqui e distribua pelo link de instalação.</div>
+  <hr>
+  <div class="f"><label>Quem vê quais painéis</label>
+    <div id="acList"></div>
+    <button id="acAdd">+ Adicionar pessoa</button>
+    <div class="h">Administradores sempre veem tudo. A aba Comissões ainda depende da permissão no arquivo de regras.</div>
+  </div>
+  <div class="f"><label>Padrão para quem não está na lista</label>
+    <div class="tp" id="acPadrao" style="display:flex;gap:14px;flex-wrap:wrap;font-size:13px"></div>
+  </div>
+  <hr>
   <div class="f"><label>E-mails com acesso à aba Comissões</label><input id="cEmails" placeholder="fabricio@clinicarejuvenesce.com.br, ...">
     <div class="h">Vazio libera para quem já acessa os parâmetros. Trava de tela, não de dados.</div></div>
   <hr>
@@ -601,6 +618,13 @@ const NATIVO = {
   onlyPrimeira: true, ignoraZero: true, incluirOrfas: false,
   coorte: "fechamento", mesesCheios: true, autoEntrar: true,
   emailsComissao: "",
+  acessoPadrao: [],           // painéis de quem não está na lista abaixo
+  acessos: [
+    { e: "fabricio.araujo@clinicarejuvenesce.com.br", t: ["com","pre","cms"] },
+    { e: "samuel.nascimento@clinicarejuvenesce.com.br", t: ["com","pre","cms"] },
+    { e: "fernando.delazari@clinicarejuvenesce.com.br", t: ["com"] },
+    { e: "beatriz.olinda@clinicarejuvenesce.com.br", t: ["pre"] }
+  ],
   // Arquivo com as regras, em pasta restrita do SharePoint.
   // Aba "Regras", coluna A, uma regra por linha. Segue o admin em qualquer navegador.
   arqRegras: "https://rejuvenesce.sharepoint.com/sites/ClnicaRejuvenesce-Comercial/Documentos%20Compartilhados/Parametros%20Comissões.xlsx",
@@ -617,7 +641,7 @@ const store={
   set(k,v){ try{localStorage.setItem(k,v);}catch(e){mem[k]=v;} },
   del(k){ try{localStorage.removeItem(k);}catch(e){delete mem[k];} }
 };
-const DEF={versao:"",admins:"",chaveAdmin:"",arqRegras:"",shRegras:"Parâmetros Comissões",regrasComissao:"",tenant:"89aed341-1dc6-4d0d-b5c7-e8df4293d21d",client:"",file:"",autoEntrar:true,ghRepo:"",ghWf:"sync.yml",ghToken:"",shVendas:"Vendas",shMarc:"Marcações",shMetas:"Metas",
+const DEF={versao:"",admins:"",chaveAdmin:"",acessos:[],acessoPadrao:[],arqRegras:"",shRegras:"Parâmetros Comissões",regrasComissao:"",tenant:"89aed341-1dc6-4d0d-b5c7-e8df4293d21d",client:"",file:"",autoEntrar:true,ghRepo:"",ghWf:"sync.yml",ghToken:"",shVendas:"Vendas",shMarc:"Marcações",shMetas:"Metas",
   refresh:10,splitTC:90,splitTE:10,mapTC:"TC,TB,TS,BH",mapTE:"TEC",ignorar:"Sem deal comercial,—,JARVYS",marcaAgendada:"Data Agendada",stRealizada:"Atendido",stNoShow:"Não compareceu",stRemarcada:"Remarcado",stFuturo:"Marcado",stCancelado:"Desmarcado pelo paciente,Cancelado pelo profissional",mesesCheios:true,shParams:"Parâmetros Comissões",arqParams:"",emailsComissao:"",equipePre:"Beatriz,Fabiana,Amanda",incluirOrfas:false,etapasVenda:"FECHAMENTO,FINALIZADO,REVISAO DE PENDENCIAS",onlyPrimeira:true,ignoraZero:true,coorte:"fechamento"};
 // versao nova zera preferencias, mas NUNCA o que e conexao/credencial
 if(store.get("rjv.cfgv")!==NATIVO.versao){
@@ -1413,6 +1437,56 @@ function render(){
   $("pilha").style.display=av.length?"inline-flex":"none";
   $("avisos").style.display=(av.length&&mostrarAvisos)?"":"none";
 }
+const ABAS=[["com","Comercial"],["pre","Pré-vendas"],["cms","Comissões"]];
+
+function emailAtual(){ return norm((USUARIO&&(USUARIO.mail||USUARIO.userPrincipalName))||""); }
+
+function abasPermitidas(){
+  if(ADMIN)return ABAS.map(a=>a[0]);
+  const e=emailAtual();
+  const lista=Array.isArray(CFG.acessos)?CFG.acessos:[];
+  if(!lista.length)return ABAS.map(a=>a[0]);
+  const achou=lista.find(x=>norm(x.e)===e&&e);
+  return achou?(achou.t||[]):(CFG.acessoPadrao||[]);
+}
+
+function aplicaAcessos(){
+  const ok=abasPermitidas();
+  const bt={com:"tabCom",pre:"tabPre",cms:"tabCom2"};
+  for(const [k] of ABAS)$(bt[k]).style.display=ok.includes(k)?"":"none";
+  if(!ok.length){
+    $("viewComercial").style.display=$("viewPre").style.display=$("viewCom").style.display="none";
+    $("banner").innerHTML='<div class="msg warn"><b>Nenhum painel liberado para '+
+      esc(emailAtual()||"seu usuário")+'.</b><br>Peça acesso a quem administra.</div>';
+    return;
+  }
+  if(!ok.includes(ABA_ATUAL))aba(ok[0]);
+}
+
+function editorAcessos(){
+  const cx=$("acList"); if(!cx)return;
+  cx.innerHTML="";
+  const lista=Array.isArray(CFG.acessos)?CFG.acessos:[];
+  lista.forEach((x,i)=>cx.insertAdjacentHTML("beforeend",
+    '<div class="acr"><input type="text" class="ace" value="'+esc(x.e||"")+'" placeholder="email@clinicarejuvenesce.com.br">'+
+    '<button class="acx" data-i="'+i+'" title="Remover">&times;</button>'+
+    '<div class="tp">'+ABAS.map(([k,r])=>'<label><input type="checkbox" class="acc" data-t="'+k+'"'+
+      ((x.t||[]).includes(k)?" checked":"")+'> '+r+"</label>").join("")+'</div></div>'));
+  cx.querySelectorAll(".acx").forEach(b=>b.onclick=()=>{lerEditor();CFG.acessos.splice(+b.dataset.i,1);editorAcessos();});
+  const pad=$("acPadrao");
+  pad.innerHTML=ABAS.map(([k,r])=>'<label style="display:flex;gap:6px;align-items:center"><input type="checkbox" class="acp" data-t="'+k+'"'+
+    ((CFG.acessoPadrao||[]).includes(k)?" checked":"")+'> '+r+"</label>").join("");
+}
+
+function lerEditor(){
+  const cx=$("acList"); if(!cx)return;
+  CFG.acessos=[...cx.querySelectorAll(".acr")].map(r=>({
+    e:r.querySelector(".ace").value.trim(),
+    t:[...r.querySelectorAll(".acc")].filter(c=>c.checked).map(c=>c.dataset.t)
+  })).filter(x=>x.e);
+  CFG.acessoPadrao=[...$("acPadrao").querySelectorAll(".acp")].filter(c=>c.checked).map(c=>c.dataset.t);
+}
+
 function ehAdmin(){
   const lista=(CFG.admins||"").split(",").map(norm).filter(Boolean);
   if(!lista.length)return true;
@@ -1424,6 +1498,7 @@ function atualizaAdmin(){
   ADMIN = destravado || (!!USUARIO && ehAdmin()) || !CFG.client;
   $("btnCfg").style.display=ADMIN?"":"none";
   $("cSairAdmin").style.display=destravado?"":"none";
+  aplicaAcessos();
 }
 
 function emailOk(){
@@ -1713,9 +1788,9 @@ function setStatus(k,t){$("dot").className="dot "+k;$("statusTxt").textContent=t
 const F={cTenant:"tenant",cClient:"client",cFile:"file",cShVendas:"shVendas",cShMarc:"shMarc",cShMetas:"shMetas",
   cRefresh:"refresh",cSplitTC:"splitTC",cSplitTE:"splitTE",cMapTC:"mapTC",cMapTE:"mapTE",cIgnorar:"ignorar",cAgendada:"marcaAgendada",cStRe:"stRealizada",cStNs:"stNoShow",cStRm:"stRemarcada",cStFu:"stFuturo",cStCa:"stCancelado",cMeses:"mesesCheios",cRegras:"regrasComissao",cAdmins:"admins",cArqReg:"arqRegras",cShReg:"shRegras",cEmails:"emailsComissao",cEquipe:"equipePre",cOrfas:"incluirOrfas",cEtapas:"etapasVenda",
   cOnlyPrimeira:"onlyPrimeira",cIgnoraZero:"ignoraZero",cCoorte:"coorte",cAutoEntrar:"autoEntrar",cGhRepo:"ghRepo",cGhWf:"ghWf",cGhToken:"ghToken"};
-function cfgToUI(){for(const id in F){const el=$(id);if(el.type==="checkbox")el.checked=!!CFG[F[id]];else el.value=CFG[F[id]];}
+function cfgToUI(){editorAcessos();for(const id in F){const el=$(id);if(el.type==="checkbox")el.checked=!!CFG[F[id]];else el.value=CFG[F[id]];}
   $("cRedirect").textContent=REDIRECT;}
-function uiToCfg(){for(const id in F){const el=$(id);if(!el)continue;
+function uiToCfg(){lerEditor();for(const id in F){const el=$(id);if(!el)continue;
     CFG[F[id]]=el.type==="checkbox"?el.checked:(el.type==="number"?+el.value:el.value);}
   const dif={}; for(const k in CFG)if(JSON.stringify(CFG[k])!==JSON.stringify(NATIVO[k]))dif[k]=CFG[k];
   store.set("rjv.cfg",JSON.stringify(dif)); Object.assign(SALVO,dif);}
@@ -1733,6 +1808,7 @@ $("cClose").onclick=()=>$("drawer").classList.remove("open");
 $("cSave").onclick=()=>{if(!ADMIN){openCfg("Somente administradores podem salvar.");return;}uiToCfg();$("drawer").classList.remove("open");agenda();render();carregar();};
 $("btnAuth").onclick=()=>{mostrarAvisos=true;login(false);};
 $("cSairAdmin").onclick=()=>{store.del("rjv.destrava");$("drawer").classList.remove("open");atualizaAdmin();};
+$("acAdd").onclick=()=>{lerEditor();(CFG.acessos=CFG.acessos||[]).push({e:"",t:["com"]});editorAcessos();};
 $("cModelo").onclick=()=>{$("cRegras").value=REGRAS_MODELO;};
 $("cNativo").onclick=()=>{uiToCfg();
   const c={}; for(const k of Object.keys(NATIVO))c[k]=CFG[k];
@@ -1747,7 +1823,9 @@ $("cLink").onclick=()=>{uiToCfg();const c=Object.assign({},CFG);delete c.autoEnt
 $("fechaAv").onclick=()=>{mostrarAvisos=false;$("avisos").style.display="none";};
 $("pilha").onclick=()=>{mostrarAvisos=true;if(AVISOS.length)$("avisos").style.display="";};
 $("btnRefresh").onclick=()=>{mostrarAvisos=true;carregar();};
+let ABA_ATUAL="com";
 function aba(q){
+  ABA_ATUAL=q;
   $("tituloPainel").textContent={com:"Painel Comercial",pre:"Painel Pré-vendas",cms:"Painel Comissões"}[q];
   $("viewComercial").style.display=q==="com"?"":"none";
   $("viewPre").style.display=q==="pre"?"":"none";
