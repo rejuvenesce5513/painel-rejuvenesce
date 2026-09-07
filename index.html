@@ -580,6 +580,7 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
    Edite aqui (ou use "Copiar bloco nativo" no Configurar e cole por cima).
    ═══════════════════════════════════════════════════════════════════════ */
 const NATIVO = {
+  versao: "1",              // suba este número para sobrescrever ajustes locais de todo mundo
   admins: "fabricio.araujo@clinicarejuvenesce.com.br",
   tenant: "89aed341-1dc6-4d0d-b5c7-e8df4293d21d",
   client: "",
@@ -605,13 +606,12 @@ const store={
   set(k,v){ try{localStorage.setItem(k,v);}catch(e){mem[k]=v;} },
   del(k){ try{localStorage.removeItem(k);}catch(e){delete mem[k];} }
 };
-const DEF={admins:"",regrasComissao:"",tenant:"89aed341-1dc6-4d0d-b5c7-e8df4293d21d",client:"",file:"",autoEntrar:true,ghRepo:"",ghWf:"sync.yml",ghToken:"",shVendas:"Vendas",shMarc:"Marcações",shMetas:"Metas",
+const DEF={versao:"",admins:"",regrasComissao:"",tenant:"89aed341-1dc6-4d0d-b5c7-e8df4293d21d",client:"",file:"",autoEntrar:true,ghRepo:"",ghWf:"sync.yml",ghToken:"",shVendas:"Vendas",shMarc:"Marcações",shMetas:"Metas",
   refresh:10,splitTC:90,splitTE:10,mapTC:"TC,TB,TS,BH",mapTE:"TEC",ignorar:"Sem deal comercial,—,JARVYS",marcaAgendada:"Data Agendada",stRealizada:"Atendido",stNoShow:"Não compareceu",stRemarcada:"Remarcado",stFuturo:"Marcado",stCancelado:"Desmarcado pelo paciente,Cancelado pelo profissional",mesesCheios:true,shParams:"Parâmetros Comissões",arqParams:"",emailsComissao:"",equipePre:"Beatriz,Fabiana,Amanda",incluirOrfas:false,etapasVenda:"FECHAMENTO,FINALIZADO,REVISAO DE PENDENCIAS",onlyPrimeira:true,ignoraZero:true,coorte:"fechamento"};
+if(store.get("rjv.cfgv")!==NATIVO.versao){ store.del("rjv.cfg"); store.set("rjv.cfgv",NATIVO.versao); }
 const SALVO=JSON.parse(store.get("rjv.cfg")||"{}");
 let ADMIN=false;
-let CFG=Object.assign({},DEF,NATIVO);
-function aplicaSalvo(){ if(ADMIN)CFG=Object.assign({},DEF,NATIVO,SALVO); }
-aplicaSalvo();
+let CFG=Object.assign({},DEF,NATIVO,SALVO);
 const REDIRECT=location.origin+location.pathname;
 const TEMAS=["sistema","escuro","claro"], TEMA_ROT={sistema:"sistema",escuro:"escuro",claro:"claro"};
 function aplicaTema(t){
@@ -1373,10 +1373,8 @@ function ehAdmin(){
   return !!e&&lista.includes(e);
 }
 function atualizaAdmin(){
-  const antes=ADMIN;
-  ADMIN=ehAdmin()||location.hash==="#config";
+  ADMIN = (location.hash==="#config") || !!USUARIO&&ehAdmin() || (!USUARIO&&!CFG.client);
   $("btnCfg").style.display=ADMIN?"":"none";
-  if(ADMIN&&!antes){aplicaSalvo();cfgToUI();}
 }
 
 function emailOk(){
@@ -1665,7 +1663,7 @@ $("btnTema").onclick=()=>{TEMA=TEMAS[(TEMAS.indexOf(TEMA)+1)%TEMAS.length];
   store.set("rjv.tema",TEMA); aplicaTema(TEMA);};
 $("btnCfg").onclick=()=>{cfgToUI();openCfg();};
 $("cClose").onclick=()=>$("drawer").classList.remove("open");
-$("cSave").onclick=()=>{uiToCfg();$("drawer").classList.remove("open");agenda();render();carregar();};
+$("cSave").onclick=()=>{if(!ADMIN){openCfg("Somente administradores podem salvar.");return;}uiToCfg();$("drawer").classList.remove("open");agenda();render();carregar();};
 $("btnAuth").onclick=()=>{mostrarAvisos=true;login(false);};
 $("cModelo").onclick=()=>{$("cRegras").value=REGRAS_MODELO;};
 $("cNativo").onclick=()=>{uiToCfg();
@@ -1700,7 +1698,7 @@ $("dtIni").onchange=$("dtFim").onchange=render;
 
 RAW=null;
 (async()=>{
-  cfgToUI(); render(); agenda();
+  cfgToUI(); atualizaAdmin(); render(); agenda();
   const logged=await handleRedirect().catch(e=>{setStatus("err",e.message);return false;});
   if(logged||store.get("rjv.rt")||store.get("rjv.at")){$("btnAuth").textContent="Reconectar";await carregar();return;}
   if(CFG.autoEntrar&&CFG.client&&CFG.file&&!store.get("rjv.tentou")){
