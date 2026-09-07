@@ -87,6 +87,8 @@ button.primary{background:var(--tc);color:var(--onTc);border-color:var(--tc);fon
 .goal-pct{margin-left:auto;font-size:clamp(30px,3.6vw,46px);line-height:.95;color:var(--tc)}
 
 .track{position:relative;height:38px;background:var(--panel2);border:1px solid var(--line);border-radius:2px;overflow:visible}
+.fillproj{position:absolute;inset:0 auto 0 0;background:var(--tc);opacity:.2;
+  border-right:1px dashed var(--tc);transition:width .8s cubic-bezier(.22,1,.36,1);max-width:100%}
 .fill{position:absolute;inset:0 auto 0 0;background:linear-gradient(90deg,var(--fillA),var(--tc));border-right:1px solid var(--fillEdge);transition:width .8s cubic-bezier(.22,1,.36,1);max-width:100%}
 .ticks{position:absolute;inset:0;pointer-events:none}
 .tick{position:absolute;top:0;bottom:0;width:1px;background:var(--tickC)}
@@ -210,6 +212,7 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
   <div class="tabs">
     <button id="tabCom" class="on">Comercial</button>
     <button id="tabPre">Pré-vendas</button>
+    <button id="tabCom2">Comissões</button>
   </div>
   <div class="ctl">
     <select id="periodo">
@@ -246,6 +249,7 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
   <div style="position:relative">
     <div class="pace-lbl" id="paceLbl">Ritmo</div>
     <div class="track">
+      <div class="fillproj" id="gProj" style="width:0%"></div>
       <div class="fill" id="gFill" style="width:0%"></div>
       <div class="ticks" id="gTicks"></div>
       <div class="pace" id="gPace" style="left:0%"></div>
@@ -256,6 +260,7 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
     <div><span class="k">Desvio vs. ritmo</span><span class="num" id="fDelta">—</span></div>
     <div><span class="k">Falta</span><span class="num" id="fFalta">—</span></div>
     <div><span class="k">Média/dia útil restante</span><span class="num" id="fDia">—</span></div>
+    <div><span class="k">Projeção no ritmo atual</span><span class="num" id="fProj">—</span></div>
   </div>
 </section>
 
@@ -418,6 +423,65 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
 </section>
 </div>
 
+<div id="viewCom" style="display:none">
+<div id="comLock" class="msg warn" style="display:none"></div>
+<div id="comBody">
+<section class="evals" style="grid-template-columns:repeat(4,1fr)">
+  <div class="ev a"><div class="l">Faturamento elegível</div><div class="v disp num" id="kFat">R$ 0</div><div class="s" id="kFatS">—</div></div>
+  <div class="ev b"><div class="l">Comissão vendedores</div><div class="v disp num" id="kVend">R$ 0</div><div class="s" id="kVendS">—</div></div>
+  <div class="ev c"><div class="l">Comissão supervisão</div><div class="v disp num" id="kSup">R$ 0</div><div class="s" id="kSupS">—</div></div>
+  <div class="ev d"><div class="l">Total do mês</div><div class="v disp num" id="kTot">R$ 0</div><div class="s" id="kTotS">—</div></div>
+</section>
+
+<section class="rank" style="margin-top:14px">
+  <div class="rank-head"><h2>Comissão por vendedor</h2><span class="eyebrow" id="cvSub"></span></div>
+  <div style="overflow-x:auto">
+  <table>
+    <thead><tr><th class="l">Vendedor</th>
+      <th class="sep">Base elegível</th><th>Transplante</th><th>Terapia</th>
+      <th class="sep">Regra</th><th>Taxa efetiva</th><th>Comissão</th><th id="thProj">Projeção do mês</th></tr></thead>
+    <tbody id="cvBody"></tbody><tfoot id="cvFoot"></tfoot>
+  </table>
+  </div>
+</section>
+
+<section class="aux" style="margin-top:14px">
+  <div class="card tc">
+    <div class="card-head"><h2>Supervisão — Transplante</h2><span class="card-pct disp num" id="stPct">—</span></div>
+    <div class="minitrack"><div class="minifill" id="stFill" style="width:0%"></div></div>
+    <div class="stats">
+      <div class="stat"><div class="l">Base elegível</div><div class="v num" id="stBase">R$ 0</div></div>
+      <div class="stat"><div class="l">Linha de base</div><div class="v num" id="stLinha">R$ 0</div></div>
+      <div class="stat"><div class="l">Excedente</div><div class="v num" id="stExc">R$ 0</div></div>
+      <div class="stat"><div class="l">Honorário</div><div class="v num" id="stHon">R$ 0</div></div>
+      <div class="stat"><div class="l">Projeção do mês</div><div class="v num" id="stProj">—</div><div class="l" id="stProjS" style="margin-top:3px"></div></div>
+    </div>
+  </div>
+  <div class="card tec">
+    <div class="card-head"><h2>Supervisão — Terapia</h2><span class="card-pct disp num" id="seP">—</span></div>
+    <div class="minitrack"><div class="minifill" id="seFill" style="width:0%"></div></div>
+    <div class="stats">
+      <div class="stat"><div class="l">Base elegível</div><div class="v num" id="seBase">R$ 0</div></div>
+      <div class="stat"><div class="l">Linha de base</div><div class="v num" id="seLinha">R$ 0</div></div>
+      <div class="stat"><div class="l">Excedente</div><div class="v num" id="seExc">R$ 0</div></div>
+      <div class="stat"><div class="l">Honorário</div><div class="v num" id="seHon">R$ 0</div></div>
+      <div class="stat"><div class="l">Projeção do mês</div><div class="v num" id="seProj">—</div><div class="l" id="seProjS" style="margin-top:3px"></div></div>
+    </div>
+  </div>
+</section>
+
+<section class="rank" style="margin-top:14px">
+  <div class="rank-head"><h2>Comissão Supervisão — cronograma de pagamento</h2><span class="eyebrow" id="cronSub"></span></div>
+  <div style="overflow-x:auto">
+  <table>
+    <thead><tr><th class="l">Parcela</th><th class="sep">Mês de pagamento</th><th>Base</th><th>Valor</th></tr></thead>
+    <tbody id="cronBody"></tbody><tfoot id="cronFoot"></tfoot>
+  </table>
+  </div>
+</section>
+</div>
+</div>
+
 <!-- CONFIG -->
 <aside class="drawer" id="drawer">
   <h3>Configuração</h3>
@@ -465,6 +529,12 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
   <div class="f"><label>Equipe de pré-vendas</label><input id="cEquipe" value="Beatriz,Fabiana,Amanda">
     <div class="h">Primeiro nome basta. Quem não estiver aqui entra como agendamento esporádico — soma no total, fora do resultado do setor.</div></div>
   <hr>
+  <div class="f"><label>Aba de parâmetros de comissão</label><input id="cShPar" value="Parâmetros Comissões"></div>
+  <div class="f"><label>Arquivo separado dos parâmetros (opcional)</label><input id="cArqPar" placeholder="deixe vazio para ler da própria planilha">
+    <div class="h">Aponte para um arquivo em pasta restrita. Quem não tiver permissão recebe 403 e a aba de comissões trava — controle do M365, não do painel.</div></div>
+  <div class="f"><label>E-mails com acesso à aba Comissões</label><input id="cEmails" placeholder="fabricio@clinicarejuvenesce.com.br, ...">
+    <div class="h">Vazio libera para quem já acessa os parâmetros. Trava de tela, não de dados.</div></div>
+  <hr>
   <div class="f"><label>Rótulos a excluir do ranking</label><input id="cIgnorar" value="Sem deal comercial,—,JARVYS">
     <div class="h">Valores da coluna Responsável/Vendedor comercial que não são vendedores.</div></div>
 
@@ -506,7 +576,7 @@ const store={
   del(k){ try{localStorage.removeItem(k);}catch(e){delete mem[k];} }
 };
 const DEF={tenant:"89aed341-1dc6-4d0d-b5c7-e8df4293d21d",client:"",file:"",autoEntrar:true,ghRepo:"",ghWf:"sync.yml",ghToken:"",shVendas:"Vendas",shMarc:"Marcações",shMetas:"Metas",
-  refresh:10,splitTC:90,splitTE:10,mapTC:"TC,TB,TS,BH",mapTE:"TEC",ignorar:"Sem deal comercial,—,JARVYS",marcaAgendada:"Data Agendada",stRealizada:"Atendido",stNoShow:"Não compareceu",stRemarcada:"Remarcado",stFuturo:"Marcado",stCancelado:"Desmarcado pelo paciente,Cancelado pelo profissional",mesesCheios:true,equipePre:"Beatriz,Fabiana,Amanda",incluirOrfas:false,etapasVenda:"FECHAMENTO,FINALIZADO,REVISAO DE PENDENCIAS",onlyPrimeira:true,ignoraZero:true,coorte:"fechamento"};
+  refresh:10,splitTC:90,splitTE:10,mapTC:"TC,TB,TS,BH",mapTE:"TEC",ignorar:"Sem deal comercial,—,JARVYS",marcaAgendada:"Data Agendada",stRealizada:"Atendido",stNoShow:"Não compareceu",stRemarcada:"Remarcado",stFuturo:"Marcado",stCancelado:"Desmarcado pelo paciente,Cancelado pelo profissional",mesesCheios:true,shParams:"Parâmetros Comissões",arqParams:"",emailsComissao:"",equipePre:"Beatriz,Fabiana,Amanda",incluirOrfas:false,etapasVenda:"FECHAMENTO,FINALIZADO,REVISAO DE PENDENCIAS",onlyPrimeira:true,ignoraZero:true,coorte:"fechamento"};
 let CFG=Object.assign({},DEF,JSON.parse(store.get("rjv.cfg")||"{}"));
 const REDIRECT=location.origin+location.pathname;
 const TEMAS=["sistema","escuro","claro"], TEMA_ROT={sistema:"sistema",escuro:"escuro",claro:"claro"};
@@ -831,6 +901,8 @@ function computar(){
     rm:a.rm+x.rm,fu:a.fu+x.fu,ot:a.ot+x.ot,vl:a.vl+x.vl}),zeraT());
   out.pre={...pre,lista,equipe:soma(x=>x.eq),geral:soma(()=>true),reclass};
 
+  out.com=comissoes(V,cv,p);
+
   out.rank=[...vend.entries()].map(([k,s])=>({key:k,nome:nomes.get(k)||k,...s}))
     .filter(x=>(x.tot.q>0||x.aval>0)&&!ign.has(x.key))
     .sort((a,b)=>b.tot.v-a.tot.v||b.tot.q-a.tot.q);
@@ -838,6 +910,93 @@ function computar(){
 }
 
 /* ============================ render ============================ */
+function celP(ref){
+  if(!PARAMS)return null;
+  const m=/^([A-Z]+)(\d+)$/.exec(ref); if(!m)return null;
+  let c=0; for(const ch of m[1])c=c*26+ch.charCodeAt(0)-64;
+  const linha=PARAMS.rows[+m[2]-1];
+  return linha?linha[c-1]:null;
+}
+const numP=r=>toNum(celP(r));
+const txtP=r=>String(celP(r)??"").trim();
+
+function faixaPct(v,linhas){          // [[de,ate,pct],...] -> pct da faixa atingida
+  let pct=0;
+  for(const [de,ate,p] of linhas){ if(v>de)pct=p; }
+  return pct;
+}
+
+function comissoes(V,cv,p){
+  if(!PARAMS)return null;
+  const iEt=pick(cv,"Etapa"), iVal=pick(cv,"Valor Único","Valor unico"),
+        iDt=pick(cv,"Data de fechamento"), iResp=pick(cv,"Responsável"),
+        iSrv=pick(cv,"Serviço"), iProd=pick(cv,"Produtos"),
+        iCir=pick(cv,"Data Prevista de Cirurgia"), iMarc=pick(cv,"Data Cirurgia foi marcada?");
+  const P={
+    vigVend:toDate(celP("B5")), vigSup:toDate(celP("B14")),
+    fx:[[numP("B8"),numP("C8"),numP("D8")],[numP("B9"),numP("C9"),numP("D9")],[numP("B10"),0,numP("D10")]],
+    baseTC:numP("B15"), grpTC:txtP("B16"), baseTE:numP("B28"), grpTE:txtP("B29"),
+    fxTC:[18,19,20,21,22,23,24].map(n=>[numP("A"+n),numP("B"+n),numP("C"+n)]),
+    fxTE:[31,32,33,34,35,36].map(n=>[numP("A"+n),numP("B"+n),numP("C"+n)]),
+    pIni:numP("B40"), pComp:numP("B41"), pTE:numP("B42"), defas:Math.round(numP("B43")),
+    fixo:numP("B46"), etapas:[txtP("B49"),txtP("C49")].filter(Boolean),
+    legTC:numP("B52"), gatilho:numP("B53"), legTE:numP("B54"),
+    excNome:txtP("B55"), excTE:numP("B56"), excTC:numP("B57")
+  };
+  const gTC=new Set(P.grpTC.split(",").map(norm)), gTE=new Set(P.grpTE.split(",").map(norm));
+  const eleg=new Set(P.etapas.map(norm));
+  const grupo=r=>{
+    let c=norm(iSrv>=0?r[iSrv]:"");
+    if(!c){ const h=norm(iProd>=0?r[iProd]:"");
+      c = h.includes("TRANSPLANTE CAPILAR")||h.includes("BODY HAIR")?"TC"
+        : h.includes("TRANSPLANTE DE BARBA")?"TB" : h.includes("TRANSPLANTE DE SOBRANCELHA")?"TS"
+        : h.includes("TERAPIA CAPILAR")?"TEC" : h.includes("CONSULTA MEDICA")?"CM":""; }
+    return gTC.has(c)?"tc":gTE.has(c)?"te":"outro";
+  };
+  const V2=new Map(); let fatTC=0,fatTE=0,fatTot=0;
+  const vendasTC=[];
+  for(const r of V.rows){
+    if(!eleg.has(norm(iEt>=0?r[iEt]:"")))continue;
+    const d=toDate(r[iDt]); if(!d||d<p.a||d>p.b)continue;
+    const g=grupo(r), val=toNum(r[iVal]);
+    const k=norm(iResp>=0?r[iResp]:"")||"—";
+    if(!V2.has(k))V2.set(k,{nome:titled(iResp>=0?r[iResp]:"")||"—",tot:0,tc:0,te:0});
+    const o=V2.get(k); o.tot+=val; if(g==="tc")o.tc+=val; if(g==="te")o.te+=val;
+    fatTot+=val; if(g==="tc"){fatTC+=val;vendasTC.push({v:val,cir:iCir>=0?toDate(r[iCir]):null,
+      marc:iMarc>=0?norm(r[iMarc]):""});} if(g==="te")fatTE+=val;
+  }
+  const prog=b=>{const [f1,f2,f3]=P.fx;
+    return Math.min(b,f1[1])*f1[2] + Math.max(0,Math.min(b,f2[1])-f2[0])*f2[2] + Math.max(0,b-f3[0])*f3[2];};
+  const novaRegra = !P.vigVend || p.a>=P.vigVend;
+  const lista=[...V2.values()].map(o=>{
+    let c=0, regra;
+    if(novaRegra){ c=prog(o.tot); regra="Progressiva"; }
+    else if(norm(o.nome)===norm(P.excNome)){ c=o.te*P.excTE + o.tc*P.excTC; regra="Exceção"; }
+    else { c=(o.tc>=P.gatilho?o.tc*P.legTC:0) + o.te*P.legTE; regra=o.tc>=P.gatilho?"Anterior · gatilho ok":"Anterior · sem gatilho"; }
+    return {...o,com:c,regra,taxa:o.tot?c/o.tot:0};
+  }).filter(x=>x.tot>0||x.com>0).sort((a,b)=>b.com-a.com);
+
+  const supAtivo = !P.vigSup || p.a>=P.vigSup;
+  const pcTC=faixaPct(fatTC,P.fxTC), pcTE=faixaPct(fatTE,P.fxTE);   // faixa sempre visível
+  const honTC=supAtivo?Math.max(0,fatTC-P.baseTC)*pcTC:0,
+        honTE=supAtivo?Math.max(0,fatTE-P.baseTE)*pcTE:0;
+
+  // 60% do TC segue a data da cirurgia
+  const taxaTC = fatTC?honTC/fatTC:0;
+  const prov=new Map(); let semData=0;
+  for(const s2 of vendasTC){
+    const v=s2.v*taxaTC*P.pComp; if(!v)continue;
+    const ok=s2.cir && s2.marc!=="NAO";
+    if(!ok){ semData+=v; continue; }
+    const m=new Date(Date.UTC(s2.cir.getUTCFullYear(),s2.cir.getUTCMonth()+P.defas,1));
+    const k=ymUTC(m); prov.set(k,(prov.get(k)||0)+v);
+  }
+  const mesPag=new Date(Date.UTC(p.a.getUTCFullYear(),p.a.getUTCMonth()+P.defas,1));
+  return {P,lista,fatTC,fatTE,fatTot,pcTC,pcTE,honTC,honTE,supAtivo,novaRegra,
+          aPagar:honTC*P.pIni+honTE*P.pTE, mesPag, prov:[...prov.entries()].sort(), semData,
+          totVend:lista.reduce((a,x)=>a+x.com,0), prog};
+}
+
 function tm(o){return o.qTicket>0?o.vTicket/o.qTicket:0;}
 function render(){
   if(!RAW)return;
@@ -866,6 +1025,13 @@ function render(){
   $("fDelta").innerHTML='<span style="color:'+(delta>=0?"var(--pos)":"var(--neg)")+'">'+(delta>=0?"+":"−")+BRL.format(Math.abs(delta))+"</span>";
   $("fFalta").textContent=BRL.format(falta);
   $("fDia").textContent=du>0?BRL.format(falta/du)+" ("+du+" dias)":"—";
+  const emCurso=p.dentro&&p.decorridos<p.totalDias;
+  const projecao=emCurso?A.tot.v*(p.totalDias/p.decorridos):A.tot.v;
+  const pctProj=pct(projecao,m.total);
+  $("gProj").style.width=(emCurso?Math.min(100,pctProj):0)+"%";
+  $("fProj").innerHTML=emCurso
+    ? BRL.format(projecao)+' <span style="color:'+(pctProj>=100?"var(--pos)":"var(--neg)")+'">('+fpct(pctProj)+" da meta)</span>"
+    : '<span style="color:var(--dim)">período encerrado</span>';
 
   const put=(pre,o,meta)=>{
     const pc=pct(o.v,meta);
@@ -1051,6 +1217,8 @@ function render(){
       '<td class="sep num">'+fpct(ex)+'</td></tr>');
   }
 
+  renderComissoes(D,p);
+
   const av=[];
   if(A.outro.q)av.push("R$ "+INT.format(Math.round(A.outro.v))+" em "+A.outro.q+" negócio(s) de serviços fora do mapeamento entram só na barra principal.");
   if(m.estimada)av.push("Meta por linha estimada pelo rateio "+CFG.splitTC+"/"+CFG.splitTE+"; a aba Metas não traz a divisão.");
@@ -1065,6 +1233,121 @@ function render(){
   $("pilha").style.display=av.length?"inline-flex":"none";
   $("avisos").style.display=(av.length&&mostrarAvisos)?"":"none";
 }
+function emailOk(){
+  const lista=(CFG.emailsComissao||"").split(",").map(x=>norm(x)).filter(Boolean);
+  if(!lista.length)return true;
+  const e=norm((USUARIO&&(USUARIO.mail||USUARIO.userPrincipalName))||"");
+  return !!e&&lista.includes(e);
+}
+
+function renderComissoes(D,p){
+  const K=D.com, lock=$("comLock"), body=$("comBody");
+  const mostraLock=t=>{lock.style.display="";lock.innerHTML=t;body.style.display="none";};
+  if(!PARAMS){
+    mostraLock(PARAMS_ERRO
+      ? "<b>Sem acesso aos parâmetros de comissão.</b><br>"+esc(PARAMS_ERRO)+
+        "<br>Se o arquivo está em pasta restrita, é isso que se espera — peça acesso a quem administra."
+      : "Conecte-se para carregar os parâmetros de comissão.");
+    return;
+  }
+  if(!emailOk()){
+    mostraLock("<b>Aba restrita.</b><br>"+esc((USUARIO&&(USUARIO.mail||USUARIO.userPrincipalName))||"seu usuário")+
+      " não está na lista de acesso às comissões.");
+    return;
+  }
+  if(!K){ mostraLock("Não foi possível calcular as comissões."); return; }
+  lock.style.display="none"; body.style.display="";
+
+  const hoje=new Date();
+  const fim=new Date(Date.UTC(hoje.getUTCFullYear(),hoje.getUTCMonth(),hoje.getUTCDate()));
+  const corrente = p.dentro && fim<p.b;
+  const fator = corrente&&p.decorridos ? p.totalDias/p.decorridos : 1;
+  const proj=v=>v*fator;
+  const mesTxt=d=>d.toLocaleDateString("pt-BR",{month:"long",year:"numeric",timeZone:"UTC"});
+
+  const total=K.totVend+K.honTC+K.honTE;
+  const par=(id,v,sub)=>{$(id).textContent=BRL.format(v);$(id+"S").textContent=sub;};
+  par("kFat",K.fatTot, corrente?"projeção "+BRL.format(proj(K.fatTot)):"mês encerrado");
+  par("kVend",K.totVend, corrente?"projeção "+BRL.format(K.prog?proj(K.totVend):0):
+      K.novaRegra?"regra progressiva":"regra anterior a mai/2026");
+  const projSup=(base,linha,faixas)=>{const bp=proj(base);
+    return K.supAtivo?Math.max(0,bp-linha)*faixaPct(bp,faixas):0;};
+  const supProj=projSup(K.fatTC,K.P.baseTC,K.P.fxTC)+projSup(K.fatTE,K.P.baseTE,K.P.fxTE);
+  par("kSup",K.honTC+K.honTE, !K.supAtivo?"vigência a partir de "+(K.P.vigSup?mesTxt(K.P.vigSup):"—")
+      : corrente?"projeção "+BRL.format(supProj):"TC "+BRL.format(K.honTC)+" · TEC "+BRL.format(K.honTE));
+  par("kTot",total, corrente?"parcial até dia "+p.decorridos+" de "+p.totalDias:"apurado");
+
+  const tb=$("cvBody"); tb.innerHTML="";
+  for(const x of K.lista){
+    tb.insertAdjacentHTML("beforeend",
+      '<tr><td class="l name">'+esc(x.nome)+'</td>'+
+      '<td class="sep v-money num">'+BRL.format(x.tot)+'</td>'+
+      '<td class="v-sub num">'+BRL.format(x.tc)+'</td>'+
+      '<td class="v-sub num">'+BRL.format(x.te)+'</td>'+
+      '<td class="sep v-sub">'+esc(x.regra)+'</td>'+
+      '<td class="v-sub num">'+(x.taxa*100).toFixed(3).replace(".",",")+'%</td>'+
+      '<td class="v-money num" style="color:var(--pos)">'+BRL.format(x.com)+'</td>'+
+      '<td class="v-sub num">'+(corrente?BRL.format(K.prog(proj(x.tot))):"—")+'</td></tr>');
+  }
+  if(!K.lista.length)tb.innerHTML='<tr><td class="l" colspan="8" style="color:var(--dim)">sem vendas elegíveis no período</td></tr>';
+  $("cvFoot").innerHTML=K.lista.length?'<tr><td class="l">Total</td>'+
+    '<td class="sep num">'+BRL.format(K.fatTot)+'</td><td class="num">'+BRL.format(K.fatTC)+
+    '</td><td class="num">'+BRL.format(K.fatTE)+'</td><td class="sep"></td><td></td>'+
+    '<td class="num">'+BRL.format(K.totVend)+'</td>'+
+    '<td class="num">'+(corrente?BRL.format(K.lista.reduce((a,x)=>a+K.prog(proj(x.tot)),0)):"—")+'</td></tr>':"";
+  $("cvSub").textContent=(K.novaRegra?"faixas progressivas sobre o faturamento próprio":"regra anterior a mai/2026")+
+    (corrente?" · projeção linear pelos dias decorridos":"");
+  $("thProj").textContent=corrente?"Projeção do mês":"—";
+
+  const blocoSup=(pre,base,linha,pc,hon,faixas)=>{
+    const exc=Math.max(0,base-linha);
+    $(pre+"Base").textContent=BRL.format(base);
+    $(pre+"Linha").textContent=BRL.format(linha);
+    $(pre+"Exc").textContent=BRL.format(exc);
+    $(pre+"Hon").textContent=BRL.format(hon);
+    $(pre+"Fill").style.width=Math.min(100,linha?base/linha*100:0)+"%";
+    if(corrente){
+      const bp=proj(base), pcp=faixaPct(bp,faixas);
+      const hp=K.supAtivo?Math.max(0,bp-linha)*pcp:0;
+      $(pre+"Proj").textContent=BRL.format(hp);
+      $(pre+"ProjS").textContent="base "+BRL.format(bp)+" · faixa "+(pcp*100).toFixed(2).replace(".",",")+"%"+
+        (bp<linha?" · abaixo da linha":"");
+      $(pre+"Proj").style.color=hp>0?"var(--pos)":"var(--dim)";
+    }else{ $(pre+"Proj").textContent="—"; $(pre+"ProjS").textContent="mês encerrado"; }
+  };
+  blocoSup("st",K.fatTC,K.P.baseTC,K.pcTC,K.honTC,K.P.fxTC);
+  blocoSup("se",K.fatTE,K.P.baseTE,K.pcTE,K.honTE,K.P.fxTE);
+  $("stPct").textContent=(K.pcTC*100).toFixed(2).replace(".",",")+"%";
+  $("seP").textContent=(K.pcTE*100).toFixed(2).replace(".",",")+"%";
+
+  const cb=$("cronBody"); cb.innerHTML="";
+  const linhaC=(rot,mes,base,v)=>'<tr><td class="l name">'+esc(rot)+'</td>'+
+    '<td class="sep v-sub">'+esc(mes)+'</td><td class="v-sub num">'+base+'</td>'+
+    '<td class="v-money num">'+BRL.format(v)+'</td></tr>';
+  if(K.honTC)cb.insertAdjacentHTML("beforeend",
+    linhaC("Transplante — parcela inicial",mesTxt(K.mesPag),fpct(K.P.pIni*100)+" do honorário TC",K.honTC*K.P.pIni));
+  if(K.honTE)cb.insertAdjacentHTML("beforeend",
+    linhaC("Terapia — parcela única",mesTxt(K.mesPag),fpct(K.P.pTE*100)+" do honorário TEC",K.honTE*K.P.pTE));
+  for(const [mes,v] of K.prov){
+    const [a2,m2]=mes.split("-");
+    cb.insertAdjacentHTML("beforeend",
+      linhaC("Transplante — parcela complementar",
+             new Date(Date.UTC(+a2,+m2-1,1)).toLocaleDateString("pt-BR",{month:"long",year:"numeric",timeZone:"UTC"}),
+             fpct(K.P.pComp*100)+" · cirurgia agendada",v));
+  }
+  if(K.semData)cb.insertAdjacentHTML("beforeend",
+    '<tr style="background:var(--hl2)"><td class="l name">Transplante — parcela complementar</td>'+
+    '<td class="sep v-sub" style="color:var(--tec)">aguardando data da cirurgia</td>'+
+    '<td class="v-sub num">'+fpct(K.P.pComp*100)+'</td>'+
+    '<td class="v-money num">'+BRL.format(K.semData)+'</td></tr>');
+  if(!cb.innerHTML)cb.innerHTML='<tr><td class="l" colspan="4" style="color:var(--dim)">'+
+    (K.supAtivo?"sem honorário no período":"vigência da supervisão começa em "+
+      (K.P.vigSup?mesTxt(K.P.vigSup):"—"))+'</td></tr>';
+  $("cronFoot").innerHTML=(K.honTC+K.honTE)?'<tr><td class="l">Total</td><td class="sep"></td><td></td>'+
+    '<td class="num">'+BRL.format(K.honTC+K.honTE)+'</td></tr>':"";
+  $("cronSub").textContent="defasagem de "+K.P.defas+" mês(es) após o fato gerador";
+}
+
 function zeraT(){return {ag:0,re:0,ns:0,rm:0,fu:0,ot:0,vl:0};}
 let AVISOS=[], mostrarAvisos=true;
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
@@ -1138,6 +1421,11 @@ function shareId(u){
 }
 
 const REF={drive:null,item:null,nome:null,mod:null};
+let PARAMS=null, PARAMS_ERRO=null, USUARIO=null;
+async function resolveItem2(tk,url){
+  const it=await gget("/shares/"+shareId(url)+"/driveItem?$select=id,name,parentReference",tk);
+  return {drive:it.parentReference.driveId,item:it.id,nome:it.name};
+}
 async function resolveItem(tk){
   const it=await gget("/shares/"+shareId(CFG.file)+"/driveItem?$select=id,name,parentReference,lastModifiedDateTime",tk);
   REF.drive=it.parentReference.driveId; REF.item=it.id; REF.nome=it.name; REF.mod=it.lastModifiedDateTime;
@@ -1168,7 +1456,7 @@ async function sincronizar(){
   finally{b.disabled=false;}
 }
 function colLetter(n){let s="";while(n>0){const m=(n-1)%26;s=String.fromCharCode(65+m)+s;n=(n-m-1)/26;}return s;}
-async function readSheet(tk,ref,sheet){
+async function readSheet(tk,ref,sheet,cru){
   const base="/drives/"+ref.drive+"/items/"+ref.item+"/workbook/worksheets('"+encodeURIComponent(sheet.replace(/'/g,"''"))+"')";
   const ur=await gget(base+"/usedRange(valuesOnly=true)?$select=address,rowCount,columnCount",tk);
   const addr=String(ur.address).split("!").pop();
@@ -1179,7 +1467,7 @@ async function readSheet(tk,ref,sheet){
     const e=Math.min(r2,s+CH-1);
     const rg=await gget(base+"/range(address='"+c1+s+":"+c2+e+"')?$select=values",tk);
     let vs=rg.values||[];
-    if(!headers){headers=vs[0]||[];vs=vs.slice(1);}
+    if(!headers){ if(cru){headers=[];} else {headers=vs[0]||[];vs=vs.slice(1);} }
     for(const v of vs)rows.push(v);
   }
   return {headers:headers||[],rows};
@@ -1193,6 +1481,12 @@ async function carregar(){
     const ref=await resolveItem(tk);
     const [V,M,T]=await Promise.all([readSheet(tk,ref,CFG.shVendas),readSheet(tk,ref,CFG.shMarc),readSheet(tk,ref,CFG.shMetas)]);
     RAW={}; RAW[CFG.shVendas]=V; RAW[CFG.shMarc]=M; RAW[CFG.shMetas]=T;
+    PARAMS=null; PARAMS_ERRO=null;
+    try{
+      const refP = CFG.arqParams ? await resolveItem2(tk,CFG.arqParams) : ref;
+      PARAMS=await readSheet(tk,refP,CFG.shParams,true);
+    }catch(e){ PARAMS_ERRO=String(e.message||e); }
+    try{ USUARIO=await gget("/me?$select=mail,userPrincipalName,displayName",tk); }catch(e){}
     render();
     const atraso=Math.round((Date.now()-new Date(ref.mod).getTime())/60000);
     setStatus(atraso>45?"warn":"ok",
@@ -1207,7 +1501,7 @@ function setStatus(k,t){$("dot").className="dot "+k;$("statusTxt").textContent=t
 
 /* ============================ config UI ============================ */
 const F={cTenant:"tenant",cClient:"client",cFile:"file",cShVendas:"shVendas",cShMarc:"shMarc",cShMetas:"shMetas",
-  cRefresh:"refresh",cSplitTC:"splitTC",cSplitTE:"splitTE",cMapTC:"mapTC",cMapTE:"mapTE",cIgnorar:"ignorar",cAgendada:"marcaAgendada",cStRe:"stRealizada",cStNs:"stNoShow",cStRm:"stRemarcada",cStFu:"stFuturo",cStCa:"stCancelado",cMeses:"mesesCheios",cEquipe:"equipePre",cOrfas:"incluirOrfas",cEtapas:"etapasVenda",
+  cRefresh:"refresh",cSplitTC:"splitTC",cSplitTE:"splitTE",cMapTC:"mapTC",cMapTE:"mapTE",cIgnorar:"ignorar",cAgendada:"marcaAgendada",cStRe:"stRealizada",cStNs:"stNoShow",cStRm:"stRemarcada",cStFu:"stFuturo",cStCa:"stCancelado",cMeses:"mesesCheios",cShPar:"shParams",cArqPar:"arqParams",cEmails:"emailsComissao",cEquipe:"equipePre",cOrfas:"incluirOrfas",cEtapas:"etapasVenda",
   cOnlyPrimeira:"onlyPrimeira",cIgnoraZero:"ignoraZero",cCoorte:"coorte",cAutoEntrar:"autoEntrar",cGhRepo:"ghRepo",cGhWf:"ghWf",cGhToken:"ghToken"};
 function cfgToUI(){for(const id in F){const el=$(id);if(el.type==="checkbox")el.checked=!!CFG[F[id]];else el.value=CFG[F[id]];}
   $("cRedirect").textContent=REDIRECT;}
@@ -1233,15 +1527,18 @@ $("cLink").onclick=()=>{uiToCfg();const c=Object.assign({},CFG);delete c.autoEnt
 $("fechaAv").onclick=()=>{mostrarAvisos=false;$("avisos").style.display="none";};
 $("pilha").onclick=()=>{mostrarAvisos=true;if(AVISOS.length)$("avisos").style.display="";};
 $("btnRefresh").onclick=()=>{mostrarAvisos=true;carregar();};
-function aba(pre){
-  $("tituloPainel").textContent=pre?"Painel Pré-vendas":"Painel Comercial";
-  $("viewComercial").style.display=pre?"none":"";
-  $("viewPre").style.display=pre?"":"none";
-  $("tabCom").className=pre?"":"on";
-  $("tabPre").className=pre?"on":"";
+function aba(q){
+  $("tituloPainel").textContent={com:"Painel Comercial",pre:"Painel Pré-vendas",cms:"Painel Comissões"}[q];
+  $("viewComercial").style.display=q==="com"?"":"none";
+  $("viewPre").style.display=q==="pre"?"":"none";
+  $("viewCom").style.display=q==="cms"?"":"none";
+  $("tabCom").className=q==="com"?"on":"";
+  $("tabPre").className=q==="pre"?"on":"";
+  $("tabCom2").className=q==="cms"?"on":"";
 }
-$("tabCom").onclick=()=>aba(false);
-$("tabPre").onclick=()=>aba(true);
+$("tabCom").onclick=()=>aba("com");
+$("tabPre").onclick=()=>aba("pre");
+$("tabCom2").onclick=()=>aba("cms");
 $("btnSync").onclick=()=>{mostrarAvisos=true;sincronizar();};
 $("periodo").onchange=()=>{const c=$("periodo").value==="custom";
   $("dtIni").style.display=$("dtFim").style.display=c?"":"none";render();};
