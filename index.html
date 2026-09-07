@@ -608,7 +608,14 @@ const store={
 };
 const DEF={versao:"",admins:"",regrasComissao:"",tenant:"89aed341-1dc6-4d0d-b5c7-e8df4293d21d",client:"",file:"",autoEntrar:true,ghRepo:"",ghWf:"sync.yml",ghToken:"",shVendas:"Vendas",shMarc:"Marcações",shMetas:"Metas",
   refresh:10,splitTC:90,splitTE:10,mapTC:"TC,TB,TS,BH",mapTE:"TEC",ignorar:"Sem deal comercial,—,JARVYS",marcaAgendada:"Data Agendada",stRealizada:"Atendido",stNoShow:"Não compareceu",stRemarcada:"Remarcado",stFuturo:"Marcado",stCancelado:"Desmarcado pelo paciente,Cancelado pelo profissional",mesesCheios:true,shParams:"Parâmetros Comissões",arqParams:"",emailsComissao:"",equipePre:"Beatriz,Fabiana,Amanda",incluirOrfas:false,etapasVenda:"FECHAMENTO,FINALIZADO,REVISAO DE PENDENCIAS",onlyPrimeira:true,ignoraZero:true,coorte:"fechamento"};
-if(store.get("rjv.cfgv")!==NATIVO.versao){ store.del("rjv.cfg"); store.set("rjv.cfgv",NATIVO.versao); }
+// versao nova zera preferencias, mas NUNCA o que e conexao/credencial
+if(store.get("rjv.cfgv")!==NATIVO.versao){
+  const CONEXAO=["tenant","client","file","ghRepo","ghWf","ghToken","regrasComissao"];
+  let antigo={}; try{ antigo=JSON.parse(store.get("rjv.cfg")||"{}"); }catch(e){}
+  const mantem={}; for(const k of CONEXAO)if(antigo[k])mantem[k]=antigo[k];
+  store.set("rjv.cfg",JSON.stringify(mantem));
+  store.set("rjv.cfgv",NATIVO.versao);
+}
 const SALVO=JSON.parse(store.get("rjv.cfg")||"{}");
 let ADMIN=false;
 let CFG=Object.assign({},DEF,NATIVO,SALVO);
