@@ -224,7 +224,7 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
     <input type="date" id="dtFim" style="display:none">
     <button id="btnRefresh">Atualizar</button>
     <button id="btnSync" style="display:none">Sincronizar agora</button>
-    <button id="btnCfg">Configurar</button>
+    <button id="btnCfg" style="display:none">Configurar</button>
     <button id="btnAuth" class="primary">Entrar</button>
   </div>
   <button id="btnTema" title="Alternar tema">Tema: sistema</button>
@@ -529,9 +529,12 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
   <div class="f"><label>Equipe de pré-vendas</label><input id="cEquipe" value="Beatriz,Fabiana,Amanda">
     <div class="h">Primeiro nome basta. Quem não estiver aqui entra como agendamento esporádico — soma no total, fora do resultado do setor.</div></div>
   <hr>
-  <div class="f"><label>Aba de parâmetros de comissão</label><input id="cShPar" value="Parâmetros Comissões"></div>
-  <div class="f"><label>Arquivo separado dos parâmetros (opcional)</label><input id="cArqPar" placeholder="deixe vazio para ler da própria planilha">
-    <div class="h">Aponte para um arquivo em pasta restrita. Quem não tiver permissão recebe 403 e a aba de comissões trava — controle do M365, não do painel.</div></div>
+  <div class="f"><label>Regras de comissão</label>
+    <textarea id="cRegras" rows="16" style="width:100%;background:var(--panel);color:var(--txt);border:1px solid var(--line);border-radius:var(--r);font-family:'IBM Plex Mono';font-size:12px;padding:9px;resize:vertical"></textarea>
+    <div class="h">Uma regra por linha. Linhas com # são comentário. Botão abaixo carrega o modelo.</div>
+    <button id="cModelo" style="margin-top:6px">Carregar modelo das regras</button>
+  </div>
+  <div class="msg warn" style="margin-top:4px">Se estas regras entrarem no bloco nativo e o repositório for público, elas ficam visíveis na internet. Em repositório público, mantenha aqui e distribua pelo link de instalação.</div>
   <div class="f"><label>E-mails com acesso à aba Comissões</label><input id="cEmails" placeholder="fabricio@clinicarejuvenesce.com.br, ...">
     <div class="h">Vazio libera para quem já acessa os parâmetros. Trava de tela, não de dados.</div></div>
   <hr>
@@ -562,22 +565,53 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
   <hr>
   <label class="chk"><input type="checkbox" id="cMeses" checked><span>Período personalizado assume os meses completos (27/08 a 04/09 vira 01/08 a 30/09)</span></label>
   <label class="chk"><input type="checkbox" id="cAutoEntrar" checked><span>Entrar automaticamente ao abrir</span></label>
-  <div style="display:flex;gap:9px;flex-wrap:wrap"><button class="primary" id="cSave">Salvar e recarregar</button><button id="cLink">Copiar link de instalação</button><button id="cClose">Fechar</button></div>
+  <hr>
+  <div class="f"><label>Administradores do painel</label><input id="cAdmins" value="fabricio.araujo@clinicarejuvenesce.com.br">
+    <div class="h">Só estes e-mails enxergam o botão Configurar. Os demais recebem a configuração pronta.</div></div>
+  <div style="display:flex;gap:9px;flex-wrap:wrap"><button class="primary" id="cSave">Salvar e recarregar</button><button id="cNativo">Copiar bloco nativo</button><button id="cLink">Copiar link de instalação</button><button id="cClose">Fechar</button></div>
   <div class="notes" id="cfgNotes"></div>
 </aside>
 
 <script>
 "use strict";
 /* ============================ armazenamento ============================ */
+/* ═══════════════════════════════════════════════════════════════════════
+   CONFIGURAÇÃO NATIVA — vale para todo mundo que abrir o link.
+   Edite aqui (ou use "Copiar bloco nativo" no Configurar e cole por cima).
+   ═══════════════════════════════════════════════════════════════════════ */
+const NATIVO = {
+  admins: "fabricio.araujo@clinicarejuvenesce.com.br",
+  tenant: "89aed341-1dc6-4d0d-b5c7-e8df4293d21d",
+  client: "",
+  file:   "",
+  shVendas: "Vendas", shMarc: "Marcações", shMetas: "Metas",
+  refresh: 10, splitTC: 90, splitTE: 10,
+  mapTC: "TC,TB,TS,BH", mapTE: "TEC",
+  etapasVenda: "FECHAMENTO,REVISAO DE PENDENCIAS,FINALIZADO",
+  ignorar: "Sem deal comercial,—,JARVYS",
+  marcaAgendada: "Data Agendada",
+  stRealizada: "Atendido", stNoShow: "Não compareceu", stRemarcada: "Remarcado",
+  stFuturo: "Marcado", stCancelado: "Desmarcado pelo paciente,Cancelado pelo profissional",
+  equipePre: "Beatriz,Fabiana,Amanda",
+  onlyPrimeira: true, ignoraZero: true, incluirOrfas: false,
+  coorte: "fechamento", mesesCheios: true, autoEntrar: true,
+  emailsComissao: "",
+  regrasComissao: ""      // ver "Regras de comissão" no Configurar
+};
+
 const mem={};
 const store={
   get(k){ try{return localStorage.getItem(k);}catch(e){return k in mem?mem[k]:null;} },
   set(k,v){ try{localStorage.setItem(k,v);}catch(e){mem[k]=v;} },
   del(k){ try{localStorage.removeItem(k);}catch(e){delete mem[k];} }
 };
-const DEF={tenant:"89aed341-1dc6-4d0d-b5c7-e8df4293d21d",client:"",file:"",autoEntrar:true,ghRepo:"",ghWf:"sync.yml",ghToken:"",shVendas:"Vendas",shMarc:"Marcações",shMetas:"Metas",
+const DEF={admins:"",regrasComissao:"",tenant:"89aed341-1dc6-4d0d-b5c7-e8df4293d21d",client:"",file:"",autoEntrar:true,ghRepo:"",ghWf:"sync.yml",ghToken:"",shVendas:"Vendas",shMarc:"Marcações",shMetas:"Metas",
   refresh:10,splitTC:90,splitTE:10,mapTC:"TC,TB,TS,BH",mapTE:"TEC",ignorar:"Sem deal comercial,—,JARVYS",marcaAgendada:"Data Agendada",stRealizada:"Atendido",stNoShow:"Não compareceu",stRemarcada:"Remarcado",stFuturo:"Marcado",stCancelado:"Desmarcado pelo paciente,Cancelado pelo profissional",mesesCheios:true,shParams:"Parâmetros Comissões",arqParams:"",emailsComissao:"",equipePre:"Beatriz,Fabiana,Amanda",incluirOrfas:false,etapasVenda:"FECHAMENTO,FINALIZADO,REVISAO DE PENDENCIAS",onlyPrimeira:true,ignoraZero:true,coorte:"fechamento"};
-let CFG=Object.assign({},DEF,JSON.parse(store.get("rjv.cfg")||"{}"));
+const SALVO=JSON.parse(store.get("rjv.cfg")||"{}");
+let ADMIN=false;
+let CFG=Object.assign({},DEF,NATIVO);
+function aplicaSalvo(){ if(ADMIN)CFG=Object.assign({},DEF,NATIVO,SALVO); }
+aplicaSalvo();
 const REDIRECT=location.origin+location.pathname;
 const TEMAS=["sistema","escuro","claro"], TEMA_ROT={sistema:"sistema",escuro:"escuro",claro:"claro"};
 function aplicaTema(t){
@@ -931,6 +965,94 @@ function computar(){
 }
 
 /* ============================ render ============================ */
+function parseRegras(txt){
+  const linhas=String(txt||"").split(/\r?\n/).map(x=>x.trim()).filter(x=>x&&x[0]!=="#");
+  if(!linhas.length)return null;
+  const pc=v=>{const t=String(v).trim();return toNum(t.replace("%",""))/(t.includes("%")?100:1);};
+  const faixa=v=>{
+    const [rng,p]=String(v).split("=");
+    const par=rng.split(/\s+(?:a|até|ate|-|—|ate)\s+/i).map(x=>x.trim()).filter(Boolean);
+    const ate=/acima|\+|infinito/i.test(par[1]||"")?Infinity:toNum(par[1]);
+    return [toNum(par[0]),ate,pc(p||"0")];
+  };
+  const P={fx:[],fxTC:[],fxTE:[],etapas:[],defas:1,pIni:0.4,pComp:0.6,pTE:1};
+  for(const l of linhas){
+    const i=l.indexOf(":"); if(i<0)continue;
+    const k=norm(l.slice(0,i)), v=l.slice(i+1).trim();
+    switch(k){
+      case "VIGENCIA VENDEDORES": P.vigVend=toDate(v); break;
+      case "VIGENCIA SUPERVISAO": P.vigSup=toDate(v); break;
+      case "FAIXA VENDEDOR": P.fx.push(faixa(v)); break;
+      case "FAIXA TRANSPLANTE": P.fxTC.push(faixa(v)); break;
+      case "FAIXA TERAPIA": P.fxTE.push(faixa(v)); break;
+      case "BASE TRANSPLANTE": P.baseTC=toNum(v); break;
+      case "BASE TERAPIA": P.baseTE=toNum(v); break;
+      case "SERVICOS TRANSPLANTE": P.grpTC=v; break;
+      case "SERVICOS TERAPIA": P.grpTE=v; break;
+      case "PARCELA INICIAL TC": P.pIni=pc(v); break;
+      case "PARCELA COMPLEMENTAR TC": P.pComp=pc(v); break;
+      case "PARCELA TERAPIA": P.pTE=pc(v); break;
+      case "DEFASAGEM MESES": P.defas=Math.round(toNum(v)); break;
+      case "ETAPAS ELEGIVEIS": P.etapas=v.split(",").map(x=>x.trim()).filter(Boolean); break;
+      case "REGRA ANTERIOR TC": P.legTC=pc(v); break;
+      case "REGRA ANTERIOR TEC": P.legTE=pc(v); break;
+      case "GATILHO TC": P.gatilho=toNum(v); break;
+      case "EXCECAO VENDEDOR": P.excNome=v; break;
+      case "EXCECAO TC": P.excTC=pc(v); break;
+      case "EXCECAO TEC": P.excTE=pc(v); break;
+    }
+  }
+  [P.fx,P.fxTC,P.fxTE].forEach(a=>a.sort((x,y)=>x[0]-y[0]));
+  P.legTC=P.legTC||0; P.legTE=P.legTE||0; P.gatilho=P.gatilho||0;
+  P.excTC=P.excTC||0; P.excTE=P.excTE||0; P.excNome=P.excNome||"";
+  P.baseTC=P.baseTC||0; P.baseTE=P.baseTE||0;
+  P.grpTC=P.grpTC||"TC,TB,TS,BH"; P.grpTE=P.grpTE||"TEC,CM";
+  if(!P.etapas.length)P.etapas=CFG.etapasVenda.split(",");
+  return P;
+}
+
+const REGRAS_MODELO=`# ─── VENDEDORES ───
+vigencia vendedores: 01/05/2026
+faixa vendedor: 0 a 400000 = 0,1%
+faixa vendedor: 400000 a 700000 = 0,2%
+faixa vendedor: 700000 a acima = 0,3%
+
+# regra anterior a maio/2026
+regra anterior tc: 0,5%
+gatilho tc: 400000
+regra anterior tec: 0%
+excecao vendedor: Larissa Mendes de Souza
+excecao tec: 1%
+excecao tc: 0%
+
+# ─── SUPERVISÃO ───
+vigencia supervisao: 01/09/2026
+base transplante: 2300000
+servicos transplante: TC,TB,TS,BH
+faixa transplante: 2300000 a 2500000 = 0,4%
+faixa transplante: 2500000 a 3000000 = 0,6%
+faixa transplante: 3000000 a 3500000 = 0,8%
+faixa transplante: 3500000 a 4000000 = 1%
+faixa transplante: 4000000 a 5000000 = 1,25%
+faixa transplante: 5000000 a acima = 1,5%
+
+base terapia: 235000
+servicos terapia: TEC,CM
+faixa terapia: 235000 a 250000 = 1%
+faixa terapia: 250000 a 300000 = 1,25%
+faixa terapia: 300000 a 400000 = 1,5%
+faixa terapia: 400000 a 500000 = 2%
+faixa terapia: 500000 a acima = 2,5%
+
+# ─── PAGAMENTO ───
+parcela inicial tc: 40%
+parcela complementar tc: 60%
+parcela terapia: 100%
+defasagem meses: 1
+
+# ─── ELEGIBILIDADE ───
+etapas elegiveis: FECHAMENTO,FINALIZADO`;
+
 function celP(ref){
   if(!PARAMS)return null;
   const m=/^([A-Z]+)(\d+)$/.exec(ref); if(!m)return null;
@@ -948,22 +1070,12 @@ function faixaPct(v,linhas){          // [[de,ate,pct],...] -> pct da faixa atin
 }
 
 function comissoes(V,cv,p){
-  if(!PARAMS)return null;
+  const P=parseRegras(CFG.regrasComissao);
+  if(!P)return null;
   const iEt=pick(cv,"Etapa"), iVal=pick(cv,"Valor Único","Valor unico"),
         iDt=pick(cv,"Data de fechamento"), iResp=pick(cv,"Responsável"),
         iSrv=pick(cv,"Serviço"), iProd=pick(cv,"Produtos"),
         iCir=pick(cv,"Data Prevista de Cirurgia"), iMarc=pick(cv,"Data Cirurgia foi marcada?");
-  const P={
-    vigVend:toDate(celP("B5")), vigSup:toDate(celP("B14")),
-    fx:[[numP("B8"),numP("C8"),numP("D8")],[numP("B9"),numP("C9"),numP("D9")],[numP("B10"),0,numP("D10")]],
-    baseTC:numP("B15"), grpTC:txtP("B16"), baseTE:numP("B28"), grpTE:txtP("B29"),
-    fxTC:[18,19,20,21,22,23,24].map(n=>[numP("A"+n),numP("B"+n),numP("C"+n)]),
-    fxTE:[31,32,33,34,35,36].map(n=>[numP("A"+n),numP("B"+n),numP("C"+n)]),
-    pIni:numP("B40"), pComp:numP("B41"), pTE:numP("B42"), defas:Math.round(numP("B43")),
-    fixo:numP("B46"), etapas:[txtP("B49"),txtP("C49")].filter(Boolean),
-    legTC:numP("B52"), gatilho:numP("B53"), legTE:numP("B54"),
-    excNome:txtP("B55"), excTE:numP("B56"), excTC:numP("B57")
-  };
   const gTC=new Set(P.grpTC.split(",").map(norm)), gTE=new Set(P.grpTE.split(",").map(norm));
   const eleg=new Set(P.etapas.map(norm));
   const grupo=r=>{
@@ -986,8 +1098,7 @@ function comissoes(V,cv,p){
     fatTot+=val; if(g==="tc"){fatTC+=val;vendasTC.push({v:val,cir:iCir>=0?toDate(r[iCir]):null,
       marc:iMarc>=0?norm(r[iMarc]):""});} if(g==="te")fatTE+=val;
   }
-  const prog=b=>{const [f1,f2,f3]=P.fx;
-    return Math.min(b,f1[1])*f1[2] + Math.max(0,Math.min(b,f2[1])-f2[0])*f2[2] + Math.max(0,b-f3[0])*f3[2];};
+  const prog=b=>P.fx.reduce((a,[de,ate,pp])=>a+Math.max(0,Math.min(b,ate)-de)*pp,0);
   const novaRegra = !P.vigVend || p.a>=P.vigVend;
   const lista=[...V2.values()].map(o=>{
     let c=0, regra;
@@ -1255,6 +1366,19 @@ function render(){
   $("pilha").style.display=av.length?"inline-flex":"none";
   $("avisos").style.display=(av.length&&mostrarAvisos)?"":"none";
 }
+function ehAdmin(){
+  const lista=(CFG.admins||"").split(",").map(norm).filter(Boolean);
+  if(!lista.length)return true;
+  const e=norm((USUARIO&&(USUARIO.mail||USUARIO.userPrincipalName))||"");
+  return !!e&&lista.includes(e);
+}
+function atualizaAdmin(){
+  const antes=ADMIN;
+  ADMIN=ehAdmin()||location.hash==="#config";
+  $("btnCfg").style.display=ADMIN?"":"none";
+  if(ADMIN&&!antes){aplicaSalvo();cfgToUI();}
+}
+
 function emailOk(){
   const lista=(CFG.emailsComissao||"").split(",").map(x=>norm(x)).filter(Boolean);
   if(!lista.length)return true;
@@ -1265,11 +1389,9 @@ function emailOk(){
 function renderComissoes(D,p){
   const K=D.com, lock=$("comLock"), body=$("comBody");
   const mostraLock=t=>{lock.style.display="";lock.innerHTML=t;body.style.display="none";};
-  if(!PARAMS){
-    mostraLock(PARAMS_ERRO
-      ? "<b>Sem acesso aos parâmetros de comissão.</b><br>"+esc(PARAMS_ERRO)+
-        "<br>Se o arquivo está em pasta restrita, é isso que se espera — peça acesso a quem administra."
-      : "Conecte-se para carregar os parâmetros de comissão.");
+  if(!CFG.regrasComissao||!CFG.regrasComissao.trim()){
+    mostraLock("<b>Regras de comissão não configuradas.</b><br>"+
+      (ADMIN?"Abra Configurar e carregue o modelo das regras.":"Peça a quem administra o painel."));
     return;
   }
   if(!emailOk()){
@@ -1509,6 +1631,7 @@ async function carregar(){
       PARAMS=await readSheet(tk,refP,CFG.shParams,true);
     }catch(e){ PARAMS_ERRO=String(e.message||e); }
     try{ USUARIO=await gget("/me?$select=mail,userPrincipalName,displayName",tk); }catch(e){}
+    atualizaAdmin();
     render();
     const atraso=Math.round((Date.now()-new Date(ref.mod).getTime())/60000);
     setStatus(atraso>45?"warn":"ok",
@@ -1523,12 +1646,14 @@ function setStatus(k,t){$("dot").className="dot "+k;$("statusTxt").textContent=t
 
 /* ============================ config UI ============================ */
 const F={cTenant:"tenant",cClient:"client",cFile:"file",cShVendas:"shVendas",cShMarc:"shMarc",cShMetas:"shMetas",
-  cRefresh:"refresh",cSplitTC:"splitTC",cSplitTE:"splitTE",cMapTC:"mapTC",cMapTE:"mapTE",cIgnorar:"ignorar",cAgendada:"marcaAgendada",cStRe:"stRealizada",cStNs:"stNoShow",cStRm:"stRemarcada",cStFu:"stFuturo",cStCa:"stCancelado",cMeses:"mesesCheios",cShPar:"shParams",cArqPar:"arqParams",cEmails:"emailsComissao",cEquipe:"equipePre",cOrfas:"incluirOrfas",cEtapas:"etapasVenda",
+  cRefresh:"refresh",cSplitTC:"splitTC",cSplitTE:"splitTE",cMapTC:"mapTC",cMapTE:"mapTE",cIgnorar:"ignorar",cAgendada:"marcaAgendada",cStRe:"stRealizada",cStNs:"stNoShow",cStRm:"stRemarcada",cStFu:"stFuturo",cStCa:"stCancelado",cMeses:"mesesCheios",cRegras:"regrasComissao",cAdmins:"admins",cEmails:"emailsComissao",cEquipe:"equipePre",cOrfas:"incluirOrfas",cEtapas:"etapasVenda",
   cOnlyPrimeira:"onlyPrimeira",cIgnoraZero:"ignoraZero",cCoorte:"coorte",cAutoEntrar:"autoEntrar",cGhRepo:"ghRepo",cGhWf:"ghWf",cGhToken:"ghToken"};
 function cfgToUI(){for(const id in F){const el=$(id);if(el.type==="checkbox")el.checked=!!CFG[F[id]];else el.value=CFG[F[id]];}
   $("cRedirect").textContent=REDIRECT;}
-function uiToCfg(){for(const id in F){const el=$(id);CFG[F[id]]=el.type==="checkbox"?el.checked:(el.type==="number"?+el.value:el.value);}
-  store.set("rjv.cfg",JSON.stringify(CFG));}
+function uiToCfg(){for(const id in F){const el=$(id);if(!el)continue;
+    CFG[F[id]]=el.type==="checkbox"?el.checked:(el.type==="number"?+el.value:el.value);}
+  const dif={}; for(const k in CFG)if(JSON.stringify(CFG[k])!==JSON.stringify(NATIVO[k]))dif[k]=CFG[k];
+  store.set("rjv.cfg",JSON.stringify(dif)); Object.assign(SALVO,dif);}
 function openCfg(msg){$("drawer").classList.add("open");$("cfgNotes").textContent=msg||"";}
 
 /* ============================ boot ============================ */
@@ -1542,6 +1667,13 @@ $("btnCfg").onclick=()=>{cfgToUI();openCfg();};
 $("cClose").onclick=()=>$("drawer").classList.remove("open");
 $("cSave").onclick=()=>{uiToCfg();$("drawer").classList.remove("open");agenda();render();carregar();};
 $("btnAuth").onclick=()=>{mostrarAvisos=true;login(false);};
+$("cModelo").onclick=()=>{$("cRegras").value=REGRAS_MODELO;};
+$("cNativo").onclick=()=>{uiToCfg();
+  const c={}; for(const k of Object.keys(NATIVO))c[k]=CFG[k];
+  const txt="const NATIVO = "+JSON.stringify(c,null,2)+";";
+  navigator.clipboard.writeText(txt).then(
+    ()=>{$("cfgNotes").textContent="Bloco copiado. Cole no topo do index.html, sobre o NATIVO atual, e faça commit — passa a valer para todos.";},
+    ()=>{$("cfgNotes").textContent=txt;});};
 $("cLink").onclick=()=>{uiToCfg();const c=Object.assign({},CFG);delete c.autoEntrar;delete c.ghToken;
   const url=REDIRECT+"#cfg="+b64uEnc(JSON.stringify(Object.assign({autoEntrar:true,ghRepo:"",ghWf:"sync.yml",ghToken:""},c)));
   navigator.clipboard.writeText(url).then(()=>{$("cfgNotes").textContent="Link copiado. Quem abrir esse link recebe toda a configuração e entra direto.";},
