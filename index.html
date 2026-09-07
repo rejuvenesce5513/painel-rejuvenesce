@@ -122,6 +122,10 @@ button.primary{background:var(--tc);color:var(--onTc);border-color:var(--tc);fon
 .ev .v{font-size:34px;line-height:1}
 .ev .s{font-size:12px;color:var(--muted);margin-top:4px}
 .ev.a .v{color:var(--txt)} .ev.b .v{color:var(--pos)} .ev.c .v{color:var(--tec)} .ev.d .v{color:var(--neg)}
+.ev.e .v{color:var(--tc)} .ev.f .v{color:var(--muted)}
+#viewPre .evals{grid-template-columns:repeat(6,1fr)}
+@media(max-width:1500px){#viewPre .evals{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:820px){#viewPre .evals{grid-template-columns:repeat(2,1fr)}}
 
 /* ---------- ranking ---------- */
 .rank{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
@@ -165,6 +169,13 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
 .msg{padding:11px 13px;border-radius:var(--r);font-size:12.5px;line-height:1.5;margin-bottom:14px;border:1px solid}
 .msg.warn{background:var(--wBg);border-color:var(--wLn);color:var(--wTx)}
 .msg.err{background:var(--eBg);border-color:var(--eLn);color:var(--eTx)}
+.stack{display:flex;height:30px;border:1px solid var(--line);border-radius:2px;overflow:hidden;background:var(--panel2)}
+.stack i{display:block;height:100%;transition:width .6s cubic-bezier(.22,1,.36,1)}
+.leg{display:flex;flex-wrap:wrap;gap:8px 26px;margin-top:14px}
+.leg div{display:flex;align-items:baseline;gap:8px;font-size:13px}
+.leg b{width:9px;height:9px;border-radius:2px;display:inline-block;flex:none;position:relative;top:-1px}
+.leg .n{font-family:"IBM Plex Mono";font-variant-numeric:tabular-nums;font-weight:600}
+.leg .p{color:var(--muted);font-size:12px}
 #avisos{position:fixed;top:14px;right:16px;width:min(560px,calc(100% - 32px));z-index:60;
   background:var(--panel);border:1px solid var(--wLn);border-radius:var(--r);box-shadow:var(--shadow)}
 #avisos header{display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid var(--line);background:none}
@@ -361,6 +372,14 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
   <div class="ev b"><div class="l">Realizadas</div><div class="v disp num" id="pvRe">0</div><div class="s" id="pvReS">—</div></div>
   <div class="ev d"><div class="l">No-show</div><div class="v disp num" id="pvNs">0</div><div class="s" id="pvNsS">—</div></div>
   <div class="ev c"><div class="l">Remarcadas</div><div class="v disp num" id="pvRm">0</div><div class="s" id="pvRmS">—</div></div>
+  <div class="ev e"><div class="l">Ainda por acontecer</div><div class="v disp num" id="pvFu">0</div><div class="s" id="pvFuS">—</div></div>
+  <div class="ev f"><div class="l">Não vão acontecer</div><div class="v disp num" id="pvOt">0</div><div class="s" id="pvOtS">—</div></div>
+</section>
+
+<section class="card" style="margin-top:14px">
+  <div class="card-head"><h2>Composição dos agendamentos</h2><span class="eyebrow" id="cmpTot"></span></div>
+  <div class="stack" id="cmpBar"></div>
+  <div class="leg" id="cmpLeg"></div>
 </section>
 
 <section class="rank" style="margin-top:14px">
@@ -369,7 +388,7 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
   <table>
     <thead><tr>
       <th class="l">Pré-vendedor</th>
-      <th class="sep">Agendadas</th><th>% do total</th><th>Realizadas</th><th>No-show</th><th>Remarcadas</th><th>Outras</th>
+      <th class="sep">Agendadas</th><th>% do total</th><th>Realizadas</th><th>No-show</th><th>Remarcadas</th><th>Futuras</th><th>Não ocorrerão</th>
       <th class="sep">Êxito</th><th>Valor gerado</th>
     </tr></thead>
     <tbody id="pvBody"></tbody>
@@ -382,7 +401,7 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
   <div class="rank-head"><h2>Agendamentos por dia</h2><span class="eyebrow">período selecionado</span></div>
   <div style="overflow-x:auto">
   <table>
-    <thead><tr><th class="l">Dia</th><th class="sep">Agendadas</th><th>Realizadas</th><th>No-show</th><th>Remarcadas</th><th class="sep">Êxito</th></tr></thead>
+    <thead><tr><th class="l">Dia</th><th class="sep">Agendadas</th><th>Realizadas</th><th>No-show</th><th>Remarcadas</th><th>Futuras</th><th>Não ocorrerão</th><th class="sep">Êxito</th></tr></thead>
     <tbody id="pvDias"></tbody>
   </table>
   </div>
@@ -429,6 +448,8 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
   </div>
   <div class="f"><label>Status: remarcada</label><input id="cStRm" value="Remarcado">
     <div class="h">Usados na aba Pré-vendas. Qualquer outro status entra em "Outras".</div></div>
+  <div class="f"><label>Status: ainda por acontecer</label><input id="cStFu" value="Marcado">
+    <div class="h">Casamento por trecho — "Marcado" cobre confirmado e não confirmado.</div></div>
   <div class="f"><label>Equipe de pré-vendas</label><input id="cEquipe" value="Beatriz,Fabiana,Amanda">
     <div class="h">Primeiro nome basta. Quem não estiver aqui entra como agendamento esporádico — soma no total, fora do resultado do setor.</div></div>
   <hr>
@@ -472,7 +493,7 @@ const store={
   del(k){ try{localStorage.removeItem(k);}catch(e){delete mem[k];} }
 };
 const DEF={tenant:"89aed341-1dc6-4d0d-b5c7-e8df4293d21d",client:"",file:"",autoEntrar:true,ghRepo:"",ghWf:"sync.yml",ghToken:"",shVendas:"Vendas",shMarc:"Marcações",shMetas:"Metas",
-  refresh:10,splitTC:90,splitTE:10,mapTC:"TC,TB,TS,BH",mapTE:"TEC",ignorar:"Sem deal comercial,—,JARVYS",marcaAgendada:"Data Agendada",stRealizada:"Atendido",stNoShow:"Não compareceu",stRemarcada:"Remarcado",equipePre:"Beatriz,Fabiana,Amanda",incluirOrfas:false,etapasVenda:"FECHAMENTO,FINALIZADO,REVISAO DE PENDENCIAS",onlyPrimeira:true,ignoraZero:true,coorte:"fechamento"};
+  refresh:10,splitTC:90,splitTE:10,mapTC:"TC,TB,TS,BH",mapTE:"TEC",ignorar:"Sem deal comercial,—,JARVYS",marcaAgendada:"Data Agendada",stRealizada:"Atendido",stNoShow:"Não compareceu",stRemarcada:"Remarcado",stFuturo:"Marcado",equipePre:"Beatriz,Fabiana,Amanda",incluirOrfas:false,etapasVenda:"FECHAMENTO,FINALIZADO,REVISAO DE PENDENCIAS",onlyPrimeira:true,ignoraZero:true,coorte:"fechamento"};
 let CFG=Object.assign({},DEF,JSON.parse(store.get("rjv.cfg")||"{}"));
 const REDIRECT=location.origin+location.pathname;
 const TEMAS=["sistema","escuro","claro"], TEMA_ROT={sistema:"sistema",escuro:"escuro",claro:"claro"};
@@ -728,15 +749,19 @@ function computar(){
 
   /* ---- pré-vendas ---- */
   const iQa=pick(cm,"Quem agendou","Quem Agendou","Quem agendou?");
-  const sRe=norm(CFG.stRealizada), sNs=norm(CFG.stNoShow), sRm=norm(CFG.stRemarcada);
+  const sRe=norm(CFG.stRealizada), sNs=norm(CFG.stNoShow), sRm=norm(CFG.stRemarcada),
+        sFu=norm(CFG.stFuturo);
   const iVu=pick(cm,"Valor único","Valor Único","Valor");
-  const zera=()=>({ag:0,re:0,ns:0,rm:0,ot:0,vl:0});
-  const pre={mes:zera(),hoje:zera(),pessoas:new Map(),dias:new Map(),nomes:new Map()};
+  const zera=()=>({ag:0,re:0,ns:0,rm:0,fu:0,ot:0,vl:0});
+  const pre={mes:zera(),hoje:zera(),pessoas:new Map(),dias:new Map(),nomes:new Map(),status:new Map()};
   const hj=new Date(); const hojeK=ymdUTC(new Date(Date.UTC(hj.getFullYear(),hj.getMonth(),hj.getDate())));
   for(const r of M.rows){
     const d=toDate(r[iDc]); if(!d||d<p.a||d>p.b)continue;
     const st=norm(r[iSt]);
-    const tipo = st===sRe?"re" : st===sNs?"ns" : st===sRm?"rm" : "ot";
+    const tipo = st===sRe?"re" : st===sNs?"ns" : st===sRm?"rm"
+               : (sFu&&st.includes(sFu))?"fu" : "ot";
+    const rot=titled(r[iSt])||"(sem status)";
+    pre.status.set(rot,(pre.status.get(rot)||0)+1);
     const dia=ymdUTC(d);
     const vu=iVu>=0?toNum(r[iVu]):0;
     const soma=o=>{o.ag++;o[tipo]++;o.vl+=vu;};
@@ -756,7 +781,7 @@ function computar(){
     .map(([k,o])=>({nome:pre.nomes.get(k)||k,eq:daEquipe(k),...o}));
   lista.sort((a,b)=>(b.eq-a.eq)||(b.re-a.re)||(b.ag-a.ag));
   const soma=(f)=>lista.filter(f).reduce((a,x)=>({ag:a.ag+x.ag,re:a.re+x.re,ns:a.ns+x.ns,
-    rm:a.rm+x.rm,ot:a.ot+x.ot,vl:a.vl+x.vl}),zeraT());
+    rm:a.rm+x.rm,fu:a.fu+x.fu,ot:a.ot+x.ot,vl:a.vl+x.vl}),zeraT());
   out.pre={...pre,lista,equipe:soma(x=>x.eq),geral:soma(()=>true)};
 
   out.rank=[...vend.entries()].map(([k,s])=>({key:k,nome:nomes.get(k)||k,...s}))
@@ -887,7 +912,7 @@ function render(){
   $("extSub").textContent="receita do período · conversão casada paciente a paciente com a avaliação"+
     (D.extrato.some(x=>x.aval>0&&x.tot.q>0&&x.aval<x.tot.q*0.5)?" · * registro parcial em Marcações":"");
 
-  const P=D.pre, pm=P.mes, ph=P.hoje;
+  const P=D.pre, pm=P.mes, ph=P.hoje, sFuR=norm(CFG.stFuturo);
   const EQ=P.equipe;
   const setPv=(id,vm,vh,base,veq)=>{
     $(id).textContent=INT.format(vm);
@@ -895,9 +920,30 @@ function render(){
       '<br><span style="color:var(--dim)">equipe: '+INT.format(veq)+" ("+fpct(pct(veq,vm))+" do total)</span>";
   };
   setPv("pvAg",pm.ag,ph.ag,0,EQ.ag);
+  $("pvAgS").innerHTML="hoje "+INT.format(ph.ag)+
+    '<br><span style="color:var(--dim)">equipe: '+INT.format(EQ.ag)+
+    " ("+fpct(pct(EQ.ag,pm.ag))+" do total)</span>";
   setPv("pvRe",pm.re,ph.re,pm.ag,EQ.re);
   setPv("pvNs",pm.ns,ph.ns,pm.ag,EQ.ns);
   setPv("pvRm",pm.rm,ph.rm,pm.ag,EQ.rm);
+  setPv("pvFu",pm.fu,ph.fu,pm.ag,EQ.fu);
+  setPv("pvOt",pm.ot,ph.ot,pm.ag,EQ.ot);
+
+  const CORES={[norm(CFG.stRealizada)]:"var(--pos)",[norm(CFG.stNoShow)]:"var(--neg)",
+               [norm(CFG.stRemarcada)]:"var(--tec)"};
+  const ehFuturo=r=>sFuR&&norm(r).includes(sFuR);
+  const PAL=["#6C8CA6","#8E7BB0","#A3785E","#4E8F8F","#9AA4AE","#7E6B8F"];
+  const comp=[...P.status.entries()].sort((a,b)=>b[1]-a[1]);
+  let iPal=0;
+  const cor=rot=>CORES[norm(rot)]||(ehFuturo(rot)?"var(--tc)":PAL[iPal++%PAL.length]);
+  const pintadas=comp.map(([rot,q])=>({rot,q,c:cor(rot)}));
+  $("cmpBar").innerHTML=pintadas.map(x=>
+    '<i style="width:'+(pm.ag?x.q/pm.ag*100:0)+'%;background:'+x.c+'" title="'+esc(x.rot)+': '+x.q+'"></i>').join("");
+  $("cmpLeg").innerHTML=pintadas.map(x=>
+    '<div><b style="background:'+x.c+'"></b><span>'+esc(x.rot)+'</span>'+
+    '<span class="n">'+INT.format(x.q)+'</span>'+
+    '<span class="p">'+fpct(pct(x.q,pm.ag))+'</span></div>').join("");
+  $("cmpTot").textContent=INT.format(pm.ag)+" agendamentos no período · "+comp.length+" status distintos";
 
   const pb=$("pvBody"); pb.innerHTML="";
   const maxEx=Math.max(...P.lista.filter(x=>x.eq).map(x=>pct(x.re,x.ag)),1);
@@ -905,7 +951,7 @@ function render(){
   P.lista.forEach((x,i)=>{
     const ex=pct(x.re,x.ag);
     if(!x.eq&&!sepPosto){sepPosto=true;
-      pb.insertAdjacentHTML("beforeend",'<tr><td colspan="9" class="l eyebrow" style="padding-top:14px;color:var(--dim)">Agendamentos esporádicos — fora do setor</td></tr>');}
+      pb.insertAdjacentHTML("beforeend",'<tr><td colspan="11" class="l eyebrow" style="padding-top:14px;color:var(--dim)">Agendamentos esporádicos — fora do setor</td></tr>');}
     pb.insertAdjacentHTML("beforeend",
       '<tr'+(x.eq?"":' style="opacity:.6"')+'><td class="l name">'+
       (x.eq?'<b style="color:var(--tc)">'+(i+1)+'</b> ':"")+esc(x.nome)+'</td>'+
@@ -914,16 +960,18 @@ function render(){
       '<td class="v-money num" style="color:var(--pos)">'+INT.format(x.re)+'</td>'+
       '<td class="v-sub num" style="color:'+(x.ns?"var(--neg)":"var(--dim)")+'">'+INT.format(x.ns)+'</td>'+
       '<td class="v-sub num">'+INT.format(x.rm)+'</td>'+
+      '<td class="v-sub num" style="color:var(--tc)">'+INT.format(x.fu)+'</td>'+
       '<td class="v-sub num">'+INT.format(x.ot)+'</td>'+
       '<td class="sep num" style="color:'+(ex>=70?"var(--pos)":ex>=50?"var(--tec)":"var(--neg)")+'">'+fpct(ex)+
       (x.eq?'<span class="bar-inline"><i style="width:'+Math.min(100,ex/maxEx*100)+'%"></i></span>':"")+'</td>'+
       '<td class="v-money num">'+(x.vl?BRL.format(x.vl):"—")+'</td></tr>');
   });
-  if(!P.lista.length)pb.innerHTML='<tr><td class="l" colspan="9" style="color:var(--dim)">sem agendamentos no período</td></tr>';
+  if(!P.lista.length)pb.innerHTML='<tr><td class="l" colspan="11" style="color:var(--dim)">sem agendamentos no período</td></tr>';
   const linhaT=(rot,o,cor)=>'<tr'+(cor?' style="color:'+cor+'"':"")+'><td class="l">'+rot+'</td>'+
     '<td class="sep num">'+INT.format(o.ag)+'</td><td class="num">'+fpct(pct(o.ag,P.geral.ag))+'</td>'+
     '<td class="num">'+INT.format(o.re)+'</td><td class="num">'+INT.format(o.ns)+'</td>'+
-    '<td class="num">'+INT.format(o.rm)+'</td><td class="num">'+INT.format(o.ot)+'</td>'+
+    '<td class="num">'+INT.format(o.rm)+'</td><td class="num">'+INT.format(o.fu)+
+    '</td><td class="num">'+INT.format(o.ot)+'</td>'+
     '<td class="sep num">'+(o.ag?fpct(pct(o.re,o.ag)):"—")+'</td>'+
     '<td class="num">'+(o.vl?BRL.format(o.vl):"—")+'</td></tr>';
   $("pvFoot").innerHTML=P.geral.ag?linhaT("Equipe de pré-vendas",P.equipe,"var(--tc)")+linhaT("Total geral",P.geral,""):"";
@@ -940,6 +988,8 @@ function render(){
       '<td class="v-sub num" style="color:var(--pos)">'+INT.format(o.re)+'</td>'+
       '<td class="v-sub num" style="color:'+(o.ns?"var(--neg)":"var(--dim)")+'">'+INT.format(o.ns)+'</td>'+
       '<td class="v-sub num">'+INT.format(o.rm)+'</td>'+
+      '<td class="v-sub num" style="color:var(--tc)">'+INT.format(o.fu)+'</td>'+
+      '<td class="v-sub num">'+INT.format(o.ot)+'</td>'+
       '<td class="sep num">'+fpct(ex)+'</td></tr>');
   }
 
@@ -957,7 +1007,7 @@ function render(){
   $("pilha").style.display=av.length?"inline-flex":"none";
   $("avisos").style.display=(av.length&&mostrarAvisos)?"":"none";
 }
-function zeraT(){return {ag:0,re:0,ns:0,rm:0,ot:0,vl:0};}
+function zeraT(){return {ag:0,re:0,ns:0,rm:0,fu:0,ot:0,vl:0};}
 let AVISOS=[], mostrarAvisos=true;
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
 
@@ -1099,7 +1149,7 @@ function setStatus(k,t){$("dot").className="dot "+k;$("statusTxt").textContent=t
 
 /* ============================ config UI ============================ */
 const F={cTenant:"tenant",cClient:"client",cFile:"file",cShVendas:"shVendas",cShMarc:"shMarc",cShMetas:"shMetas",
-  cRefresh:"refresh",cSplitTC:"splitTC",cSplitTE:"splitTE",cMapTC:"mapTC",cMapTE:"mapTE",cIgnorar:"ignorar",cAgendada:"marcaAgendada",cStRe:"stRealizada",cStNs:"stNoShow",cStRm:"stRemarcada",cEquipe:"equipePre",cOrfas:"incluirOrfas",cEtapas:"etapasVenda",
+  cRefresh:"refresh",cSplitTC:"splitTC",cSplitTE:"splitTE",cMapTC:"mapTC",cMapTE:"mapTE",cIgnorar:"ignorar",cAgendada:"marcaAgendada",cStRe:"stRealizada",cStNs:"stNoShow",cStRm:"stRemarcada",cStFu:"stFuturo",cEquipe:"equipePre",cOrfas:"incluirOrfas",cEtapas:"etapasVenda",
   cOnlyPrimeira:"onlyPrimeira",cIgnoraZero:"ignoraZero",cCoorte:"coorte",cAutoEntrar:"autoEntrar",cGhRepo:"ghRepo",cGhWf:"ghWf",cGhToken:"ghToken"};
 function cfgToUI(){for(const id in F){const el=$(id);if(el.type==="checkbox")el.checked=!!CFG[F[id]];else el.value=CFG[F[id]];}
   $("cRedirect").textContent=REDIRECT;}
