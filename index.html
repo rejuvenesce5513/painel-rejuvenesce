@@ -1808,6 +1808,27 @@ async function resolveItem(tk){
   REF.drive=it.parentReference.driveId; REF.item=it.id; REF.nome=it.name; REF.mod=it.lastModifiedDateTime;
   return REF;
 }
+function nomeUsuario(){
+  const bruto=String((USUARIO&&USUARIO.displayName)||"").trim();
+  const conta=((USUARIO&&(USUARIO.mail||USUARIO.userPrincipalName))||"").split("@")[0];
+  const cru=bruto||conta.replace(/[._-]+/g," ");
+  if(!cru)return "";
+  const min=new Set(["DE","DA","DO","DAS","DOS","E"]);
+  const partes=cru.split(/\s+/).filter(Boolean).map((w,i)=>{
+    const u=w.toLocaleUpperCase("pt-BR");
+    if(i>0&&min.has(norm(w)))return u.toLocaleLowerCase("pt-BR");
+    return u.charAt(0)+w.slice(1).toLocaleLowerCase("pt-BR");
+  });
+  return partes.length>2 ? partes[0]+" "+partes[partes.length-1] : partes.join(" ");
+}
+
+function saudacao(){
+  const h=new Date().getHours();
+  const s=h<12?"Bom dia":h<18?"Boa tarde":"Boa noite";
+  const n=nomeUsuario();
+  return n?s+", "+n:s;
+}
+
 const hm=t=>t?new Date(t).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}):"—";
 
 async function sincronizar(){
@@ -1882,7 +1903,7 @@ async function carregar(){
     render();
     const atraso=Math.round((Date.now()-new Date(ref.mod).getTime())/60000);
     setStatus(atraso>45?"warn":"ok",
-      ref.nome+" · planilha "+hm(ref.mod)+(atraso>=1?" ("+atraso+" min)":" (agora)")+" · painel "+hm(Date.now()));
+      saudacao()+" · upload "+hm(ref.mod)+(atraso>=1?" ("+atraso+" min)":" (agora)")+" · painel "+hm(Date.now()));
     $("btnSync").style.display=(CFG.ghToken&&CFG.ghRepo)?"":"none";
   }catch(e){
     setStatus("err",e.message);
