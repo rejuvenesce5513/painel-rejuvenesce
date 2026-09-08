@@ -402,8 +402,25 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
   <div class="stats" id="fnTempos"></div>
 </section>
 
+<div class="h" style="margin:22px 0 8px;padding-left:3px">3 · AGENDA — registros da aba de marcações, contados pela data da consulta.
+Não é subconjunto dos leads acima: inclui remarcações, retornos e quem agendou sem passar pelo funil.</div>
+<section class="evals">
+  <div class="ev a"><div class="l">Avaliações agendadas</div><div class="v disp num" id="pvAg">0</div><div class="s" id="pvAgS">—</div></div>
+  <div class="ev b"><div class="l">Realizadas</div><div class="v disp num" id="pvRe">0</div><div class="s" id="pvReS">—</div></div>
+  <div class="ev d"><div class="l">No-show</div><div class="v disp num" id="pvNs">0</div><div class="s" id="pvNsS">—</div></div>
+  <div class="ev c"><div class="l">Remarcadas</div><div class="v disp num" id="pvRm">0</div><div class="s" id="pvRmS">—</div></div>
+  <div class="ev e"><div class="l">Ainda por acontecer</div><div class="v disp num" id="pvFu">0</div><div class="s" id="pvFuS">—</div></div>
+  <div class="ev f"><div class="l">Não vão acontecer</div><div class="v disp num" id="pvOt">0</div><div class="s" id="pvOtS">—</div></div>
+</section>
+
+<section class="card" style="margin-top:14px">
+  <div class="card-head"><h2>Composição dos agendamentos</h2><span class="eyebrow" id="cmpTot"></span></div>
+  <div class="stack" id="cmpBar"></div>
+  <div class="leg" id="cmpLeg"></div>
+</section>
+
 <section class="rank" style="margin-top:14px">
-  <div class="rank-head"><h2>3 · Leads por pré-vendedor</h2><span class="eyebrow">ganho = lead qualificado e repassado ao comercial</span></div>
+  <div class="rank-head"><h2>4 · Leads por pré-vendedor</h2><span class="eyebrow">ganho = lead qualificado e repassado ao comercial</span></div>
   <div style="overflow-x:auto"><table>
     <thead><tr><th class="l">Pré-vendedor</th><th class="sep">Leads</th><th>% do total</th>
       <th>Ganhos</th><th>Perdidos</th><th>Em andamento</th><th>Avaliações</th><th class="sep">Aproveitamento</th></tr></thead>
@@ -412,7 +429,7 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
 </section>
 
 <section class="rank" style="margin-top:14px">
-  <div class="rank-head"><h2>4 · Canais de origem</h2><span class="eyebrow">conversão = avaliação realizada</span></div>
+  <div class="rank-head"><h2>5 · Canais de origem</h2><span class="eyebrow">conversão = avaliação realizada</span></div>
   <div style="overflow-x:auto"><table>
     <thead><tr><th class="l">Fonte</th><th class="sep">Leads</th><th>% do total</th>
       <th>Avaliações</th><th>Conversão</th><th class="sep">Ganhos</th><th>Perdidos</th></tr></thead>
@@ -432,7 +449,7 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
 </section>
 
 <section class="rank" style="margin-top:14px">
-  <div class="rank-head"><h2>5 · Conversão por avaliador</h2><span class="eyebrow">somente avaliações realizadas</span></div>
+  <div class="rank-head"><h2>Conversão por avaliador</h2><span class="eyebrow">avaliações com data no período</span></div>
   <div style="overflow-x:auto"><table>
     <thead><tr><th class="l">Avaliador</th><th class="sep">Avaliações</th><th>% do total</th>
       <th>Ganhos</th><th class="sep">Conversão</th></tr></thead>
@@ -440,23 +457,6 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
   </table></div>
 </section>
 </div>
-
-<div class="h" style="margin:22px 0 8px;padding-left:3px">6 · AGENDA — registros da aba de marcações, contados pela data da consulta.
-Não é subconjunto dos leads acima: inclui remarcações, retornos e quem agendou sem passar pelo funil.</div>
-<section class="evals">
-  <div class="ev a"><div class="l">Avaliações agendadas</div><div class="v disp num" id="pvAg">0</div><div class="s" id="pvAgS">—</div></div>
-  <div class="ev b"><div class="l">Realizadas</div><div class="v disp num" id="pvRe">0</div><div class="s" id="pvReS">—</div></div>
-  <div class="ev d"><div class="l">No-show</div><div class="v disp num" id="pvNs">0</div><div class="s" id="pvNsS">—</div></div>
-  <div class="ev c"><div class="l">Remarcadas</div><div class="v disp num" id="pvRm">0</div><div class="s" id="pvRmS">—</div></div>
-  <div class="ev e"><div class="l">Ainda por acontecer</div><div class="v disp num" id="pvFu">0</div><div class="s" id="pvFuS">—</div></div>
-  <div class="ev f"><div class="l">Não vão acontecer</div><div class="v disp num" id="pvOt">0</div><div class="s" id="pvOtS">—</div></div>
-</section>
-
-<section class="card" style="margin-top:14px">
-  <div class="card-head"><h2>Composição dos agendamentos</h2><span class="eyebrow" id="cmpTot"></span></div>
-  <div class="stack" id="cmpBar"></div>
-  <div class="leg" id="cmpLeg"></div>
-</section>
 
 <section class="rank" style="margin-top:14px">
   <div class="rank-head"><h2>Ranking de pré-vendedores</h2><span class="eyebrow" id="pvSub"></span></div>
@@ -1492,12 +1492,7 @@ function funilPrevendas(p){
     grafias.set(foK,(grafias.get(foK)||new Map()));
     grafias.get(foK).set(foBruta,(grafias.get(foK).get(foBruta)||0)+1);
     bump(o.fonte,foK,x=>{x.tot++;x[tipo]=(x[tipo]||0)+1;if(a)x.aval++;});
-    if(a){
-      const me=(String((i.meio>=0?r[i.meio]:"")??"").trim())||"(não informado)";
-      bump(o.meio,me,x=>{x.tot++;if(tipo==="ganho")x.ganho++;});
-      const av=(String((i.aval>=0?r[i.aval]:"")??"").trim())||"(sem avaliador)";
-      bump(o.avaliador,av,x=>{x.tot++;if(tipo==="ganho")x.ganho++;});
-    }
+
     if(tipo==="perda"){
       const mo=(String((i.motivo>=0?r[i.motivo]:"")??"").trim())||"(sem motivo)";
       bump(o.motivos,mo,x=>{x.tot++;});
@@ -1511,6 +1506,21 @@ function funilPrevendas(p){
     fo2.set(rot,x);
   }
   o.fonte=fo2;
+  // meio e avaliador: ancorados na DATA DA AVALIACAO, nao na criacao do lead
+  const iDav=pick(c,"Data da avaliação","Data da Avaliação");
+  o.avalPeriodo=0;
+  for(const r of P.rows){
+    if(!avaliou(r))continue;
+    if(norm(i.nome>=0?r[i.nome]:"").includes("(COPIA)"))continue;
+    const dv=toDate(iDav>=0?r[iDav]:null);
+    if(!dv||dv<p.a||dv>p.b)continue;
+    o.avalPeriodo++;
+    const g=est(r)==="VENDIDA";
+    const me=(String((i.meio>=0?r[i.meio]:"")??"").trim())||"(não informado)";
+    bump(o.meio,me,x=>{x.tot++;if(g)x.ganho++;});
+    const av=(String((i.aval>=0?r[i.aval]:"")??"").trim())||"(sem avaliador)";
+    bump(o.avaliador,av,x=>{x.tot++;if(g)x.ganho++;});
+  }
   o.mPri=mediaH(o.tPri); o.mGanho=mediaH(o.tGanho); o.mPerda=mediaH(o.tPerda);
   return o;
 }
@@ -2178,16 +2188,16 @@ function renderFunil(F){
         fpct(pct(x.tot,total))+'</span></span></div>'+
         '<div class="minitrack" style="margin:0"><div class="minifill" style="width:'+pct(x.tot,total)+'%;background:'+cor+'"></div></div></div>');
   };
-  barras("fnMeio",F.meio,F.aval||1,"var(--tc)");
+  barras("fnMeio",F.meio,F.avalPeriodo||1,"var(--tc)");
   barras("fnMot",F.motivos,F.perda||1,"var(--tec)");
-  $("fnMeioS").textContent=INT.format(F.aval)+" avaliações realizadas";
+  $("fnMeioS").textContent=INT.format(F.avalPeriodo)+" avaliações com data no período";
   $("fnMotS").textContent=INT.format(F.perda)+" leads perdidos";
 
   const ta=$("fnAval"); ta.innerHTML="";
   for(const [k,x] of linhas(F.avaliador,x=>x.tot)){
     const cv=pct(x.ganho||0,x.tot);
     ta.insertAdjacentHTML("beforeend",'<tr><td class="l name">'+esc(k)+'</td>'+
-      '<td class="sep v-money num">'+INT.format(x.tot)+'</td><td class="v-sub num">'+fpct(pct(x.tot,F.aval||1))+'</td>'+
+      '<td class="sep v-money num">'+INT.format(x.tot)+'</td><td class="v-sub num">'+fpct(pct(x.tot,F.avalPeriodo||1))+'</td>'+
       '<td class="v-sub num" style="color:var(--pos)">'+INT.format(x.ganho||0)+'</td>'+
       '<td class="sep num" style="color:'+(cv>=70?"var(--pos)":cv>=40?"var(--tec)":"var(--neg)")+'">'+fpct(cv)+'</td></tr>');
   }
