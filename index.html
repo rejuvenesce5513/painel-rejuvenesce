@@ -449,7 +449,7 @@ Não é subconjunto dos leads acima: inclui remarcações, retornos e quem agend
 </section>
 
 <section class="rank" style="margin-top:14px">
-  <div class="rank-head"><h2>Conversão por avaliador</h2><span class="eyebrow">avaliações com data no período</span></div>
+  <div class="rank-head"><h2>Conversão por avaliador</h2><span class="eyebrow">profissional que atendeu · conversão = paciente comprou no mês</span></div>
   <div style="overflow-x:auto"><table>
     <thead><tr><th class="l">Avaliador</th><th class="sep">Avaliações</th><th>% do total</th>
       <th>Ganhos</th><th class="sep">Conversão</th></tr></thead>
@@ -1224,7 +1224,7 @@ function computar(){
 
   out.com=comissoes(V,cv,p);
 
-  out.funil=funilPrevendas(p);
+  out.funil=funilPrevendas(p,{M,cm,iDc,iTipo,iSt,iPac,compradores});
 
 
   out.rank=[...vend.entries()].map(([k,s])=>({key:k,nome:nomes.get(k)||k,...s}))
@@ -1437,7 +1437,7 @@ function fmtDur(h){
 }
 const mediaH=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null;
 
-function funilPrevendas(p){
+function funilPrevendas(p,MC){
   const P=RAW&&RAW[CFG.shPrevendas];
   if(!P||!P.headers||!P.rows)return null;
   const c=colmap(P.headers);
@@ -1506,20 +1506,28 @@ function funilPrevendas(p){
     fo2.set(rot,x);
   }
   o.fonte=fo2;
-  // meio e avaliador: ancorados na DATA DA AVALIACAO, nao na criacao do lead
-  const iDav=pick(c,"Data da avaliação","Data da Avaliação");
-  o.avalPeriodo=0;
-  for(const r of P.rows){
-    if(!avaliou(r))continue;
-    if(norm(i.nome>=0?r[i.nome]:"").includes("(COPIA)"))continue;
-    const dv=toDate(iDav>=0?r[iDav]:null);
-    if(!dv||dv<p.a||dv>p.b)continue;
-    o.avalPeriodo++;
-    const g=est(r)==="VENDIDA";
-    const me=(String((i.meio>=0?r[i.meio]:"")??"").trim())||"(não informado)";
-    bump(o.meio,me,x=>{x.tot++;if(g)x.ganho++;});
-    const av=(String((i.aval>=0?r[i.aval]:"")??"").trim())||"(sem avaliador)";
-    bump(o.avaliador,av,x=>{x.tot++;if(g)x.ganho++;});
+  // meio e avaliador vem da aba Marcacoes: "Tipo" e "Profissional" sao mais
+  // confiaveis que os campos equivalentes do funil de pre-vendas.
+  o.avalPeriodo=0; o.fonteMeio="marcações";
+  if(MC&&MC.M&&MC.M.rows){
+    const iProf=pick(MC.cm,"Profissional");
+    const stOk=norm(CFG.stRealizada);
+    for(const r of MC.M.rows){
+      if(norm(MC.iSt>=0?r[MC.iSt]:"")!==stOk)continue;
+      const d=toDate(MC.iDc>=0?r[MC.iDc]:null);
+      if(!d||d<p.a||d>p.b)continue;
+      o.avalPeriodo++;
+      const t=norm(MC.iTipo>=0?r[MC.iTipo]:"");
+      const me = t.includes("ONLINE") ? "Online"
+               : t.includes("PRESENCIAL") ? "Presencial"
+               : t.includes("REAVALIA") ? "Presencial"          // reavaliacao = presencial
+               : "(não informado)";
+      const pk=pacKey(MC.iPac>=0?r[MC.iPac]:"");
+      const comprou=!!(MC.compradores&&MC.compradores.has(pk+"|"+ymUTC(d)));
+      bump(o.meio,me,x=>{x.tot++;if(comprou)x.ganho++;});
+      const av=(titled(iProf>=0?r[iProf]:"")||"(sem avaliador)");
+      bump(o.avaliador,av,x=>{x.tot++;if(comprou)x.ganho++;});
+    }
   }
   o.mPri=mediaH(o.tPri); o.mGanho=mediaH(o.tGanho); o.mPerda=mediaH(o.tPerda);
   return o;
@@ -2190,7 +2198,7 @@ function renderFunil(F){
   };
   barras("fnMeio",F.meio,F.avalPeriodo||1,"var(--tc)");
   barras("fnMot",F.motivos,F.perda||1,"var(--tec)");
-  $("fnMeioS").textContent=INT.format(F.avalPeriodo)+" avaliações com data no período";
+  $("fnMeioS").textContent=INT.format(F.avalPeriodo)+" avaliações atendidas no período";
   $("fnMotS").textContent=INT.format(F.perda)+" leads perdidos";
 
   const ta=$("fnAval"); ta.innerHTML="";
