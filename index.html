@@ -420,6 +420,56 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
   </div>
 </section>
 
+<div id="fnBloco">
+<section class="card hojebar" style="margin-top:22px;border-left-color:var(--tec)">
+  <div class="card-head"><h2>Funil de pré-vendas</h2><span class="eyebrow" id="fnSub"></span></div>
+  <div class="stats" id="fnCards"></div>
+</section>
+
+<section class="card" style="margin-top:14px">
+  <div class="card-head"><h2>Tempos médios</h2><span class="eyebrow">da criação do lead até cada evento</span></div>
+  <div class="stats" id="fnTempos"></div>
+</section>
+
+<section class="rank" style="margin-top:14px">
+  <div class="rank-head"><h2>Leads por pré-vendedor</h2><span class="eyebrow">ganho = lead qualificado e repassado ao comercial</span></div>
+  <div style="overflow-x:auto"><table>
+    <thead><tr><th class="l">Pré-vendedor</th><th class="sep">Leads</th><th>% do total</th>
+      <th>Ganhos</th><th>Perdidos</th><th>Em andamento</th><th>Avaliações</th><th class="sep">Aproveitamento</th></tr></thead>
+    <tbody id="fnResp"></tbody><tfoot id="fnRespF"></tfoot>
+  </table></div>
+</section>
+
+<section class="rank" style="margin-top:14px">
+  <div class="rank-head"><h2>Canais de origem</h2><span class="eyebrow">conversão = avaliação realizada</span></div>
+  <div style="overflow-x:auto"><table>
+    <thead><tr><th class="l">Fonte</th><th class="sep">Leads</th><th>% do total</th>
+      <th>Avaliações</th><th>Conversão</th><th class="sep">Ganhos</th><th>Perdidos</th></tr></thead>
+    <tbody id="fnFonte"></tbody><tfoot id="fnFonteF"></tfoot>
+  </table></div>
+</section>
+
+<section class="aux" style="margin-top:14px">
+  <div class="card tc">
+    <div class="card-head"><h2>Meio da avaliação</h2><span class="eyebrow" id="fnMeioS"></span></div>
+    <div id="fnMeio"></div>
+  </div>
+  <div class="card tec">
+    <div class="card-head"><h2>Motivos de perda</h2><span class="eyebrow" id="fnMotS"></span></div>
+    <div id="fnMot"></div>
+  </div>
+</section>
+
+<section class="rank" style="margin-top:14px">
+  <div class="rank-head"><h2>Conversão por avaliador</h2><span class="eyebrow">somente avaliações realizadas</span></div>
+  <div style="overflow-x:auto"><table>
+    <thead><tr><th class="l">Avaliador</th><th class="sep">Avaliações</th><th>% do total</th>
+      <th>Ganhos</th><th class="sep">Conversão</th></tr></thead>
+    <tbody id="fnAval"></tbody><tfoot id="fnAvalF"></tfoot>
+  </table></div>
+</section>
+</div>
+
 <section class="rank" style="margin-top:14px">
   <div class="rank-head"><h2>Agendamentos por dia</h2><span class="eyebrow">período selecionado</span></div>
   <div style="overflow-x:auto">
@@ -575,6 +625,10 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
   <div class="f"><label>Arquivo das metas no SharePoint</label><input id="cArqMet" placeholder="https://...&#47;Metas.xlsx">
     <div class="h">Colunas: Mês | Item | Meta. Item pode ser "Transplante", "Terapia", "Supermeta %" ou o nome do vendedor. Quem tiver permissão de escrita edita direto no Excel, sem passar pelo GitHub.</div></div>
   <div class="f"><label>Aba das metas</label><input id="cShMet" value="Metas"></div>
+  <div class="row2">
+    <div class="f"><label>Aba do funil de pré-vendas</label><input id="cShPv" value="Prevendas"></div>
+    <div class="f"><label>Janela de duplicidade (min)</label><input id="cDedup" type="number" min="0" value="5"></div>
+  </div>
   <hr>
   <div class="f"><label>Arquivo das regras no SharePoint</label><input id="cArqReg" placeholder="https://...&#47;Regras Comissao.xlsx">
     <div class="h">Aba "Regras", coluna A, uma linha por regra. Em pasta restrita: quem não tem permissão recebe 403 e a aba trava. É o que faz a configuração seguir você em qualquer navegador.</div></div>
@@ -679,7 +733,7 @@ const NATIVO = {
   "equipePre": "Beatriz,Fabiana,Amanda",
   "onlyPrimeira": true,
   "ignoraZero": true,
-  "incluirOrfas": true,
+  "incluirOrfas": false,
   "coorte": "fechamento",
   "mesesCheios": true,
   "autoEntrar": true,
@@ -693,8 +747,7 @@ const NATIVO = {
       "t": [
         "com",
         "pre",
-        "cms",
-        "mts"
+        "cms"
       ]
     },
     {
@@ -702,17 +755,15 @@ const NATIVO = {
       "t": [
         "com",
         "pre",
-        "cms",
-        "mts"
+        "cms"
       ]
     },
     {
-      "e": "francis.arantes@clinicarejuvenesce.com.br",
+      "e": "francis@clinicarejuvenesce.com.br",
       "t": [
         "com",
         "pre",
-        "cms",
-        "mts"
+        "cms"
       ]
     },
     {
@@ -720,8 +771,7 @@ const NATIVO = {
       "t": [
         "com",
         "pre",
-        "cms",
-        "mts"
+        "cms"
       ]
     },
     {
@@ -780,11 +830,13 @@ const NATIVO = {
       ]
     }
   ],
-  "arqMetas": "https://rejuvenesce.sharepoint.com/sites/ClnicaRejuvenesce-Comercial/Documentos%20Compartilhados/Metas.xlsx",
+  "arqMetas": "",
   "shMetasCfg": "Metas",
+  "shPrevendas": "Prevendas",
+  "dedupMin": 5,
   "arqRegras": "https://rejuvenesce.sharepoint.com/sites/ClnicaRejuvenesce-Comercial/Documentos%20Compartilhados/Parametros%20Comissões.xlsx",
   "shRegras": "Parâmetros Comissões",
-  "regrasComissao": "# ─── VENDEDORES ───\nvigencia vendedores: 01/05/2026\nfaixa vendedor: 0 a 400000 = 0,1%\nfaixa vendedor: 400000 a 700000 = 0,2%\nfaixa vendedor: 700000 a acima = 0,3%\n\n# regra anterior a maio/2026\nregra anterior tc: 0,5%\ngatilho tc: 400000\nregra anterior tec: 0%\nexcecao vendedor: Larissa Mendes de Souza\nexcecao tec: 1%\nexcecao tc: 0%\n\n# ─── SUPERVISÃO ───\nvigencia supervisao: 01/09/2026\nbase transplante: 2300000\nservicos transplante: TC,TB,TS,BH\nfaixa transplante: 2300000 a 2500000 = 0,4%\nfaixa transplante: 2500000 a 3000000 = 0,6%\nfaixa transplante: 3000000 a 3500000 = 0,8%\nfaixa transplante: 3500000 a 4000000 = 1%\nfaixa transplante: 4000000 a 5000000 = 1,25%\nfaixa transplante: 5000000 a acima = 1,5%\n\nbase terapia: 235000\nservicos terapia: TEC,CM\nfaixa terapia: 235000 a 250000 = 1%\nfaixa terapia: 250000 a 300000 = 1,25%\nfaixa terapia: 300000 a 400000 = 1,5%\nfaixa terapia: 400000 a 500000 = 2%\nfaixa terapia: 500000 a acima = 2,5%\n\n# ─── PAGAMENTO ───\nparcela inicial tc: 40%\nparcela complementar tc: 60%\nparcela terapia: 100%\ndefasagem meses: 1\n\n# ─── ELEGIBILIDADE ───\netapas elegiveis: FECHAMENTO,FINALIZADO"
+  "regrasComissao": ""
 };
 /* NATIVO-FIM */
 
@@ -794,7 +846,7 @@ const store={
   set(k,v){ try{localStorage.setItem(k,v);}catch(e){mem[k]=v;} },
   del(k){ try{localStorage.removeItem(k);}catch(e){delete mem[k];} }
 };
-const DEF={versao:"",admins:"",chaveAdmin:"",metas:{},superPct:10,arqMetas:"",shMetasCfg:"Metas",ghPainelRepo:"",ghPainelPath:"index.html",ghPainelBranch:"main",ghTokenPainel:"",acessos:[],acessoPadrao:[],arqRegras:"",shRegras:"Parâmetros Comissões",regrasComissao:"",tenant:"89aed341-1dc6-4d0d-b5c7-e8df4293d21d",client:"",file:"",autoEntrar:true,ghRepo:"",ghWf:"sync.yml",ghToken:"",shVendas:"Vendas",shMarc:"Marcações",shMetas:"Metas",
+const DEF={versao:"",admins:"",chaveAdmin:"",metas:{},superPct:10,arqMetas:"",shMetasCfg:"Metas",shPrevendas:"Prevendas",dedupMin:5,ghPainelRepo:"",ghPainelPath:"index.html",ghPainelBranch:"main",ghTokenPainel:"",acessos:[],acessoPadrao:[],arqRegras:"",shRegras:"Parâmetros Comissões",regrasComissao:"",tenant:"89aed341-1dc6-4d0d-b5c7-e8df4293d21d",client:"",file:"",autoEntrar:true,ghRepo:"",ghWf:"sync.yml",ghToken:"",shVendas:"Vendas",shMarc:"Marcações",shMetas:"Metas",
   refresh:10,splitTC:90,splitTE:10,mapTC:"TC,TB,TS,BH",mapTE:"TEC",ignorar:"Sem deal comercial,—,JARVYS",marcaAgendada:"Data Agendada",stRealizada:"Atendido",stNoShow:"Não compareceu",stRemarcada:"Remarcado",stFuturo:"Marcado",stCancelado:"Desmarcado pelo paciente,Cancelado pelo profissional",mesesCheios:true,shParams:"Parâmetros Comissões",arqParams:"",emailsComissao:"",equipePre:"Beatriz,Fabiana,Amanda",incluirOrfas:false,etapasVenda:"FECHAMENTO,FINALIZADO,REVISAO DE PENDENCIAS",onlyPrimeira:true,ignoraZero:true,coorte:"fechamento"};
 // versao nova zera preferencias, mas NUNCA o que e conexao/credencial
 if(store.get("rjv.cfgv")!==NATIVO.versao){
@@ -1167,6 +1219,9 @@ function computar(){
 
   out.com=comissoes(V,cv,p);
 
+  out.funil=funilPrevendas(p);
+
+
   out.rank=[...vend.entries()].map(([k,s])=>({key:k,nome:nomes.get(k)||k,...s}))
     .filter(x=>(x.tot.q>0||x.aval>0)&&!ign.has(x.key))
     .sort((a,b)=>b.tot.v-a.tot.v||b.tot.q-a.tot.q);
@@ -1361,6 +1416,98 @@ function comissoes(V,cv,p){
   return {P,lista,fatTC,fatTE,fatTot,pcTC,pcTE,honTC,honTE,supAtivo,novaRegra,
           aPagar:honTC*P.pIni+honTE*P.pTE, mesPag, prov:[...prov.entries()].sort(), semData,
           totVend:lista.reduce((a,x)=>a+x.com,0), prog};
+}
+
+function dataHora(r,iD,iH){
+  const d=toDate(iD>=0?r[iD]:null); if(!d)return null;
+  let h=0; if(iH>=0){ const x=toNum(r[iH]); if(x>0&&x<1)h=x; }
+  return new Date(d.getTime()+Math.round(h*86400000));
+}
+function fmtDur(h){
+  if(h==null||!isFinite(h))return "—";
+  if(h<24)return Math.round(h)+"h";
+  const d=h/24, r=d<10?Math.round(d*10)/10:Math.round(d);
+  const txt=(Number.isInteger(r)?String(r):r.toFixed(1).replace(".",","));
+  return txt+(r===1?" dia":" dias");
+}
+const mediaH=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null;
+
+function funilPrevendas(p){
+  const P=RAW&&RAW[CFG.shPrevendas];
+  if(!P||!P.headers||!P.rows)return null;
+  const c=colmap(P.headers);
+  const i={nome:pick(c,"Nome"),estado:pick(c,"Estado"),etapa:pick(c,"Etapa"),
+    dCri:pick(c,"Data de criação"),hCri:pick(c,"Hora de criação"),
+    dPri:pick(c,"Data do primeiro contato"),hPri:pick(c,"Hora do primeiro contato"),
+    dFec:pick(c,"Data de fechamento"),hFec:pick(c,"Hora de fechamento"),
+    fonte:pick(c,"Fonte"),resp:pick(c,"Responsável"),
+    meio:pick(c,"Meio que Avaliação foi realizada:","Meio que Avaliação foi realizada"),
+    avR:pick(c,"Avaliação Realizada?"),aval:pick(c,"Avaliador"),
+    idc:pick(c,"ID do Contato"),motivo:pick(c,"Motivo de Perda")};
+  const cri=r=>dataHora(r,i.dCri,i.hCri);
+
+  // recorte do periodo por data de criacao
+  let base=P.rows.filter(r=>{const d=cri(r);return d&&d>=p.a&&d<=p.b;});
+
+  // ---- expurgo de duplicados ----
+  const jan=(toNum(CFG.dedupMin)||0)*60000;
+  const porC=new Map(); const manter=[]; let dupCopia=0,dupJanela=0;
+  const ordenado=[...base].sort((a,b)=>(cri(a)-cri(b)));
+  for(const r of ordenado){
+    if(norm(i.nome>=0?r[i.nome]:"").includes("(COPIA)")){dupCopia++;continue;}
+    const k=String((i.idc>=0?r[i.idc]:"")??"").trim()
+          ||("N:"+pacKey(i.nome>=0?r[i.nome]:""));      // sem ID do contato, usa o nome
+    if(k==="N:"||!jan){manter.push(r);continue;}
+    const ant=porC.get(k)||[];
+    const d=cri(r);
+    if(ant.some(x=>Math.abs(d-cri(x))<=jan)){dupJanela++;continue;}
+    ant.push(r); porC.set(k,ant); manter.push(r);
+  }
+
+  const est=r=>norm(i.estado>=0?r[i.estado]:"");
+  const avaliou=r=>norm(i.avR>=0?r[i.avR]:"")==="SIM";
+  const o={tot:manter.length,ganho:0,perda:0,and:0,outro:0,aval:0,
+           dup:dupCopia+dupJanela,dupCopia,dupJanela,
+           tPri:[],tGanho:[],tPerda:[],
+           resp:new Map(),fonte:new Map(),meio:new Map(),avaliador:new Map(),motivos:new Map()};
+  const bump=(m,k,f)=>{ if(!m.has(k))m.set(k,{tot:0,ganho:0,perda:0,and:0,aval:0}); f(m.get(k)); };
+  const grafias=new Map();
+  for(const r of manter){
+    const e=est(r), a=avaliou(r);
+    const tipo=e==="VENDIDA"?"ganho":e==="PERDIDA"?"perda":e==="EM ANDAMENTO"?"and":"outro";
+    o[tipo]++; if(a)o.aval++;
+    const dc=cri(r), dp=dataHora(r,i.dPri,i.hPri), df=dataHora(r,i.dFec,i.hFec);
+    if(dc&&dp&&dp>=dc)o.tPri.push((dp-dc)/3600000);
+    if(dc&&df&&df>=dc){ if(tipo==="ganho")o.tGanho.push((df-dc)/3600000);
+                        else if(tipo==="perda")o.tPerda.push((df-dc)/3600000); }
+    const rp=titled(i.resp>=0?r[i.resp]:"")||"—";
+    bump(o.resp,rp,x=>{x.tot++;x[tipo]=(x[tipo]||0)+1;if(a)x.aval++;});
+    const foBruta=(String((i.fonte>=0?r[i.fonte]:"")??"").trim())||"(sem fonte)";
+    const foK=norm(foBruta);
+    grafias.set(foK,(grafias.get(foK)||new Map()));
+    grafias.get(foK).set(foBruta,(grafias.get(foK).get(foBruta)||0)+1);
+    bump(o.fonte,foK,x=>{x.tot++;x[tipo]=(x[tipo]||0)+1;if(a)x.aval++;});
+    if(a){
+      const me=(String((i.meio>=0?r[i.meio]:"")??"").trim())||"(não informado)";
+      bump(o.meio,me,x=>{x.tot++;if(tipo==="ganho")x.ganho++;});
+      const av=(String((i.aval>=0?r[i.aval]:"")??"").trim())||"(sem avaliador)";
+      bump(o.avaliador,av,x=>{x.tot++;if(tipo==="ganho")x.ganho++;});
+    }
+    if(tipo==="perda"){
+      const mo=(String((i.motivo>=0?r[i.motivo]:"")??"").trim())||"(sem motivo)";
+      bump(o.motivos,mo,x=>{x.tot++;});
+    }
+  }
+  // troca a chave normalizada pela grafia mais usada
+  const fo2=new Map();
+  for(const [k,x] of o.fonte){
+    const g=grafias.get(k);
+    const rot=g?[...g.entries()].sort((a,b)=>b[1]-a[1])[0][0]:k;
+    fo2.set(rot,x);
+  }
+  o.fonte=fo2;
+  o.mPri=mediaH(o.tPri); o.mGanho=mediaH(o.tGanho); o.mPerda=mediaH(o.tPerda);
+  return o;
 }
 
 function metasDoMes(mes){
@@ -1615,6 +1762,8 @@ function render(){
   }
 
   renderComissoes(D,p);
+
+  renderFunil(D.funil);
 
   const av=[];
   if(A.outro.q)av.push("R$ "+INT.format(Math.round(A.outro.v))+" em "+A.outro.q+" negócio(s) de serviços fora do mapeamento entram só na barra principal.");
@@ -1939,6 +2088,84 @@ function renderComissoes(D,p){
     (REGRAS_FONTE?" · regras: "+REGRAS_FONTE:" · regras locais deste navegador");
 }
 
+function renderFunil(F){
+  const bloco=$("fnBloco"); if(!bloco)return;
+  if(!F){ bloco.style.display="none"; return; }
+  bloco.style.display="";
+  const st=(r,v,c)=>'<div class="stat"><div class="l">'+r+'</div><div class="v num" style="color:'+(c||"var(--txt)")+'">'+v+'</div></div>';
+  $("fnCards").innerHTML=
+    st("Leads recebidos",INT.format(F.tot))+
+    st("Ganhos",INT.format(F.ganho)+' <small>'+fpct(pct(F.ganho,F.tot))+"</small>","var(--pos)")+
+    st("Perdidos",INT.format(F.perda)+' <small>'+fpct(pct(F.perda,F.tot))+"</small>","var(--neg)")+
+    st("Em andamento",INT.format(F.and)+' <small>'+fpct(pct(F.and,F.tot))+"</small>","var(--tc)")+
+    st("Avaliações realizadas",INT.format(F.aval)+' <small>'+fpct(pct(F.aval,F.tot))+"</small>","var(--tec)");
+  $("fnSub").textContent=F.dup?F.dup+" duplicado(s) expurgado(s) — "+F.dupJanela+" por proximidade de criação, "+F.dupCopia+" marcados como cópia":"nenhum duplicado no período";
+  $("fnTempos").innerHTML=
+    st("Até o primeiro contato",fmtDur(F.mPri),"var(--tc)")+
+    st("Até o ganho",fmtDur(F.mGanho),"var(--pos)")+
+    st("Até a perda",fmtDur(F.mPerda),"var(--neg)")+
+    st("Leads com contato registrado",INT.format(F.tPri.length)+" de "+INT.format(F.tot));
+
+  const linhas=(m,ord)=>[...m.entries()].sort((a,b)=>ord(b[1])-ord(a[1]));
+  const tb=$("fnResp"); tb.innerHTML="";
+  for(const [k,x] of linhas(F.resp,x=>x.tot)){
+    const ap=pct(x.ganho||0,x.tot);
+    tb.insertAdjacentHTML("beforeend",'<tr><td class="l name">'+esc(k)+'</td>'+
+      '<td class="sep v-money num">'+INT.format(x.tot)+'</td><td class="v-sub num">'+fpct(pct(x.tot,F.tot))+'</td>'+
+      '<td class="v-sub num" style="color:var(--pos)">'+INT.format(x.ganho||0)+'</td>'+
+      '<td class="v-sub num" style="color:var(--neg)">'+INT.format(x.perda||0)+'</td>'+
+      '<td class="v-sub num">'+INT.format(x.and||0)+'</td>'+
+      '<td class="v-sub num" style="color:var(--tec)">'+INT.format(x.aval||0)+'</td>'+
+      '<td class="sep num" style="color:'+(ap>=50?"var(--pos)":ap>=25?"var(--tec)":"var(--neg)")+'">'+fpct(ap)+'</td></tr>');
+  }
+  $("fnRespF").innerHTML='<tr><td class="l">Total</td><td class="sep num">'+INT.format(F.tot)+
+    '</td><td class="num">100%</td><td class="num">'+INT.format(F.ganho)+'</td><td class="num">'+INT.format(F.perda)+
+    '</td><td class="num">'+INT.format(F.and)+'</td><td class="num">'+INT.format(F.aval)+
+    '</td><td class="sep num">'+fpct(pct(F.ganho,F.tot))+'</td></tr>';
+
+  const tf=$("fnFonte"); tf.innerHTML="";
+  for(const [k,x] of linhas(F.fonte,x=>x.tot)){
+    const cv=pct(x.aval||0,x.tot);
+    tf.insertAdjacentHTML("beforeend",'<tr><td class="l name">'+esc(k)+'</td>'+
+      '<td class="sep v-money num">'+INT.format(x.tot)+'</td><td class="v-sub num">'+fpct(pct(x.tot,F.tot))+'</td>'+
+      '<td class="v-sub num" style="color:var(--tec)">'+INT.format(x.aval||0)+'</td>'+
+      '<td class="num" style="color:'+(cv>=30?"var(--pos)":cv>=15?"var(--tec)":"var(--neg)")+'">'+fpct(cv)+'</td>'+
+      '<td class="sep v-sub num">'+INT.format(x.ganho||0)+'</td><td class="v-sub num">'+INT.format(x.perda||0)+'</td></tr>');
+  }
+  $("fnFonteF").innerHTML='<tr><td class="l">Total</td><td class="sep num">'+INT.format(F.tot)+
+    '</td><td class="num">100%</td><td class="num">'+INT.format(F.aval)+'</td><td class="num">'+fpct(pct(F.aval,F.tot))+
+    '</td><td class="sep num">'+INT.format(F.ganho)+'</td><td class="num">'+INT.format(F.perda)+'</td></tr>';
+
+  const barras=(alvo,m,total,cor)=>{
+    const el=$(alvo); el.innerHTML="";
+    const L=[...m.entries()].sort((a,b)=>b[1].tot-a[1].tot);
+    if(!L.length){el.innerHTML='<div style="color:var(--dim);font-size:13px">sem dados no período</div>';return;}
+    for(const [k,x] of L)
+      el.insertAdjacentHTML("beforeend",
+        '<div style="margin-bottom:9px"><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:3px">'+
+        '<span>'+esc(k)+'</span><span class="num"><b>'+INT.format(x.tot)+'</b> <span style="color:var(--muted)">'+
+        fpct(pct(x.tot,total))+'</span></span></div>'+
+        '<div class="minitrack" style="margin:0"><div class="minifill" style="width:'+pct(x.tot,total)+'%;background:'+cor+'"></div></div></div>');
+  };
+  barras("fnMeio",F.meio,F.aval||1,"var(--tc)");
+  barras("fnMot",F.motivos,F.perda||1,"var(--tec)");
+  $("fnMeioS").textContent=INT.format(F.aval)+" avaliações realizadas";
+  $("fnMotS").textContent=INT.format(F.perda)+" leads perdidos";
+
+  const ta=$("fnAval"); ta.innerHTML="";
+  for(const [k,x] of linhas(F.avaliador,x=>x.tot)){
+    const cv=pct(x.ganho||0,x.tot);
+    ta.insertAdjacentHTML("beforeend",'<tr><td class="l name">'+esc(k)+'</td>'+
+      '<td class="sep v-money num">'+INT.format(x.tot)+'</td><td class="v-sub num">'+fpct(pct(x.tot,F.aval||1))+'</td>'+
+      '<td class="v-sub num" style="color:var(--pos)">'+INT.format(x.ganho||0)+'</td>'+
+      '<td class="sep num" style="color:'+(cv>=70?"var(--pos)":cv>=40?"var(--tec)":"var(--neg)")+'">'+fpct(cv)+'</td></tr>');
+  }
+  const somaAv=[...F.avaliador.values()].reduce((a,x)=>({t:a.t+x.tot,g:a.g+(x.ganho||0)}),{t:0,g:0});
+  $("fnAvalF").innerHTML=somaAv.t?'<tr><td class="l">Total</td><td class="sep num">'+INT.format(somaAv.t)+
+    '</td><td class="num">100%</td><td class="num">'+INT.format(somaAv.g)+
+    '</td><td class="sep num">'+fpct(pct(somaAv.g,somaAv.t))+'</td></tr>':"";
+}
+
 function zeraT(){return {ag:0,re:0,ns:0,rm:0,fu:0,ot:0,vl:0};}
 let AVISOS=[], mostrarAvisos=true;
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
@@ -2125,6 +2352,7 @@ async function carregar(){
     const ref=await resolveItem(tk);
     const [V,M,T]=await Promise.all([readSheet(tk,ref,CFG.shVendas),readSheet(tk,ref,CFG.shMarc),readSheet(tk,ref,CFG.shMetas)]);
     RAW={}; RAW[CFG.shVendas]=V; RAW[CFG.shMarc]=M; RAW[CFG.shMetas]=T;
+    if(CFG.shPrevendas){ try{ RAW[CFG.shPrevendas]=await readSheet(tk,ref,CFG.shPrevendas); }catch(e){ RAW[CFG.shPrevendas]=null; } }
     PARAMS=null; PARAMS_ERRO=null;
     try{
       const refP = CFG.arqParams ? await resolveItem2(tk,CFG.arqParams) : ref;
@@ -2170,7 +2398,7 @@ function setStatus(k,t){$("dot").className="dot "+k;$("statusTxt").textContent=t
 
 /* ============================ config UI ============================ */
 const F={cTenant:"tenant",cClient:"client",cFile:"file",cShVendas:"shVendas",cShMarc:"shMarc",cShMetas:"shMetas",
-  cRefresh:"refresh",cSplitTC:"splitTC",cSplitTE:"splitTE",cMapTC:"mapTC",cMapTE:"mapTE",cIgnorar:"ignorar",cAgendada:"marcaAgendada",cStRe:"stRealizada",cStNs:"stNoShow",cStRm:"stRemarcada",cStFu:"stFuturo",cStCa:"stCancelado",cMeses:"mesesCheios",cRegras:"regrasComissao",cAdmins:"admins",cArqReg:"arqRegras",cShReg:"shRegras",cGhPRepo:"ghPainelRepo",cGhPPath:"ghPainelPath",cGhPBr:"ghPainelBranch",cGhPTok:"ghTokenPainel",cArqMet:"arqMetas",cShMet:"shMetasCfg",cEmails:"emailsComissao",cEquipe:"equipePre",cOrfas:"incluirOrfas",cEtapas:"etapasVenda",
+  cRefresh:"refresh",cSplitTC:"splitTC",cSplitTE:"splitTE",cMapTC:"mapTC",cMapTE:"mapTE",cIgnorar:"ignorar",cAgendada:"marcaAgendada",cStRe:"stRealizada",cStNs:"stNoShow",cStRm:"stRemarcada",cStFu:"stFuturo",cStCa:"stCancelado",cMeses:"mesesCheios",cRegras:"regrasComissao",cAdmins:"admins",cArqReg:"arqRegras",cShReg:"shRegras",cGhPRepo:"ghPainelRepo",cGhPPath:"ghPainelPath",cGhPBr:"ghPainelBranch",cGhPTok:"ghTokenPainel",cArqMet:"arqMetas",cShMet:"shMetasCfg",cShPv:"shPrevendas",cDedup:"dedupMin",cEmails:"emailsComissao",cEquipe:"equipePre",cOrfas:"incluirOrfas",cEtapas:"etapasVenda",
   cOnlyPrimeira:"onlyPrimeira",cIgnoraZero:"ignoraZero",cCoorte:"coorte",cAutoEntrar:"autoEntrar",cGhRepo:"ghRepo",cGhWf:"ghWf",cGhToken:"ghToken"};
 function cfgToUI(){editorAcessos();for(const id in F){const el=$(id);if(el.type==="checkbox")el.checked=!!CFG[F[id]];else el.value=CFG[F[id]];}
   $("cRedirect").textContent=REDIRECT;}
