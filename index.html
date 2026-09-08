@@ -518,6 +518,8 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
     <button id="mtImport">Puxar vendedores do mês</button>
     <button id="mtCopiar">Copiar metas do mês anterior</button>
     <button class="primary" id="mtSalvar">Salvar metas do mês</button>
+    <button class="primary" id="mtGravar">Gravar na planilha de metas</button>
+    <button id="mtAbrir">Abrir planilha de metas</button>
   </div>
 </section>
 </div>
@@ -569,6 +571,10 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
     <div class="h">Se o mesmo paciente tiver outro agendamento no período, o cancelamento é reclassificado como remarcação.</div></div>
   <div class="f"><label>Equipe de pré-vendas</label><input id="cEquipe" value="Beatriz,Fabiana,Amanda">
     <div class="h">Primeiro nome basta. Quem não estiver aqui entra como agendamento esporádico — soma no total, fora do resultado do setor.</div></div>
+  <hr>
+  <div class="f"><label>Arquivo das metas no SharePoint</label><input id="cArqMet" placeholder="https://...&#47;Metas.xlsx">
+    <div class="h">Colunas: Mês | Item | Meta. Item pode ser "Transplante", "Terapia", "Supermeta %" ou o nome do vendedor. Quem tiver permissão de escrita edita direto no Excel, sem passar pelo GitHub.</div></div>
+  <div class="f"><label>Aba das metas</label><input id="cShMet" value="Metas"></div>
   <hr>
   <div class="f"><label>Arquivo das regras no SharePoint</label><input id="cArqReg" placeholder="https://...&#47;Regras Comissao.xlsx">
     <div class="h">Aba "Regras", coluna A, uma linha por regra. Em pasta restrita: quem não tem permissão recebe 403 e a aba trava. É o que faz a configuração seguir você em qualquer navegador.</div></div>
@@ -770,6 +776,8 @@ const NATIVO = {
       ]
     }
   ],
+  "arqMetas": "",
+  "shMetasCfg": "Metas",
   "arqRegras": "https://rejuvenesce.sharepoint.com/sites/ClnicaRejuvenesce-Comercial/Documentos%20Compartilhados/Parametros%20Comissões.xlsx",
   "shRegras": "Parâmetros Comissões",
   "regrasComissao": ""
@@ -782,7 +790,7 @@ const store={
   set(k,v){ try{localStorage.setItem(k,v);}catch(e){mem[k]=v;} },
   del(k){ try{localStorage.removeItem(k);}catch(e){delete mem[k];} }
 };
-const DEF={versao:"",admins:"",chaveAdmin:"",metas:{},superPct:10,ghPainelRepo:"",ghPainelPath:"index.html",ghPainelBranch:"main",ghTokenPainel:"",acessos:[],acessoPadrao:[],arqRegras:"",shRegras:"Parâmetros Comissões",regrasComissao:"",tenant:"89aed341-1dc6-4d0d-b5c7-e8df4293d21d",client:"",file:"",autoEntrar:true,ghRepo:"",ghWf:"sync.yml",ghToken:"",shVendas:"Vendas",shMarc:"Marcações",shMetas:"Metas",
+const DEF={versao:"",admins:"",chaveAdmin:"",metas:{},superPct:10,arqMetas:"",shMetasCfg:"Metas",ghPainelRepo:"",ghPainelPath:"index.html",ghPainelBranch:"main",ghTokenPainel:"",acessos:[],acessoPadrao:[],arqRegras:"",shRegras:"Parâmetros Comissões",regrasComissao:"",tenant:"89aed341-1dc6-4d0d-b5c7-e8df4293d21d",client:"",file:"",autoEntrar:true,ghRepo:"",ghWf:"sync.yml",ghToken:"",shVendas:"Vendas",shMarc:"Marcações",shMetas:"Metas",
   refresh:10,splitTC:90,splitTE:10,mapTC:"TC,TB,TS,BH",mapTE:"TEC",ignorar:"Sem deal comercial,—,JARVYS",marcaAgendada:"Data Agendada",stRealizada:"Atendido",stNoShow:"Não compareceu",stRemarcada:"Remarcado",stFuturo:"Marcado",stCancelado:"Desmarcado pelo paciente,Cancelado pelo profissional",mesesCheios:true,shParams:"Parâmetros Comissões",arqParams:"",emailsComissao:"",equipePre:"Beatriz,Fabiana,Amanda",incluirOrfas:false,etapasVenda:"FECHAMENTO,FINALIZADO,REVISAO DE PENDENCIAS",onlyPrimeira:true,ignoraZero:true,coorte:"fechamento"};
 // versao nova zera preferencias, mas NUNCA o que e conexao/credencial
 if(store.get("rjv.cfgv")!==NATIVO.versao){
@@ -1352,8 +1360,10 @@ function comissoes(V,cv,p){
 }
 
 function metasDoMes(mes){
+  const r=METAS_REM&&METAS_REM[mes];
+  if(r)return {tc:toNum(r.tc),te:toNum(r.te),vend:r.vend||{},remota:true,superPct:r.superPct};
   const m=(CFG.metas||{})[mes];
-  return m?{tc:toNum(m.tc),te:toNum(m.te),vend:m.vend||{}}:null;
+  return m?{tc:toNum(m.tc),te:toNum(m.te),vend:m.vend||{},remota:false}:null;
 }
 function metaVendedor(mes,nome){
   const m=metasDoMes(mes); if(!m)return 0;
@@ -1361,7 +1371,11 @@ function metaVendedor(mes,nome){
   for(const n in m.vend)if(norm(n)===k)return toNum(m.vend[n]);
   return 0;
 }
-const superF=()=>1+(toNum(CFG.superPct)||0)/100;
+function superPctDoMes(mes){
+  const m=metasDoMes(mes);
+  return (m&&m.superPct)?toNum(m.superPct):(toNum(CFG.superPct)||0);
+}
+const superF=(mes)=>1+superPctDoMes(mes||(MT_MES||""))/100;
 
 function tm(o){return o.qTicket>0?o.vTicket/o.qTicket:0;}
 function render(){
@@ -1430,7 +1444,7 @@ function render(){
       '</td><td class="v-sub num">'+(o.qTicket?BRL.format(tm(o)):"—")+'</td>';
     const celTot=x=>{
       const mv=metaVendedor(p.mesChave,x.nome), at=mv?pct(x.tot.v,mv):null;
-      const cor=at==null?"var(--dim)":at>=100*superF()?"var(--tc)":at>=100?"var(--pos)":at>=70?"var(--tec)":"var(--neg)";
+      const cor=at==null?"var(--dim)":at>=100*superF(MT_MES)?"var(--tc)":at>=100?"var(--pos)":at>=70?"var(--tec)":"var(--neg)";
       return '<td class="v-money sep num">'+BRL.format(x.tot.v)+'</td><td class="v-sub num">'+INT.format(x.tot.q)+
         '</td><td class="v-sub num">'+(mv?BRL.format(mv):"—")+'</td>'+
         '<td class="num" style="color:'+cor+'">'+(at==null?"—":fpct(at))+
@@ -1641,16 +1655,73 @@ function aplicaAcessos(){
 }
 
 let MT_MES=null;
+
+async function escreverMetas(){
+  const nota=t=>{$("mtSub").innerHTML=t;};
+  if(!CFG.arqMetas){nota("Configure o arquivo de metas antes de gravar.");return;}
+  const b=$("mtGravar"); b.disabled=true;
+  try{
+    lerMetas();
+    const tk=await token(); if(!tk)throw new Error("Sessão expirada — clique em Reconectar.");
+    if(!REF_METAS)REF_METAS=await resolveItem2(tk,CFG.arqMetas);
+    const wbM=GRAPH+"/drives/"+REF_METAS.drive+"/items/"+REF_METAS.item+"/workbook";
+    const ws=wbM+"/worksheets('"+encodeURIComponent(CFG.shMetasCfg.replace(/'/g,"''"))+"')";
+
+    // junta o que veio do arquivo com o que foi editado neste mês
+    const tudo=Object.assign({},METAS_REM||{});
+    const loc=(CFG.metas||{})[MT_MES];
+    if(loc)tudo[MT_MES]={tc:toNum(loc.tc),te:toNum(loc.te),vend:loc.vend||{},
+                         superPct:(METAS_REM&&METAS_REM[MT_MES]&&METAS_REM[MT_MES].superPct)||toNum(CFG.superPct)};
+
+    const linhas=[["Mês","Item","Meta"]];
+    for(const ym of Object.keys(tudo).sort()){
+      const m=tudo[ym], ser=(EPOCH_DIAS(ym));
+      if(m.tc)linhas.push([ser,"Transplante",m.tc]);
+      if(m.te)linhas.push([ser,"Terapia",m.te]);
+      if(m.superPct)linhas.push([ser,"Supermeta %",m.superPct]);
+      for(const n of Object.keys(m.vend||{}))linhas.push([ser,n,toNum(m.vend[n])]);
+    }
+    nota("Gravando "+(linhas.length-1)+" linha(s) na planilha…");
+    await gsend("PATCH",ws+"/range(address='A1:C"+linhas.length+"')",tk,{values:linhas});
+    const sobra=Math.max(0,METAS_LINHAS-linhas.length);
+    if(sobra>0){
+      const vazio=Array.from({length:sobra},()=>["","",""]);
+      await gsend("PATCH",ws+"/range(address='A"+(linhas.length+1)+":C"+(linhas.length+sobra)+"')",tk,{values:vazio});
+    }
+    METAS_LINHAS=linhas.length;
+    METAS_REM=tudo;
+    delete (CFG.metas||{})[MT_MES];
+    editorMetas(); render();
+    nota("Gravado na planilha de metas. Todo mundo passa a ver na próxima leitura.");
+  }catch(e){
+    const m=String(e.message||e);
+    nota('<span style="color:var(--neg)">'+esc(/403|denied|Forbidden/i.test(m)
+      ? "Sem permissão de escrita no arquivo de metas. Peça acesso de edição."
+      : m)+"</span>");
+  }finally{ b.disabled=false; }
+}
+function EPOCH_DIAS(ym){
+  const [a,b]=ym.split("-");
+  return Math.round((Date.UTC(+a,+b-1,1)-Date.UTC(1899,11,30))/864e5);
+}
 function editorMetas(){
   const p=periodo(); MT_MES=p.mesChave;
-  const podeEditar=ADMIN;
-  const m=metasDoMes(MT_MES)||{tc:0,te:0,vend:{}};
+  const m0=metasDoMes(MT_MES);
+  const remoto=!!CFG.arqMetas;
+  const podeEditar=abasPermitidas().includes("mts");
+  const rasc=(CFG.metas||{})[MT_MES];
+  const m=rasc?{tc:toNum(rasc.tc),te:toNum(rasc.te),vend:rasc.vend||{}}:(metasDoMes(MT_MES)||{tc:0,te:0,vend:{}});
   const nomeMes=new Date(p.a).toLocaleDateString("pt-BR",{month:"long",year:"numeric",timeZone:"UTC"});
-  $("mtMes").textContent=nomeMes+(podeEditar?"":" · somente leitura");
+  $("mtMes").textContent=nomeMes+(remoto?" · sincronizado com a planilha de metas"
+    :(podeEditar?"":" · somente leitura"));
   $("mtTC").value=m.tc||""; $("mtTE").value=m.te||"";
   $("mtPct").value=toNum(CFG.superPct)||10; $("mtPctL").textContent=toNum(CFG.superPct)||10;
   ["mtTC","mtTE","mtPct"].forEach(id=>$(id).disabled=!podeEditar);
-  ["mtAdd","mtImport","mtCopiar","mtSalvar"].forEach(id=>$(id).style.display=podeEditar?"":"none");
+  ["mtAdd","mtImport","mtCopiar"].forEach(id=>$(id).style.display=podeEditar?"":"none");
+  $("mtSalvar").style.display=(podeEditar&&!remoto)?"":"none";
+  $("mtGravar").style.display=(podeEditar&&remoto)?"":"none";
+  $("mtAbrir").style.display=CFG.arqMetas?"":"none";
+  if(METAS_ERRO&&CFG.arqMetas)$("mtSub").textContent="Erro ao ler o arquivo de metas: "+METAS_ERRO;
 
   const real=new Map();
   try{ const D=computar();
@@ -1668,26 +1739,26 @@ function editorMetas(){
     tb.insertAdjacentHTML("beforeend",
       '<tr><td class="l"><input type="text" class="mtn" value="'+esc(n)+'" style="width:100%"'+(podeEditar?"":" disabled")+'></td>'+
       '<td class="sep"><input type="number" class="mtv" step="1000" value="'+(mv||"")+'" style="width:130px;text-align:right"'+(podeEditar?"":" disabled")+'></td>'+
-      '<td class="v-sub num">'+(mv?BRL.format(mv*superF()):"—")+'</td>'+
+      '<td class="v-sub num">'+(mv?BRL.format(mv*superF(MT_MES)):"—")+'</td>'+
       '<td class="v-sub num">'+(totalClinica?fpct(pct(mv,totalClinica)):"—")+'</td>'+
       '<td class="v-money num">'+BRL.format(rv)+'</td>'+
-      '<td class="sep num" style="color:'+(at==null?"var(--dim)":at>=100*superF()?"var(--tc)":at>=100?"var(--pos)":at>=70?"var(--tec)":"var(--neg)")+'">'+
+      '<td class="sep num" style="color:'+(at==null?"var(--dim)":at>=100*superF(MT_MES)?"var(--tc)":at>=100?"var(--pos)":at>=70?"var(--tec)":"var(--neg)")+'">'+
         (at==null?"—":fpct(at))+'</td>'+
       '<td>'+(podeEditar?'<button class="acx mtx" data-i="'+i+'">&times;</button>':"")+'</td></tr>');
   });
   if(!nomes.length)tb.innerHTML='<tr><td class="l" colspan="7" style="color:var(--dim)">nenhum vendedor cadastrado neste mês — use "Puxar vendedores do mês"</td></tr>';
   $("mtFoot").innerHTML=nomes.length?'<tr><td class="l">Total</td><td class="sep num">'+BRL.format(somaMetas)+
-    '</td><td class="num">'+BRL.format(somaMetas*superF())+'</td>'+
+    '</td><td class="num">'+BRL.format(somaMetas*superF(MT_MES))+'</td>'+
     '<td class="num">'+(totalClinica?fpct(pct(somaMetas,totalClinica)):"—")+'</td>'+
     '<td class="num">'+BRL.format(somaReal)+'</td>'+
     '<td class="sep num">'+(somaMetas?fpct(pct(somaReal,somaMetas)):"—")+'</td><td></td></tr>':"";
   $("mtTot").textContent=BRL.format(totalClinica);
-  $("mtSuper").textContent=BRL.format(totalClinica*superF());
+  $("mtSuper").textContent=BRL.format(totalClinica*superF(MT_MES));
   $("mtSub").textContent=somaMetas&&totalClinica
     ? (somaMetas>totalClinica*1.001?"soma das individuais "+fpct(pct(somaMetas,totalClinica))+" acima da meta da clínica"
        : somaMetas<totalClinica*0.999?"soma das individuais "+fpct(100-pct(somaMetas,totalClinica))+" abaixo da meta da clínica"
        : "soma das individuais igual à meta da clínica")
-    : "supermeta = meta × "+superF().toFixed(2).replace(".",",");
+    : "supermeta = meta × "+superF(MT_MES).toFixed(2).replace(".",",");
   tb.querySelectorAll(".mtx").forEach(b=>b.onclick=()=>{lerMetas();
     const mm=metasDoMes(MT_MES); delete mm.vend[Object.keys(mm.vend)[+b.dataset.i]];
     CFG.metas[MT_MES]=mm; editorMetas();});
@@ -1695,8 +1766,12 @@ function editorMetas(){
 
 function lerMetas(){
   const tb=$("mtBodyT"); if(!tb)return;
+  const rs=[...tb.querySelectorAll("tr")];
+  // se o editor nao esta renderizado, nao sobrescrever o mes com zeros
+  if(!rs.some(r=>r.querySelector(".mtn")) && !String($("mtTC").value||"").trim()
+     && !String($("mtTE").value||"").trim())return;
   const vend={};
-  [...tb.querySelectorAll("tr")].forEach(r=>{
+  rs.forEach(r=>{
     const n=r.querySelector(".mtn"), v=r.querySelector(".mtv");
     if(n&&n.value.trim())vend[n.value.trim()]=toNum(v?v.value:0);
   });
@@ -1865,7 +1940,7 @@ let AVISOS=[], mostrarAvisos=true;
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
 
 /* ============================ OAuth 2.0 PKCE ============================ */
-const SCOPES="openid profile offline_access Files.Read.All Sites.Read.All";
+const SCOPES="openid profile offline_access Files.ReadWrite.All Sites.ReadWrite.All";
 const authBase=()=>"https://login.microsoftonline.com/"+encodeURIComponent(CFG.tenant||"organizations")+"/oauth2/v2.0/";
 function b64url(buf){return btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");}
 async function sha256(s){return crypto.subtle.digest("SHA-256",new TextEncoder().encode(s));}
@@ -1926,6 +2001,21 @@ async function gget(url,tk,tries){
     throw new Error("Graph "+r.status+(d?" — "+d:""));}
   return r.json();
 }
+async function gsend(method,url,tk,body,tries){
+  tries=tries||0;
+  const r=await fetch(url.startsWith("http")?url:GRAPH+url,{method,
+    headers:{Authorization:"Bearer "+tk,"Content-Type":"application/json"},
+    body:body?JSON.stringify(body):undefined});
+  if(r.status===429||r.status>=500||r.status===504){
+    if(tries>3)throw new Error("Graph "+r.status+" após 4 tentativas");
+    await new Promise(x=>setTimeout(x,(+(r.headers.get("Retry-After")||0)||Math.pow(2,tries)*3)*1000));
+    return gsend(method,url,tk,body,tries+1);
+  }
+  if(!r.ok){let d="";try{d=(await r.json()).error.message;}catch(e){}
+    throw new Error("Graph "+r.status+(d?" — "+d:""));}
+  const t=await r.text(); return t?JSON.parse(t):{};
+}
+
 function shareId(u){
   const b=new TextEncoder().encode(u); let bin="";
   for(const x of b)bin+=String.fromCharCode(x);
@@ -1934,6 +2024,23 @@ function shareId(u){
 
 const REF={drive:null,item:null,nome:null,mod:null};
 let PARAMS=null, PARAMS_ERRO=null, USUARIO=null, REGRAS_REMOTAS=null, REGRAS_ERRO=null, REGRAS_P=null, REGRAS_FONTE="";
+let METAS_REM=null, METAS_ERRO=null, REF_METAS=null, METAS_LINHAS=0;
+
+function lerGradeMetas(rows){
+  const out={};
+  for(const l of (rows||[])){
+    const d=toDate(l&&l[0]); if(!d)continue;
+    const ym=ymUTC(new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),1)));
+    const item=String((l[1]??"")).trim(); if(!item)continue;
+    const v=toNum(l[2]), n=norm(item);
+    out[ym]=out[ym]||{tc:0,te:0,vend:{}};
+    if(n==="TRANSPLANTE"||n==="TC"||n==="META TC")out[ym].tc=v;
+    else if(n==="TERAPIA"||n==="TEC"||n==="META TEC")out[ym].te=v;
+    else if(n.startsWith("SUPERMETA"))out[ym].superPct=v;
+    else out[ym].vend[item]=v;
+  }
+  return Object.keys(out).length?out:null;
+}
 async function resolveItem2(tk,url){
   const it=await gget("/shares/"+shareId(url)+"/driveItem?$select=id,name,parentReference",tk);
   return {drive:it.parentReference.driveId,item:it.id,nome:it.name};
@@ -2019,6 +2126,16 @@ async function carregar(){
       const refP = CFG.arqParams ? await resolveItem2(tk,CFG.arqParams) : ref;
       PARAMS=await readSheet(tk,refP,CFG.shParams,true);
     }catch(e){ PARAMS_ERRO=String(e.message||e); }
+    METAS_REM=null; METAS_ERRO=null;
+    if(CFG.arqMetas){
+      try{
+        REF_METAS=await resolveItem2(tk,CFG.arqMetas);
+        const gm=await readSheet(tk,REF_METAS,CFG.shMetasCfg,true);
+        METAS_LINHAS=(gm.rows||[]).length;
+        METAS_REM=lerGradeMetas(gm.rows);
+        if(!METAS_REM)METAS_ERRO="Arquivo lido, mas a aba \""+CFG.shMetasCfg+"\" não tem linhas reconhecíveis.";
+      }catch(e){ METAS_ERRO=String(e.message||e); }
+    }
     REGRAS_REMOTAS=null; REGRAS_ERRO=null; REGRAS_P=null; REGRAS_FONTE="";
     if(CFG.arqRegras){
       try{
@@ -2049,7 +2166,7 @@ function setStatus(k,t){$("dot").className="dot "+k;$("statusTxt").textContent=t
 
 /* ============================ config UI ============================ */
 const F={cTenant:"tenant",cClient:"client",cFile:"file",cShVendas:"shVendas",cShMarc:"shMarc",cShMetas:"shMetas",
-  cRefresh:"refresh",cSplitTC:"splitTC",cSplitTE:"splitTE",cMapTC:"mapTC",cMapTE:"mapTE",cIgnorar:"ignorar",cAgendada:"marcaAgendada",cStRe:"stRealizada",cStNs:"stNoShow",cStRm:"stRemarcada",cStFu:"stFuturo",cStCa:"stCancelado",cMeses:"mesesCheios",cRegras:"regrasComissao",cAdmins:"admins",cArqReg:"arqRegras",cShReg:"shRegras",cGhPRepo:"ghPainelRepo",cGhPPath:"ghPainelPath",cGhPBr:"ghPainelBranch",cGhPTok:"ghTokenPainel",cEmails:"emailsComissao",cEquipe:"equipePre",cOrfas:"incluirOrfas",cEtapas:"etapasVenda",
+  cRefresh:"refresh",cSplitTC:"splitTC",cSplitTE:"splitTE",cMapTC:"mapTC",cMapTE:"mapTE",cIgnorar:"ignorar",cAgendada:"marcaAgendada",cStRe:"stRealizada",cStNs:"stNoShow",cStRm:"stRemarcada",cStFu:"stFuturo",cStCa:"stCancelado",cMeses:"mesesCheios",cRegras:"regrasComissao",cAdmins:"admins",cArqReg:"arqRegras",cShReg:"shRegras",cGhPRepo:"ghPainelRepo",cGhPPath:"ghPainelPath",cGhPBr:"ghPainelBranch",cGhPTok:"ghTokenPainel",cArqMet:"arqMetas",cShMet:"shMetasCfg",cEmails:"emailsComissao",cEquipe:"equipePre",cOrfas:"incluirOrfas",cEtapas:"etapasVenda",
   cOnlyPrimeira:"onlyPrimeira",cIgnoraZero:"ignoraZero",cCoorte:"coorte",cAutoEntrar:"autoEntrar",cGhRepo:"ghRepo",cGhWf:"ghWf",cGhToken:"ghToken"};
 function cfgToUI(){editorAcessos();for(const id in F){const el=$(id);if(el.type==="checkbox")el.checked=!!CFG[F[id]];else el.value=CFG[F[id]];}
   $("cRedirect").textContent=REDIRECT;}
@@ -2160,6 +2277,8 @@ $("tabPre").onclick=()=>aba("pre");
 $("tabCom2").onclick=()=>aba("cms");
 $("tabMts").onclick=()=>aba("mts");
 ["mtTC","mtTE","mtPct"].forEach(id=>$(id).onchange=()=>{lerMetas();editorMetas();});
+$("mtGravar").onclick=escreverMetas;
+$("mtAbrir").onclick=()=>{if(CFG.arqMetas)window.open(CFG.arqMetas,"_blank");};
 $("mtAdd").onclick=()=>{lerMetas();const m=metasDoMes(MT_MES)||{tc:0,te:0,vend:{}};
   m.vend["Novo vendedor "+(Object.keys(m.vend).length+1)]=0;CFG.metas[MT_MES]=m;editorMetas();};
 $("mtImport").onclick=()=>{lerMetas();const m=metasDoMes(MT_MES)||{tc:0,te:0,vend:{}};
