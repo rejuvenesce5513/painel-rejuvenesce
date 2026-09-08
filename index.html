@@ -390,6 +390,59 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
   <div class="stats" id="hojeNums"></div>
 </section>
 
+<div id="fnBloco">
+<section class="card hojebar" style="margin-top:22px;border-left-color:var(--tec)">
+  <div class="card-head"><h2>1 · Funil de pré-vendas</h2><span class="eyebrow" id="fnSub"></span></div>
+  <div class="h" style="margin:-4px 0 12px">leads da aba de pré-vendas, contados pela data de criação</div>
+  <div class="stats" id="fnCards"></div>
+</section>
+
+<section class="card" style="margin-top:14px">
+  <div class="card-head"><h2>2 · Tempos médios</h2><span class="eyebrow">da criação do lead até cada evento</span></div>
+  <div class="stats" id="fnTempos"></div>
+</section>
+
+<section class="rank" style="margin-top:14px">
+  <div class="rank-head"><h2>3 · Leads por pré-vendedor</h2><span class="eyebrow">ganho = lead qualificado e repassado ao comercial</span></div>
+  <div style="overflow-x:auto"><table>
+    <thead><tr><th class="l">Pré-vendedor</th><th class="sep">Leads</th><th>% do total</th>
+      <th>Ganhos</th><th>Perdidos</th><th>Em andamento</th><th>Avaliações</th><th class="sep">Aproveitamento</th></tr></thead>
+    <tbody id="fnResp"></tbody><tfoot id="fnRespF"></tfoot>
+  </table></div>
+</section>
+
+<section class="rank" style="margin-top:14px">
+  <div class="rank-head"><h2>4 · Canais de origem</h2><span class="eyebrow">conversão = avaliação realizada</span></div>
+  <div style="overflow-x:auto"><table>
+    <thead><tr><th class="l">Fonte</th><th class="sep">Leads</th><th>% do total</th>
+      <th>Avaliações</th><th>Conversão</th><th class="sep">Ganhos</th><th>Perdidos</th></tr></thead>
+    <tbody id="fnFonte"></tbody><tfoot id="fnFonteF"></tfoot>
+  </table></div>
+</section>
+
+<section class="aux" style="margin-top:14px">
+  <div class="card tc">
+    <div class="card-head"><h2>Meio da avaliação</h2><span class="eyebrow" id="fnMeioS"></span></div>
+    <div id="fnMeio"></div>
+  </div>
+  <div class="card tec">
+    <div class="card-head"><h2>Motivos de perda</h2><span class="eyebrow" id="fnMotS"></span></div>
+    <div id="fnMot"></div>
+  </div>
+</section>
+
+<section class="rank" style="margin-top:14px">
+  <div class="rank-head"><h2>5 · Conversão por avaliador</h2><span class="eyebrow">somente avaliações realizadas</span></div>
+  <div style="overflow-x:auto"><table>
+    <thead><tr><th class="l">Avaliador</th><th class="sep">Avaliações</th><th>% do total</th>
+      <th>Ganhos</th><th class="sep">Conversão</th></tr></thead>
+    <tbody id="fnAval"></tbody><tfoot id="fnAvalF"></tfoot>
+  </table></div>
+</section>
+</div>
+
+<div class="h" style="margin:22px 0 8px;padding-left:3px">6 · AGENDA — registros da aba de marcações, contados pela data da consulta.
+Não é subconjunto dos leads acima: inclui remarcações, retornos e quem agendou sem passar pelo funil.</div>
 <section class="evals">
   <div class="ev a"><div class="l">Avaliações agendadas</div><div class="v disp num" id="pvAg">0</div><div class="s" id="pvAgS">—</div></div>
   <div class="ev b"><div class="l">Realizadas</div><div class="v disp num" id="pvRe">0</div><div class="s" id="pvReS">—</div></div>
@@ -420,55 +473,7 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
   </div>
 </section>
 
-<div id="fnBloco">
-<section class="card hojebar" style="margin-top:22px;border-left-color:var(--tec)">
-  <div class="card-head"><h2>Funil de pré-vendas</h2><span class="eyebrow" id="fnSub"></span></div>
-  <div class="stats" id="fnCards"></div>
-</section>
 
-<section class="card" style="margin-top:14px">
-  <div class="card-head"><h2>Tempos médios</h2><span class="eyebrow">da criação do lead até cada evento</span></div>
-  <div class="stats" id="fnTempos"></div>
-</section>
-
-<section class="rank" style="margin-top:14px">
-  <div class="rank-head"><h2>Leads por pré-vendedor</h2><span class="eyebrow">ganho = lead qualificado e repassado ao comercial</span></div>
-  <div style="overflow-x:auto"><table>
-    <thead><tr><th class="l">Pré-vendedor</th><th class="sep">Leads</th><th>% do total</th>
-      <th>Ganhos</th><th>Perdidos</th><th>Em andamento</th><th>Avaliações</th><th class="sep">Aproveitamento</th></tr></thead>
-    <tbody id="fnResp"></tbody><tfoot id="fnRespF"></tfoot>
-  </table></div>
-</section>
-
-<section class="rank" style="margin-top:14px">
-  <div class="rank-head"><h2>Canais de origem</h2><span class="eyebrow">conversão = avaliação realizada</span></div>
-  <div style="overflow-x:auto"><table>
-    <thead><tr><th class="l">Fonte</th><th class="sep">Leads</th><th>% do total</th>
-      <th>Avaliações</th><th>Conversão</th><th class="sep">Ganhos</th><th>Perdidos</th></tr></thead>
-    <tbody id="fnFonte"></tbody><tfoot id="fnFonteF"></tfoot>
-  </table></div>
-</section>
-
-<section class="aux" style="margin-top:14px">
-  <div class="card tc">
-    <div class="card-head"><h2>Meio da avaliação</h2><span class="eyebrow" id="fnMeioS"></span></div>
-    <div id="fnMeio"></div>
-  </div>
-  <div class="card tec">
-    <div class="card-head"><h2>Motivos de perda</h2><span class="eyebrow" id="fnMotS"></span></div>
-    <div id="fnMot"></div>
-  </div>
-</section>
-
-<section class="rank" style="margin-top:14px">
-  <div class="rank-head"><h2>Conversão por avaliador</h2><span class="eyebrow">somente avaliações realizadas</span></div>
-  <div style="overflow-x:auto"><table>
-    <thead><tr><th class="l">Avaliador</th><th class="sep">Avaliações</th><th>% do total</th>
-      <th>Ganhos</th><th class="sep">Conversão</th></tr></thead>
-    <tbody id="fnAval"></tbody><tfoot id="fnAvalF"></tfoot>
-  </table></div>
-</section>
-</div>
 
 <section class="rank" style="margin-top:14px">
   <div class="rank-head"><h2>Agendamentos por dia</h2><span class="eyebrow">período selecionado</span></div>
@@ -558,8 +563,8 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
   <div class="rank-head"><h2>Meta individual por vendedor</h2><span class="eyebrow" id="mtSub"></span></div>
   <div style="overflow-x:auto">
   <table>
-    <thead><tr><th class="l">Vendedor</th><th class="sep">Meta (R$)</th><th>Supermeta (R$)</th>
-      <th>% da meta da clínica</th><th>Realizado no mês</th><th class="sep">Atingido</th><th></th></tr></thead>
+    <thead><tr><th class="l">Vendedor</th><th class="sep">Meta transplante</th><th>Meta terapia</th>
+      <th>Meta total</th><th>Supermeta</th><th>% da clínica</th><th>Realizado</th><th class="sep">Atingido</th><th></th></tr></thead>
     <tbody id="mtBodyT"></tbody><tfoot id="mtFoot"></tfoot>
   </table>
   </div>
@@ -1510,18 +1515,27 @@ function funilPrevendas(p){
   return o;
 }
 
+function normVend(v){                       // aceita número antigo ou {tc,te}
+  if(v&&typeof v==="object")return {tc:toNum(v.tc),te:toNum(v.te)};
+  const n=toNum(v); return {tc:n,te:0,semSplit:n>0};
+}
 function metasDoMes(mes){
   const r=METAS_REM&&METAS_REM[mes];
-  if(r)return {tc:toNum(r.tc),te:toNum(r.te),vend:r.vend||{},remota:true,superPct:r.superPct};
-  const m=(CFG.metas||{})[mes];
-  return m?{tc:toNum(m.tc),te:toNum(m.te),vend:m.vend||{},remota:false}:null;
+  const cru=r||((CFG.metas||{})[mes]);
+  if(!cru)return null;
+  const vend={}; for(const n in (cru.vend||{}))vend[n]=normVend(cru.vend[n]);
+  return {tc:toNum(cru.tc),te:toNum(cru.te),vend,remota:!!r,superPct:cru.superPct};
 }
-function metaVendedor(mes,nome){
-  const m=metasDoMes(mes); if(!m)return 0;
+function metaVendedorSep(mes,nome){
+  const m=metasDoMes(mes); if(!m)return {tc:0,te:0,tot:0};
   const k=norm(nome);
-  for(const n in m.vend)if(norm(n)===k)return toNum(m.vend[n]);
-  return 0;
+  for(const n in m.vend){
+    if(norm(n)!==k)continue;
+    const v=m.vend[n]; return {tc:v.tc,te:v.te,tot:v.tc+v.te,semSplit:v.semSplit};
+  }
+  return {tc:0,te:0,tot:0};
 }
+function metaVendedor(mes,nome){ return metaVendedorSep(mes,nome).tot; }
 function superPctDoMes(mes){
   const m=metasDoMes(mes);
   return (m&&m.superPct)?toNum(m.superPct):(toNum(CFG.superPct)||0);
@@ -1826,20 +1840,25 @@ async function escreverMetas(){
     if(loc)tudo[MT_MES]={tc:toNum(loc.tc),te:toNum(loc.te),vend:loc.vend||{},
                          superPct:(METAS_REM&&METAS_REM[MT_MES]&&METAS_REM[MT_MES].superPct)||toNum(CFG.superPct)};
 
-    const linhas=[["Mês","Item","Meta"]];
+    const linhas=[["Mês","Item","Meta","Serviço"]];
     for(const ym of Object.keys(tudo).sort()){
       const m=tudo[ym], ser=(EPOCH_DIAS(ym));
-      if(m.tc)linhas.push([ser,"Transplante",m.tc]);
-      if(m.te)linhas.push([ser,"Terapia",m.te]);
-      if(m.superPct)linhas.push([ser,"Supermeta %",m.superPct]);
-      for(const n of Object.keys(m.vend||{}))linhas.push([ser,n,toNum(m.vend[n])]);
+      if(m.tc)linhas.push([ser,"Transplante",m.tc,""]);
+      if(m.te)linhas.push([ser,"Terapia",m.te,""]);
+      if(m.superPct)linhas.push([ser,"Supermeta %",m.superPct,""]);
+      for(const n of Object.keys(m.vend||{})){
+        const v=normVend(m.vend[n]);
+        if(v.tc)linhas.push([ser,n,v.tc,"Transplante"]);
+        if(v.te)linhas.push([ser,n,v.te,"Terapia"]);
+        if(!v.tc&&!v.te)linhas.push([ser,n,0,"Transplante"]);
+      }
     }
     nota("Gravando "+(linhas.length-1)+" linha(s) na planilha…");
-    await gsend("PATCH",ws+"/range(address='A1:C"+linhas.length+"')",tk,{values:linhas});
+    await gsend("PATCH",ws+"/range(address='A1:D"+linhas.length+"')",tk,{values:linhas});
     const sobra=Math.max(0,METAS_LINHAS-linhas.length);
     if(sobra>0){
-      const vazio=Array.from({length:sobra},()=>["","",""]);
-      await gsend("PATCH",ws+"/range(address='A"+(linhas.length+1)+":C"+(linhas.length+sobra)+"')",tk,{values:vazio});
+      const vazio=Array.from({length:sobra},()=>["","","",""]);
+      await gsend("PATCH",ws+"/range(address='A"+(linhas.length+1)+":D"+(linhas.length+sobra)+"')",tk,{values:vazio});
     }
     METAS_LINHAS=linhas.length;
     METAS_REM=tudo;
@@ -1878,30 +1897,42 @@ function editorMetas(){
 
   const real=new Map();
   try{ const D=computar();
-    for(const r of D.rank)real.set(norm(r.nome),{nome:r.nome,v:r.tot.v});
+    for(const r of D.rank)real.set(norm(r.nome),{nome:r.nome,v:r.tot.v,tc:r.tc.v,te:r.te.v});
   }catch(e){}
 
   const tb=$("mtBodyT"); tb.innerHTML="";
   const nomes=Object.keys(m.vend||{});
   const totalClinica=toNum($("mtTC").value)+toNum($("mtTE").value);
   let somaMetas=0, somaReal=0;
+  let somaTC=0,somaTE=0;
   nomes.forEach((n,i)=>{
-    const mv=toNum(m.vend[n]); somaMetas+=mv;
+    const v=normVend(m.vend[n]); const mv=v.tc+v.te;
+    somaMetas+=mv; somaTC+=v.tc; somaTE+=v.te;
     const rr=real.get(norm(n)); const rv=rr?rr.v:0; somaReal+=rv;
     const at=mv?pct(rv,mv):null;
+    const inp=(cls,val)=>'<input type="number" class="'+cls+'" step="1000" value="'+(val||"")+
+      '" style="width:120px;text-align:right"'+(podeEditar?"":" disabled")+'>';
     tb.insertAdjacentHTML("beforeend",
       '<tr><td class="l"><input type="text" class="mtn" value="'+esc(n)+'" style="width:100%"'+(podeEditar?"":" disabled")+'></td>'+
-      '<td class="sep"><input type="number" class="mtv" step="1000" value="'+(mv||"")+'" style="width:130px;text-align:right"'+(podeEditar?"":" disabled")+'></td>'+
+      '<td class="sep">'+inp("mtc",v.tc)+'</td>'+
+      '<td>'+inp("mte",v.te)+'</td>'+
+      '<td class="v-money num">'+(mv?BRL.format(mv):"—")+'</td>'+
       '<td class="v-sub num">'+(mv?BRL.format(mv*superF(MT_MES)):"—")+'</td>'+
       '<td class="v-sub num">'+(totalClinica?fpct(pct(mv,totalClinica)):"—")+'</td>'+
-      '<td class="v-money num">'+BRL.format(rv)+'</td>'+
+      '<td class="v-money num">'+BRL.format(rv)+
+        (rr?'<div class="l" style="margin-top:2px">TC '+BRL.format(rr.tc)+' · TEC '+BRL.format(rr.te)+'</div>':"")+'</td>'+
       '<td class="sep num" style="color:'+(at==null?"var(--dim)":at>=100*superF(MT_MES)?"var(--tc)":at>=100?"var(--pos)":at>=70?"var(--tec)":"var(--neg)")+'">'+
         (at==null?"—":fpct(at))+'</td>'+
       '<td>'+(podeEditar?'<button class="acx mtx" data-i="'+i+'">&times;</button>':"")+'</td></tr>');
   });
-  if(!nomes.length)tb.innerHTML='<tr><td class="l" colspan="7" style="color:var(--dim)">nenhum vendedor cadastrado neste mês — use "Puxar vendedores do mês"</td></tr>';
-  $("mtFoot").innerHTML=nomes.length?'<tr><td class="l">Total</td><td class="sep num">'+BRL.format(somaMetas)+
-    '</td><td class="num">'+BRL.format(somaMetas*superF(MT_MES))+'</td>'+
+  if(!nomes.length)tb.innerHTML='<tr><td class="l" colspan="9" style="color:var(--dim)">nenhum vendedor cadastrado neste mês — use "Puxar vendedores do mês"</td></tr>';
+  const dif=(soma,alvo)=>soma&&alvo&&Math.abs(soma-alvo)>alvo*0.001
+    ?' <span style="color:var(--neg)">('+(soma>alvo?"+":"")+fpct(pct(soma,alvo)-100)+')</span>':"";
+  $("mtFoot").innerHTML=nomes.length?'<tr><td class="l">Total</td>'+
+    '<td class="sep num">'+BRL.format(somaTC)+dif(somaTC,toNum($("mtTC").value))+'</td>'+
+    '<td class="num">'+BRL.format(somaTE)+dif(somaTE,toNum($("mtTE").value))+'</td>'+
+    '<td class="num">'+BRL.format(somaMetas)+'</td>'+
+    '<td class="num">'+BRL.format(somaMetas*superF(MT_MES))+'</td>'+
     '<td class="num">'+(totalClinica?fpct(pct(somaMetas,totalClinica)):"—")+'</td>'+
     '<td class="num">'+BRL.format(somaReal)+'</td>'+
     '<td class="sep num">'+(somaMetas?fpct(pct(somaReal,somaMetas)):"—")+'</td><td></td></tr>':"";
@@ -1925,8 +1956,8 @@ function lerMetas(){
      && !String($("mtTE").value||"").trim())return;
   const vend={};
   rs.forEach(r=>{
-    const n=r.querySelector(".mtn"), v=r.querySelector(".mtv");
-    if(n&&n.value.trim())vend[n.value.trim()]=toNum(v?v.value:0);
+    const n=r.querySelector(".mtn"), a=r.querySelector(".mtc"), b=r.querySelector(".mte");
+    if(n&&n.value.trim())vend[n.value.trim()]={tc:toNum(a?a.value:0),te:toNum(b?b.value:0)};
   });
   CFG.metas=CFG.metas||{};
   CFG.metas[MT_MES]={tc:toNum($("mtTC").value),te:toNum($("mtTE").value),vend};
@@ -2264,11 +2295,19 @@ function lerGradeMetas(rows){
     const ym=ymUTC(new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),1)));
     const item=String((l[1]??"")).trim(); if(!item)continue;
     const v=toNum(l[2]), n=norm(item);
+    const srv=norm(String((l[3]??"")).trim());   // coluna D opcional
     out[ym]=out[ym]||{tc:0,te:0,vend:{}};
     if(n==="TRANSPLANTE"||n==="TC"||n==="META TC")out[ym].tc=v;
     else if(n==="TERAPIA"||n==="TEC"||n==="META TEC")out[ym].te=v;
     else if(n.startsWith("SUPERMETA"))out[ym].superPct=v;
-    else out[ym].vend[item]=v;
+    else {
+      const at=out[ym].vend[item]&&typeof out[ym].vend[item]==="object"
+               ?out[ym].vend[item]:{tc:0,te:0};
+      if(srv==="TERAPIA"||srv==="TEC")at.te=v;
+      else if(srv==="TRANSPLANTE"||srv==="TC")at.tc=v;
+      else { at.tc=v; at.te=0; }                 // sem coluna D: valor unico
+      out[ym].vend[item]=at;
+    }
   }
   return Object.keys(out).length?out:null;
 }
@@ -2512,9 +2551,9 @@ $("tabMts").onclick=()=>aba("mts");
 $("mtGravar").onclick=escreverMetas;
 $("mtAbrir").onclick=()=>{if(CFG.arqMetas)window.open(CFG.arqMetas,"_blank");};
 $("mtAdd").onclick=()=>{lerMetas();const m=metasDoMes(MT_MES)||{tc:0,te:0,vend:{}};
-  m.vend["Novo vendedor "+(Object.keys(m.vend).length+1)]=0;CFG.metas[MT_MES]=m;editorMetas();};
+  m.vend["Novo vendedor "+(Object.keys(m.vend).length+1)]={tc:0,te:0};CFG.metas[MT_MES]=m;editorMetas();};
 $("mtImport").onclick=()=>{lerMetas();const m=metasDoMes(MT_MES)||{tc:0,te:0,vend:{}};
-  try{ for(const r of computar().rank)if(r.tot.q&&!(r.nome in m.vend))m.vend[r.nome]=0; }catch(e){}
+  try{ for(const r of computar().rank)if(r.tot.q&&!(r.nome in m.vend))m.vend[r.nome]={tc:0,te:0}; }catch(e){}
   CFG.metas[MT_MES]=m;editorMetas();};
 $("mtCopiar").onclick=()=>{lerMetas();
   const [a,b]=MT_MES.split("-"); const ant=new Date(Date.UTC(+a,+b-2,1)).toISOString().slice(0,7);
