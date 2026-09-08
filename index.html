@@ -452,9 +452,10 @@ Não é subconjunto dos leads acima: inclui remarcações, retornos e quem agend
   <div class="rank-head"><h2>Conversão por avaliador</h2><span class="eyebrow">profissional que atendeu · conversão = paciente comprou no mês</span></div>
   <div style="overflow-x:auto"><table>
     <thead><tr><th class="l">Avaliador</th><th class="sep">Avaliações</th><th>% do total</th>
-      <th>Ganhos</th><th class="sep">Conversão</th></tr></thead>
+      <th>Convertidas</th><th class="sep">Conversão</th></tr></thead>
     <tbody id="fnAval"></tbody><tfoot id="fnAvalF"></tfoot>
   </table></div>
+  <div class="h" id="fnAvalNota" style="padding:10px 18px;border-top:1px solid var(--line)"></div>
 </section>
 </div>
 
@@ -1052,10 +1053,15 @@ function computar(){
   const iNome=pick(cv,"Nome");
 
   /* ---- compradores da coorte: paciente -> mês da avaliação ---- */
-  const compradores=new Map(), compPeriodo=new Set(), casados=new Set(); let negConv=0;
+  const iFee=pick(cv,"ID Feegow","Id Feegow");
+  const feeDe=r=>{const x=String((iFee>=0?r[iFee]:"")??"").trim().replace(/\.0+$/,"");return x||"";};
+  const compradores=new Map(), compPeriodo=new Set(), casados=new Set(),
+        porFeegow=new Map(); let negConv=0, comFee=0;
   if(iK>=0)for(const r of V.rows){
     if(!ehVenda(iEt>=0?r[iEt]:null))continue;
     const dk=toDate(r[iK]); if(!dk)continue;
+    const fid=feeDe(r);
+    if(fid){ porFeegow.set(fid+"|"+ymUTC(dk),true); comFee++; }
     const k=pacKey(r[iNome>=0?iNome:0])+"|"+ymUTC(dk);
     if(!compradores.has(k))compradores.set(k,{v:0,pac:pacKey(r[iNome>=0?iNome:0]),ym:ymUTC(dk),
       resp:norm(iResp>=0?r[iResp]:""),nome:titled(iResp>=0?r[iResp]:"")});
@@ -1067,7 +1073,8 @@ function computar(){
   const cm=colmap(M.headers);
   const iDc=pick(cm,"Data consulta"), iTipo=pick(cm,"Tipo"), iSt=pick(cm,"Status atual"),
         iVc=pick(cm,"Vendedor comercial","Responsável"), iEc=pick(cm,"Etapa comercial"),
-        iDf=pick(cm,"Data do fechamento"), iPac=pick(cm,"Paciente");
+        iDf=pick(cm,"Data do fechamento"), iPac=pick(cm,"Paciente"),
+        iIdPac=pick(cm,"ID Paciente","Id Paciente","ID paciente");
   const ev={tot:0,conv:0,and:0,perd:0,convMarc:0,negConv:0,orfaos:0};
   let convTot=0; const convMes=new Map(), avalMes=new Map(), temAval=new Set();
   for(const r of M.rows){
@@ -1076,9 +1083,10 @@ function computar(){
     if(CFG.onlyPrimeira&&iTipo>=0&&!norm(r[iTipo]).startsWith("PRIMEIRA AVALIACAO"))continue;
     const ym=ymUTC(d);
     const pkey=pacKey(r[iPac>=0?iPac:0]);
+    const fkey=String((iIdPac>=0?r[iIdPac]:"")??"").trim().replace(/\.0+$/,"");
     temAval.add(pkey);
     const ck=pkey+"|"+ym;
-    const comprou=compradores.has(ck);
+    const comprou=compradores.has(ck)||(!!fkey&&porFeegow.has(fkey+"|"+ym));
     if(comprou){casados.add(ck);convMes.set(ym,(convMes.get(ym)||0)+1);}
     if(d<p.a||d>p.b)continue;
     ev.tot++;
@@ -1167,7 +1175,6 @@ function computar(){
   const sCa=CFG.stCancelado.split(",").map(norm).filter(Boolean);
   const sFuL=CFG.stFuturo.split(",").map(norm).filter(Boolean);
   const ehFuturoSt=t=>sFuL.some(x=>t.startsWith(x));   // startsWith: "DESMARCADO" nao casa com "MARCADO"
-  const iIdPac=pick(cm,"ID Paciente","Id Paciente","ID paciente");
   const chavePac=r=>{
     const id=iIdPac>=0?String(r[iIdPac]??"").trim().replace(/\.0+$/,""):"";
     return id||pacKey(r[iPac>=0?iPac:0]);
@@ -1224,7 +1231,7 @@ function computar(){
 
   out.com=comissoes(V,cv,p);
 
-  out.funil=funilPrevendas(p,{M,cm,iDc,iTipo,iSt,iPac,compradores});
+  out.funil=funilPrevendas(p,{M,cm,iDc,iTipo,iSt,iPac,iIdPac,compradores,porFeegow});
 
 
   out.rank=[...vend.entries()].map(([k,s])=>({key:k,nome:nomes.get(k)||k,...s}))
@@ -1522,8 +1529,11 @@ function funilPrevendas(p,MC){
                : t.includes("PRESENCIAL") ? "Presencial"
                : t.includes("REAVALIA") ? "Presencial"          // reavaliacao = presencial
                : "(não informado)";
+      const fid=String((MC.iIdPac>=0?r[MC.iIdPac]:"")??"").trim().replace(/\.0+$/,"");
       const pk=pacKey(MC.iPac>=0?r[MC.iPac]:"");
-      const comprou=!!(MC.compradores&&MC.compradores.has(pk+"|"+ymUTC(d)));
+      const ym=ymUTC(d);
+      const comprou=!!((fid&&MC.porFeegow&&MC.porFeegow.has(fid+"|"+ym))
+                     ||(MC.compradores&&MC.compradores.has(pk+"|"+ym)));
       bump(o.meio,me,x=>{x.tot++;if(comprou)x.ganho++;});
       const av=(titled(iProf>=0?r[iProf]:"")||"(sem avaliador)");
       bump(o.avaliador,av,x=>{x.tot++;if(comprou)x.ganho++;});
@@ -1795,7 +1805,7 @@ function render(){
 
   renderComissoes(D,p);
 
-  renderFunil(D.funil);
+  renderFunil(D.funil,D.ev);
 
   const av=[];
   if(A.outro.q)av.push("R$ "+INT.format(Math.round(A.outro.v))+" em "+A.outro.q+" negócio(s) de serviços fora do mapeamento entram só na barra principal.");
@@ -2137,7 +2147,7 @@ function renderComissoes(D,p){
     (REGRAS_FONTE?" · regras: "+REGRAS_FONTE:" · regras locais deste navegador");
 }
 
-function renderFunil(F){
+function renderFunil(F,EV){
   const bloco=$("fnBloco"); if(!bloco)return;
   if(!F){ bloco.style.display="none"; return; }
   bloco.style.display="";
@@ -2210,6 +2220,17 @@ function renderFunil(F){
       '<td class="sep num" style="color:'+(cv>=70?"var(--pos)":cv>=40?"var(--tec)":"var(--neg)")+'">'+fpct(cv)+'</td></tr>');
   }
   const somaAv=[...F.avaliador.values()].reduce((a,x)=>({t:a.t+x.tot,g:a.g+(x.ganho||0)}),{t:0,g:0});
+  if($("fnAvalNota")&&EV){
+    const dif=(EV.conv||0)-somaAv.g;
+    $("fnAvalNota").innerHTML=
+      "Conta apenas atendimentos registrados na agenda, atribuídos ao profissional. "+
+      (dif>0
+        ? "O painel Comercial mostra <b>"+INT.format(EV.conv)+"</b> convertidos porque soma <b>"+INT.format(dif)+
+          "</b> compra(s) sem avaliação registrada — sem profissional a quem atribuir."
+        : dif<0
+        ? "O painel Comercial mostra <b>"+INT.format(EV.conv)+"</b> porque conta apenas primeira avaliação; aqui entram também as reavaliações."
+        : "Bate com o painel Comercial.");
+  }
   $("fnAvalF").innerHTML=somaAv.t?'<tr><td class="l">Total</td><td class="sep num">'+INT.format(somaAv.t)+
     '</td><td class="num">100%</td><td class="num">'+INT.format(somaAv.g)+
     '</td><td class="sep num">'+fpct(pct(somaAv.g,somaAv.t))+'</td></tr>':"";
