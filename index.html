@@ -586,9 +586,19 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
   <label class="chk"><input type="checkbox" id="cMeses" checked><span>Período personalizado assume os meses completos (27/08 a 04/09 vira 01/08 a 30/09)</span></label>
   <label class="chk"><input type="checkbox" id="cAutoEntrar" checked><span>Entrar automaticamente ao abrir</span></label>
   <hr>
+  <hr>
+  <div class="f"><label>Publicar direto no GitHub — repositório do painel</label><input id="cGhPRepo" placeholder="usuario/repositorio"></div>
+  <div class="row2">
+    <div class="f"><label>Arquivo</label><input id="cGhPPath" value="index.html"></div>
+    <div class="f"><label>Branch</label><input id="cGhPBr" value="main"></div>
+  </div>
+  <div class="f"><label>Token com Contents: write</label><input id="cGhPTok" type="password" placeholder="github_pat_...">
+    <div class="h">Token separado, restrito a este repositório, só permissão Contents. Fica neste navegador e não entra no bloco nativo.</div></div>
+  <div class="msg err" style="margin-top:4px">Este token permite reescrever o painel. Quem o obtiver pode injetar código na página que outras pessoas abrem. Use apenas na sua máquina.</div>
+  <hr>
   <div class="f"><label>Administradores do painel</label><input id="cAdmins" value="fabricio.araujo@clinicarejuvenesce.com.br">
     <div class="h">Só estes e-mails enxergam o botão Configurar. Os demais recebem a configuração pronta.</div></div>
-  <div style="display:flex;gap:9px;flex-wrap:wrap"><button class="primary" id="cSave">Salvar e recarregar</button><button id="cNativo">Copiar bloco nativo</button><button id="cSairAdmin" style="display:none">Sair do modo administrador</button><button id="cLink">Copiar link de instalação</button><button id="cClose">Fechar</button></div>
+  <div style="display:flex;gap:9px;flex-wrap:wrap"><button class="primary" id="cSave">Salvar e recarregar</button><button id="cNativo">Baixar index.html atualizado</button><button id="cPublicar">Publicar no GitHub</button><button id="cSairAdmin" style="display:none">Sair do modo administrador</button><button id="cLink">Copiar link de instalação</button><button id="cClose">Fechar</button></div>
   <div class="notes" id="cfgNotes"></div>
 </aside>
 
@@ -599,41 +609,136 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
    CONFIGURAÇÃO NATIVA — vale para todo mundo que abrir o link.
    Edite aqui (ou use "Copiar bloco nativo" no Configurar e cole por cima).
    ═══════════════════════════════════════════════════════════════════════ */
+/* NATIVO-INICIO */
 const NATIVO = {
-  versao: "2",              // suba este número para sobrescrever ajustes locais de todo mundo
-  admins: "fabricio.araujo@clinicarejuvenesce.com.br",
-  chaveAdmin: "cfg_rjvnsc",   // acrescente #cfg_rjvnsc na URL para destravar o Configurar
-  tenant: "89aed341-1dc6-4d0d-b5c7-e8df4293d21d",
-  client: "b7a0f205-e154-42b3-a8c5-3a3df93ac749",
-  file:   "https://rejuvenesce.sharepoint.com/sites/ClnicaRejuvenesce-Comercial/Documentos%20Compartilhados/VENDAS E CAMPANHA.xlsx",
-  shVendas: "Vendas", shMarc: "Marcações", shMetas: "Metas",
-  refresh: 10, splitTC: 90, splitTE: 10,
-  mapTC: "TC,TB,TS,BH", mapTE: "TEC",
-  etapasVenda: "FECHAMENTO,REVISAO DE PENDENCIAS,FINALIZADO",
-  ignorar: "Sem deal comercial,—,JARVYS",
-  marcaAgendada: "Data Agendada",
-  stRealizada: "Atendido", stNoShow: "Não compareceu", stRemarcada: "Remarcado",
-  stFuturo: "Marcado", stCancelado: "Desmarcado pelo paciente,Cancelado pelo profissional",
-  equipePre: "Beatriz,Fabiana,Amanda",
-  onlyPrimeira: true, ignoraZero: true, incluirOrfas: false,
-  coorte: "fechamento", mesesCheios: true, autoEntrar: true,
-  emailsComissao: "",
-  acessoPadrao: [],           // painéis de quem não está na lista abaixo
-  acessos: [
-    { e: "fabricio.araujo@clinicarejuvenesce.com.br", t: ["com","pre","cms"] },
-    { e: "samuel.nascimento@clinicarejuvenesce.com.br", t: ["com","pre","cms"] },
-    { e: "fernando.delazari@clinicarejuvenesce.com.br", t: ["com"] },
-    { e: "beatriz.olinda@clinicarejuvenesce.com.br", t: ["pre"] }
+  "versao": "3",
+  "admins": "fabricio.araujo@clinicarejuvenesce.com.br",
+  "chaveAdmin": "cfg_rjvnsc",
+  "tenant": "89aed341-1dc6-4d0d-b5c7-e8df4293d21d",
+  "client": "b7a0f205-e154-42b3-a8c5-3a3df93ac749",
+  "file": "https://rejuvenesce.sharepoint.com/sites/ClnicaRejuvenesce-Comercial/Documentos%20Compartilhados/VENDAS E CAMPANHA.xlsx",
+  "ghPainelRepo": "rejuvenesce5513/painel-rejuvenesce",
+  "ghPainelPath": "index.html",
+  "ghPainelBranch": "main",
+  "shVendas": "Vendas",
+  "shMarc": "Marcações",
+  "shMetas": "Metas",
+  "refresh": 10,
+  "splitTC": 90,
+  "splitTE": 10,
+  "mapTC": "TC,TB,TS,BH",
+  "mapTE": "TEC",
+  "etapasVenda": "FECHAMENTO,REVISAO DE PENDENCIAS,FINALIZADO",
+  "ignorar": "Sem deal comercial,—,JARVYS",
+  "marcaAgendada": "Data Agendada",
+  "stRealizada": "Atendido",
+  "stNoShow": "Não compareceu",
+  "stRemarcada": "Remarcado",
+  "stFuturo": "Marcado",
+  "stCancelado": "Desmarcado pelo paciente,Cancelado pelo profissional",
+  "equipePre": "Beatriz,Fabiana,Amanda",
+  "onlyPrimeira": true,
+  "ignoraZero": true,
+  "incluirOrfas": false,
+  "coorte": "fechamento",
+  "mesesCheios": true,
+  "autoEntrar": true,
+  "emailsComissao": "fabricio.araujo@clinicarejuvenesce.com.br, samuel.nascimento@clinicarejuvenesce.com.br, francis@clinicarejuvenesce.com.br, raissa.fortini@clinicarejuvenesce.com.br",
+  "acessoPadrao": [],
+  "acessos": [
+    {
+      "e": "fabricio.araujo@clinicarejuvenesce.com.br",
+      "t": [
+        "com",
+        "pre",
+        "cms"
+      ]
+    },
+    {
+      "e": "samuel.nascimento@clinicarejuvenesce.com.br",
+      "t": [
+        "com",
+        "pre",
+        "cms"
+      ]
+    },
+    {
+      "e": "francis@clinicarejuvenesce.com.br",
+      "t": [
+        "com",
+        "pre",
+        "cms"
+      ]
+    },
+    {
+      "e": "raissa.fortini@clinicarejuvenesce.com.br",
+      "t": [
+        "com",
+        "pre",
+        "cms"
+      ]
+    },
+    {
+      "e": "fernando.delazari@clinicarejuvenesce.com.br",
+      "t": [
+        "com"
+      ]
+    },
+    {
+      "e": "alexandre.fritz@clinicarejuvenesce.com.br",
+      "t": [
+        "com"
+      ]
+    },
+    {
+      "e": "guilherme.conti@clinicarejuvenesce.com.br",
+      "t": [
+        "com"
+      ]
+    },
+    {
+      "e": "ricardo.melo@clinicarejuvenesce.com.br",
+      "t": [
+        "com"
+      ]
+    },
+    {
+      "e": "larissa.souza@clinicarejuvenesce.com.br",
+      "t": [
+        "com"
+      ]
+    },
+    {
+      "e": "beatriz.olinda@clinicarejuvenesce.com.br",
+      "t": [
+        "pre"
+      ]
+    },
+    {
+      "e": "fabiana.vieira@clinicarejuvenesce.com.br",
+      "t": [
+        "pre"
+      ]
+    },
+    {
+      "e": "amanda.silva@clinicarejuvenesce.com.br",
+      "t": [
+        "pre"
+      ]
+    },
+    {
+      "e": "gabriel.torres@clinicarejuvenesce.com.br",
+      "t": [
+        "com",
+        "pre"
+      ]
+    }
   ],
-  // Arquivo com as regras, em pasta restrita do SharePoint.
-  // Aba "Regras", coluna A, uma regra por linha. Segue o admin em qualquer navegador.
-  arqRegras: "https://rejuvenesce.sharepoint.com/sites/ClnicaRejuvenesce-Comercial/Documentos%20Compartilhados/Parametros%20Comissões.xlsx",
-  shRegras: "Parâmetros Comissões",
-
-  // ATENÇÃO: repositório público. Regras de comissão NÃO ficam aqui —
-  // vivem no navegador do administrador e viajam pelo link de instalação.
-  regrasComissao: ""
+  "arqRegras": "https://rejuvenesce.sharepoint.com/sites/ClnicaRejuvenesce-Comercial/Documentos%20Compartilhados/Parametros%20Comissões.xlsx",
+  "shRegras": "Parâmetros Comissões",
+  "regrasComissao": ""
 };
+/* NATIVO-FIM */
 
 const mem={};
 const store={
@@ -641,7 +746,7 @@ const store={
   set(k,v){ try{localStorage.setItem(k,v);}catch(e){mem[k]=v;} },
   del(k){ try{localStorage.removeItem(k);}catch(e){delete mem[k];} }
 };
-const DEF={versao:"",admins:"",chaveAdmin:"",acessos:[],acessoPadrao:[],arqRegras:"",shRegras:"Parâmetros Comissões",regrasComissao:"",tenant:"89aed341-1dc6-4d0d-b5c7-e8df4293d21d",client:"",file:"",autoEntrar:true,ghRepo:"",ghWf:"sync.yml",ghToken:"",shVendas:"Vendas",shMarc:"Marcações",shMetas:"Metas",
+const DEF={versao:"",admins:"",chaveAdmin:"",ghPainelRepo:"",ghPainelPath:"index.html",ghPainelBranch:"main",ghTokenPainel:"",acessos:[],acessoPadrao:[],arqRegras:"",shRegras:"Parâmetros Comissões",regrasComissao:"",tenant:"89aed341-1dc6-4d0d-b5c7-e8df4293d21d",client:"",file:"",autoEntrar:true,ghRepo:"",ghWf:"sync.yml",ghToken:"",shVendas:"Vendas",shMarc:"Marcações",shMetas:"Metas",
   refresh:10,splitTC:90,splitTE:10,mapTC:"TC,TB,TS,BH",mapTE:"TEC",ignorar:"Sem deal comercial,—,JARVYS",marcaAgendada:"Data Agendada",stRealizada:"Atendido",stNoShow:"Não compareceu",stRemarcada:"Remarcado",stFuturo:"Marcado",stCancelado:"Desmarcado pelo paciente,Cancelado pelo profissional",mesesCheios:true,shParams:"Parâmetros Comissões",arqParams:"",emailsComissao:"",equipePre:"Beatriz,Fabiana,Amanda",incluirOrfas:false,etapasVenda:"FECHAMENTO,FINALIZADO,REVISAO DE PENDENCIAS",onlyPrimeira:true,ignoraZero:true,coorte:"fechamento"};
 // versao nova zera preferencias, mas NUNCA o que e conexao/credencial
 if(store.get("rjv.cfgv")!==NATIVO.versao){
@@ -1788,7 +1893,7 @@ function setStatus(k,t){$("dot").className="dot "+k;$("statusTxt").textContent=t
 
 /* ============================ config UI ============================ */
 const F={cTenant:"tenant",cClient:"client",cFile:"file",cShVendas:"shVendas",cShMarc:"shMarc",cShMetas:"shMetas",
-  cRefresh:"refresh",cSplitTC:"splitTC",cSplitTE:"splitTE",cMapTC:"mapTC",cMapTE:"mapTE",cIgnorar:"ignorar",cAgendada:"marcaAgendada",cStRe:"stRealizada",cStNs:"stNoShow",cStRm:"stRemarcada",cStFu:"stFuturo",cStCa:"stCancelado",cMeses:"mesesCheios",cRegras:"regrasComissao",cAdmins:"admins",cArqReg:"arqRegras",cShReg:"shRegras",cEmails:"emailsComissao",cEquipe:"equipePre",cOrfas:"incluirOrfas",cEtapas:"etapasVenda",
+  cRefresh:"refresh",cSplitTC:"splitTC",cSplitTE:"splitTE",cMapTC:"mapTC",cMapTE:"mapTE",cIgnorar:"ignorar",cAgendada:"marcaAgendada",cStRe:"stRealizada",cStNs:"stNoShow",cStRm:"stRemarcada",cStFu:"stFuturo",cStCa:"stCancelado",cMeses:"mesesCheios",cRegras:"regrasComissao",cAdmins:"admins",cArqReg:"arqRegras",cShReg:"shRegras",cGhPRepo:"ghPainelRepo",cGhPPath:"ghPainelPath",cGhPBr:"ghPainelBranch",cGhPTok:"ghTokenPainel",cEmails:"emailsComissao",cEquipe:"equipePre",cOrfas:"incluirOrfas",cEtapas:"etapasVenda",
   cOnlyPrimeira:"onlyPrimeira",cIgnoraZero:"ignoraZero",cCoorte:"coorte",cAutoEntrar:"autoEntrar",cGhRepo:"ghRepo",cGhWf:"ghWf",cGhToken:"ghToken"};
 function cfgToUI(){editorAcessos();for(const id in F){const el=$(id);if(el.type==="checkbox")el.checked=!!CFG[F[id]];else el.value=CFG[F[id]];}
   $("cRedirect").textContent=REDIRECT;}
@@ -1810,16 +1915,69 @@ $("cClose").onclick=()=>$("drawer").classList.remove("open");
 $("cSave").onclick=()=>{if(!ADMIN){openCfg("Somente administradores podem salvar.");return;}
   uiToCfg();$("drawer").classList.remove("open");agenda();aplicaAcessos();render();carregar();};
 $("btnAuth").onclick=()=>{mostrarAvisos=true;login(false);};
+function b64Std(str){const b=new TextEncoder().encode(str);let x="";for(const c of b)x+=String.fromCharCode(c);return btoa(x);}
+function deB64(b){const bin=atob(b.replace(/\n/g,""));return new TextDecoder().decode(Uint8Array.from(bin,c=>c.charCodeAt(0)));}
+const MARCA_INI="/*"+" NATIVO-INICIO "+"*/", MARCA_FIM="/*"+" NATIVO-FIM "+"*/";
+function blocoNativo(){
+  uiToCfg();
+  const c={}; for(const k of Object.keys(NATIVO))c[k]=CFG[k];
+  return "const NATIVO = "+JSON.stringify(c,null,2)+";";
+}
+async function publicarGitHub(){
+  if(!ADMIN)return;
+  const nota=t=>{$("cfgNotes").innerHTML=t;};
+  const {ghPainelRepo:repo,ghPainelPath:cam,ghPainelBranch:br,ghTokenPainel:tk}=CFG;
+  if(!repo||!tk){nota("Informe repositório e token com Contents: write.");return;}
+  const H={Authorization:"Bearer "+tk,Accept:"application/vnd.github+json"};
+  const url="https://api.github.com/repos/"+repo+"/contents/"+encodeURI(cam);
+  const b=$("cPublicar"); b.disabled=true;
+  try{
+    nota("Lendo o arquivo no GitHub…");
+    const r1=await fetch(url+"?ref="+encodeURIComponent(br),{headers:H});
+    if(!r1.ok)throw new Error("GET "+r1.status+" — "+(await r1.text()).slice(0,150));
+    const j1=await r1.json(), txt=deB64(j1.content);
+    const ini=txt.indexOf(MARCA_INI), fim=txt.indexOf(MARCA_FIM);
+    if(ini<0||fim<0||fim<ini)
+      throw new Error("Não achei os marcadores NATIVO-INICIO/NATIVO-FIM no arquivo remoto. "+
+                      "Publique este index.html uma vez pelo GitHub antes de usar o botão.");
+    const novo=txt.slice(0,ini+MARCA_INI.length)+"\n"+blocoNativo()+"\n"+txt.slice(fim);
+    if(novo===txt){nota("Nada mudou — o bloco remoto já é igual ao atual.");return;}
+    nota("Enviando commit…");
+    const r2=await fetch(url,{method:"PUT",headers:{...H,"Content-Type":"application/json"},
+      body:JSON.stringify({message:"painel: atualiza configuração nativa",content:b64Std(novo),sha:j1.sha,branch:br})});
+    if(!r2.ok)throw new Error("PUT "+r2.status+" — "+(await r2.text()).slice(0,150));
+    const j2=await r2.json();
+    nota("Publicado. Commit <b>"+(j2.commit&&j2.commit.sha||"").slice(0,7)+
+      "</b>. O GitHub Pages leva 1 a 2 minutos para servir a versão nova.");
+  }catch(e){ nota('<span style="color:var(--neg)">'+esc(String(e.message||e))+"</span>"); }
+  finally{ b.disabled=false; }
+}
+$("cPublicar").onclick=publicarGitHub;
 $("cSairAdmin").onclick=()=>{store.del("rjv.destrava");$("drawer").classList.remove("open");atualizaAdmin();};
 $("acAdd").onclick=()=>{lerEditor();(CFG.acessos=CFG.acessos||[]).push({e:"",t:["com"]});editorAcessos();};
 $("cModelo").onclick=()=>{$("cRegras").value=REGRAS_MODELO;};
-$("cNativo").onclick=()=>{uiToCfg();
-  const c={}; for(const k of Object.keys(NATIVO))c[k]=CFG[k];
-  const txt="const NATIVO = "+JSON.stringify(c,null,2)+";";
-  navigator.clipboard.writeText(txt).then(
-    ()=>{$("cfgNotes").textContent="Bloco copiado. Cole no topo do index.html, sobre o NATIVO atual, e faça commit — passa a valer para todos.";},
-    ()=>{$("cfgNotes").textContent=txt;});};
-$("cLink").onclick=()=>{uiToCfg();const c=Object.assign({},CFG);delete c.autoEntrar;delete c.ghToken;
+$("cNativo").onclick=async()=>{
+  const nota=t=>{$("cfgNotes").innerHTML=t;};
+  const b=$("cNativo"); b.disabled=true;
+  try{
+    nota("Buscando o código publicado…");
+    const r=await fetch(REDIRECT+"?v="+Date.now(),{cache:"no-store"});
+    if(!r.ok)throw new Error("Não consegui ler o index.html publicado (HTTP "+r.status+").");
+    const txt=await r.text();
+    const ini=txt.indexOf(MARCA_INI), fim=txt.indexOf(MARCA_FIM);
+    if(ini<0||fim<0||fim<ini)
+      throw new Error("O index.html publicado ainda não tem os marcadores NATIVO-INICIO/NATIVO-FIM. "+
+                      "Publique esta versão uma vez pelo GitHub e o botão passa a funcionar.");
+    const novoTxt=txt.slice(0,ini+MARCA_INI.length)+"\n"+blocoNativo()+"\n"+txt.slice(fim);
+    const url=URL.createObjectURL(new Blob([novoTxt],{type:"text/html;charset=utf-8"}));
+    const a=document.createElement("a"); a.href=url; a.download="index.html";
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),4000);
+    nota("Arquivo baixado. Substitua o <b>index.html</b> no GitHub por ele e faça commit.");
+  }catch(e){ nota('<span style="color:var(--neg)">'+esc(String(e.message||e))+"</span>"); }
+  finally{ b.disabled=false; }
+};
+$("cLink").onclick=()=>{uiToCfg();const c=Object.assign({},CFG);delete c.autoEntrar;delete c.ghToken;delete c.ghTokenPainel;
   const url=REDIRECT+"#cfg="+b64uEnc(JSON.stringify(Object.assign({autoEntrar:true,ghRepo:"",ghWf:"sync.yml",ghToken:""},c)));
   navigator.clipboard.writeText(url).then(()=>{$("cfgNotes").textContent="Link copiado. Quem abrir esse link recebe toda a configuração e entra direto.";},
     ()=>{$("cfgNotes").textContent=url;});};
