@@ -549,6 +549,7 @@ Não é subconjunto dos leads acima: inclui remarcações, retornos e quem agend
 <div id="viewMts" style="display:none">
 <div id="mtLock" class="msg warn" style="display:none"></div>
 <div id="mtBody">
+<div id="mtAviso" class="msg warn" style="display:none;margin-bottom:12px"></div>
 <section class="card">
   <div class="card-head"><h2>Meta da clínica</h2><span class="eyebrow" id="mtMes"></span></div>
   <div class="stats" style="align-items:flex-end">
@@ -629,7 +630,7 @@ Não é subconjunto dos leads acima: inclui remarcações, retornos e quem agend
     <div class="h">Primeiro nome basta. Quem não estiver aqui entra como agendamento esporádico — soma no total, fora do resultado do setor.</div></div>
   <hr>
   <div class="f"><label>Arquivo das metas no SharePoint</label><input id="cArqMet" placeholder="https://...&#47;Metas.xlsx">
-    <div class="h">Colunas: Mês | Item | Meta. Item pode ser "Transplante", "Terapia", "Supermeta %" ou o nome do vendedor. Quem tiver permissão de escrita edita direto no Excel, sem passar pelo GitHub.</div></div>
+    <div class="h" id="cArqMetH">Colunas: Mês | Item | Meta | Serviço. Item pode ser "Transplante", "Terapia", "Supermeta %" ou o nome do vendedor.</div></div>
   <div class="f"><label>Aba das metas</label><input id="cShMet" value="Metas"></div>
   <div class="row2">
     <div class="f"><label>Aba do funil de pré-vendas</label><input id="cShPv" value="Prevendas"></div>
@@ -711,7 +712,7 @@ Não é subconjunto dos leads acima: inclui remarcações, retornos e quem agend
    ═══════════════════════════════════════════════════════════════════════ */
 /* NATIVO-INICIO */
 const NATIVO = {
-  "versao": "3",
+  "versao": "5",
   "admins": "fabricio.araujo@clinicarejuvenesce.com.br",
   "chaveAdmin": "cfg_rjvnsc",
   "tenant": "89aed341-1dc6-4d0d-b5c7-e8df4293d21d",
@@ -753,7 +754,8 @@ const NATIVO = {
       "t": [
         "com",
         "pre",
-        "cms"
+        "cms",
+        "mts"
       ]
     },
     {
@@ -761,7 +763,8 @@ const NATIVO = {
       "t": [
         "com",
         "pre",
-        "cms"
+        "cms",
+        "mts"
       ]
     },
     {
@@ -769,7 +772,8 @@ const NATIVO = {
       "t": [
         "com",
         "pre",
-        "cms"
+        "cms",
+        "mts"
       ]
     },
     {
@@ -777,7 +781,8 @@ const NATIVO = {
       "t": [
         "com",
         "pre",
-        "cms"
+        "cms",
+        "mts"
       ]
     },
     {
@@ -836,7 +841,7 @@ const NATIVO = {
       ]
     }
   ],
-  "arqMetas": "",
+  "arqMetas": "https://rejuvenesce.sharepoint.com/sites/ClnicaRejuvenesce-Comercial/Documentos%20Compartilhados/Metas.xlsx",
   "shMetasCfg": "Metas",
   "shPrevendas": "Prevendas",
   "dedupMin": 5,
@@ -856,7 +861,9 @@ const DEF={versao:"",admins:"",chaveAdmin:"",metas:{},superPct:10,arqMetas:"",sh
   refresh:10,splitTC:90,splitTE:10,mapTC:"TC,TB,TS,BH",mapTE:"TEC",ignorar:"Sem deal comercial,—,JARVYS",marcaAgendada:"Data Agendada",stRealizada:"Atendido",stNoShow:"Não compareceu",stRemarcada:"Remarcado",stFuturo:"Marcado",stCancelado:"Desmarcado pelo paciente,Cancelado pelo profissional",mesesCheios:true,shParams:"Parâmetros Comissões",arqParams:"",emailsComissao:"",equipePre:"Beatriz,Fabiana,Amanda",incluirOrfas:false,etapasVenda:"FECHAMENTO,FINALIZADO,REVISAO DE PENDENCIAS",onlyPrimeira:true,ignoraZero:true,coorte:"fechamento"};
 // versao nova zera preferencias, mas NUNCA o que e conexao/credencial
 if(store.get("rjv.cfgv")!==NATIVO.versao){
-  const CONEXAO=["tenant","client","file","ghRepo","ghWf","ghToken","regrasComissao"];
+  // credenciais e DADOS do usuario: nunca apagar ao subir a versao
+  const CONEXAO=["tenant","client","file","ghRepo","ghWf","ghToken","regrasComissao",
+                 "metas","superPct"];
   let antigo={}; try{ antigo=JSON.parse(store.get("rjv.cfg")||"{}"); }catch(e){}
   const mantem={}; for(const k of CONEXAO)if(antigo[k])mantem[k]=antigo[k];
   store.set("rjv.cfg",JSON.stringify(mantem));
@@ -865,6 +872,13 @@ if(store.get("rjv.cfgv")!==NATIVO.versao){
 const SALVO=JSON.parse(store.get("rjv.cfg")||"{}");
 let ADMIN=false;
 let CFG=Object.assign({},DEF,NATIVO,SALVO);
+// infraestrutura: quando o bloco nativo define, ele manda — ajuste local nao sobrepoe.
+// (evita que um valor velho no navegador esconda o caminho publicado)
+for(const k of ["arqMetas","shMetasCfg","arqRegras","shRegras","acessos","acessoPadrao",
+                "admins","chaveAdmin","file","tenant","client"]){
+  if(NATIVO[k]!==undefined&&NATIVO[k]!==""&&!(Array.isArray(NATIVO[k])&&!NATIVO[k].length))
+    CFG[k]=NATIVO[k];
+}
 const REDIRECT=location.origin+location.pathname;
 const TEMAS=["sistema","escuro","claro"], TEMA_ROT={sistema:"sistema",escuro:"escuro",claro:"claro"};
 function aplicaTema(t){
@@ -1912,14 +1926,20 @@ function editorMetas(){
   const rasc=(CFG.metas||{})[MT_MES];
   const m=rasc?{tc:toNum(rasc.tc),te:toNum(rasc.te),vend:rasc.vend||{}}:(metasDoMes(MT_MES)||{tc:0,te:0,vend:{}});
   const nomeMes=new Date(p.a).toLocaleDateString("pt-BR",{month:"long",year:"numeric",timeZone:"UTC"});
+  const soLocal=!!rasc&&remoto;
   $("mtMes").textContent=nomeMes+(remoto?" · sincronizado com a planilha de metas"
     :(podeEditar?"":" · somente leitura"));
+  $("mtAviso").style.display=soLocal?"":"none";
+  if(soLocal)$("mtAviso").innerHTML=
+    "<b>Estes valores estão só neste navegador.</b> Ninguém mais os vê. "+
+    "Clique em <b>Gravar na planilha de metas</b> para publicá-los para a equipe.";
   $("mtTC").value=m.tc||""; $("mtTE").value=m.te||"";
   $("mtPct").value=toNum(CFG.superPct)||10; $("mtPctL").textContent=toNum(CFG.superPct)||10;
   ["mtTC","mtTE","mtPct"].forEach(id=>$(id).disabled=!podeEditar);
   ["mtAdd","mtImport","mtCopiar"].forEach(id=>$(id).style.display=podeEditar?"":"none");
   $("mtSalvar").style.display=(podeEditar&&!remoto)?"":"none";
   $("mtGravar").style.display=(podeEditar&&remoto)?"":"none";
+  $("mtGravar").textContent=soLocal?"Gravar na planilha de metas ⚠":"Gravar na planilha de metas";
   $("mtAbrir").style.display=CFG.arqMetas?"":"none";
   if(METAS_ERRO&&CFG.arqMetas)$("mtSub").textContent="Erro ao ler o arquivo de metas: "+METAS_ERRO;
 
