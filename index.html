@@ -713,7 +713,7 @@ Não é subconjunto dos leads acima: inclui remarcações, retornos e quem agend
 /* NATIVO-INICIO */
 const NATIVO = {
   "versao": "5",
-  "admins": "fabricio.araujo@clinicarejuvenesce.com.br, samuel.nascimento@clinicarejuvenesce.com.br, francis.arantes@clinicarejuvenesce.com.br, raissa.fortini@clinicarejuvenesce.com.br",
+  "admins": "fabricio.araujo@clinicarejuvenesce.com.br",
   "chaveAdmin": "cfg_rjvnsc",
   "tenant": "89aed341-1dc6-4d0d-b5c7-e8df4293d21d",
   "client": "b7a0f205-e154-42b3-a8c5-3a3df93ac749",
@@ -837,9 +837,7 @@ const NATIVO = {
       "e": "gabriel.torres@clinicarejuvenesce.com.br",
       "t": [
         "com",
-        "pre",
-        "cms",
-        "mts"
+        "pre"
       ]
     }
   ],
@@ -956,10 +954,17 @@ function periodo(){
   const ref=hoje<a?a:(hoje>b?b:hoje);
   const totalDias=Math.round((b-a)/864e5)+1, decorridos=Math.round((ref-a)/864e5)+1;
   if(!aLit){aLit=a;bLit=b;}
-  const dentro    = hoje>=aLit&&hoje<=bLit;   // literal — faixa da aba Pré-vendas
-  const dentroExp = hoje>=a&&hoje<=b;         // expandido — projeções
-  return {a,b,aLit,bLit,ref,totalDias,decorridos,frac:Math.min(1,decorridos/totalDias),
-          mesChave:ymUTC(a),expandido,dentro,dentroExp};
+  const dentro    = hoje>=aLit&&hoje<=bLit;   // literal
+  const dentroExp = hoje>=a&&hoje<=b;         // expandido
+  // o Comercial trabalha sempre com o intervalo literal
+  const diasLit = Math.round((bLit-aLit)/864e5)+1;
+  const decLit  = Math.max(1,Math.min(diasLit,Math.round((Math.min(hoje,bLit)-aLit)/864e5)+1));
+  return {a:aLit,b:bLit,                       // COMERCIAL: intervalo literal
+          aExp:a,bExp:b,                         // PRÉ-VENDAS: meses completos
+          aLit,bLit,ref:new Date(Math.min(hoje,bLit)),
+          totalDias:diasLit,decorridos:decLit,frac:Math.min(1,decLit/diasLit),
+          totalDiasExp:totalDias,decorridosExp:decorridos,
+          mesChave:ymUTC(aLit),expandido,dentro,dentroExp};
 }
 function diasUteisRestantes(p){
   let n=0; for(let d=new Date(p.ref.getTime()+864e5);d<=p.b;d=new Date(d.getTime()+864e5)){const w=d.getUTCDay();if(w>=1&&w<=5)n++;}
@@ -1051,19 +1056,31 @@ function computar(){
     const diasMes=new Date(Date.UTC(p.a.getUTCFullYear(),p.a.getUTCMonth()+1,0)).getUTCDate();
     meta=meta*(p.totalDias/diasMes); metaTC=metaTC&&metaTC*(p.totalDias/diasMes); metaTE=metaTE&&metaTE*(p.totalDias/diasMes);
   }
-  const mCfg=metasDoMes(p.mesChave);
-  if(mCfg&&(mCfg.tc||mCfg.te)){
-    metaTC=mCfg.tc; metaTE=mCfg.te; meta=mCfg.tc+mCfg.te;
-    if($("periodo").value==="custom"){
-      const dm=new Date(Date.UTC(p.a.getUTCFullYear(),p.a.getUTCMonth()+1,0)).getUTCDate();
-      const f=p.totalDias/dm; meta*=f; metaTC*=f; metaTE*=f;
+  // dentro do mesmo mês usa a meta cheia; atravessando meses, soma o proporcional de cada um
+  const fatiasMes=(()=>{
+    const out=[]; let cur=new Date(Date.UTC(p.a.getUTCFullYear(),p.a.getUTCMonth(),1));
+    while(cur<=p.b){
+      const ini=new Date(Math.max(cur,p.a));
+      const fimMes=new Date(Date.UTC(cur.getUTCFullYear(),cur.getUTCMonth()+1,0));
+      const fim=new Date(Math.min(fimMes,p.b));
+      out.push({ym:ymUTC(cur),dias:Math.round((fim-ini)/864e5)+1,diasMes:fimMes.getUTCDate()});
+      cur=new Date(Date.UTC(cur.getUTCFullYear(),cur.getUTCMonth()+1,1));
     }
+    return out;
+  })();
+  let mTC=0,mTE=0,temCfg=false;
+  for(const f of fatiasMes){
+    const m=metasDoMes(f.ym); if(!m||!(m.tc||m.te))continue;
+    temCfg=true;
+    const fr = fatiasMes.length===1 ? 1 : f.dias/f.diasMes;
+    mTC+=m.tc*fr; mTE+=m.te*fr;
   }
+  const mCfg=temCfg?{tc:mTC,te:mTE}:null;
+  if(mCfg){ metaTC=mCfg.tc; metaTE=mCfg.te; meta=mCfg.tc+mCfg.te; }
   if(metaTC==null)metaTC=meta*(CFG.splitTC/100);
   if(metaTE==null)metaTE=meta*(CFG.splitTE/100);
   out.meta={total:meta,tc:metaTC,te:metaTE,
-            estimada:(iMtc<0||iMte<0)&&!(mCfg&&(mCfg.tc||mCfg.te)),
-            daConfig:!!(mCfg&&(mCfg.tc||mCfg.te))};
+            estimada:(iMtc<0||iMte<0)&&!mCfg, daConfig:!!mCfg, fatias:fatiasMes.length};
 
   const iK=pick(cv,"MM/AAAA da Avaliação","MM/AAAA da Avaliacao","MM/AAAA Avaliação");
   const iNome=pick(cv,"Nome");
@@ -1198,7 +1215,7 @@ function computar(){
   // quantos agendamentos cada paciente tem no periodo
   const porPac=new Map();
   for(const r of M.rows){
-    const d=toDate(r[iDc]); if(!d||d<p.a||d>p.b)continue;
+    const d=toDate(r[iDc]); if(!d||d<p.aExp||d>p.bExp)continue;
     const k=chavePac(r); if(!k)continue;
     porPac.set(k,(porPac.get(k)||0)+1);
   }
@@ -1207,7 +1224,7 @@ function computar(){
   let reclass=0;
   const hj=new Date(); const hojeK=ymdUTC(new Date(Date.UTC(hj.getFullYear(),hj.getMonth(),hj.getDate())));
   for(const r of M.rows){
-    const d=toDate(r[iDc]); if(!d||d<p.a||d>p.b)continue;
+    const d=toDate(r[iDc]); if(!d||d<p.aExp||d>p.bExp)continue;
     const st=norm(r[iSt]);
     // ordem importa: cancelado antes de futuro, senao "Desmarcado" casa com "Marcado"
     let tipo = st===sRe ? "re"
@@ -1475,7 +1492,7 @@ function funilPrevendas(p,MC){
   const cri=r=>dataHora(r,i.dCri,i.hCri);
 
   // recorte do periodo por data de criacao
-  let base=P.rows.filter(r=>{const d=cri(r);return d&&d>=p.a&&d<=p.b;});
+  let base=P.rows.filter(r=>{const d=cri(r);return d&&d>=p.aExp&&d<=p.bExp;});
 
   // ---- expurgo de duplicados ----
   const jan=(toNum(CFG.dedupMin)||0)*60000;
@@ -1538,7 +1555,7 @@ function funilPrevendas(p,MC){
     for(const r of MC.M.rows){
       if(norm(MC.iSt>=0?r[MC.iSt]:"")!==stOk)continue;
       const d=toDate(MC.iDc>=0?r[MC.iDc]:null);
-      if(!d||d<p.a||d>p.b)continue;
+      if(!d||d<p.aExp||d>p.bExp)continue;
       o.avalPeriodo++;
       const t=norm(MC.iTipo>=0?r[MC.iTipo]:"");
       const me = t.includes("ONLINE") ? "Online"
