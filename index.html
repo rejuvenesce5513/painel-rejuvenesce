@@ -1503,8 +1503,34 @@ function funilPrevendas(p,MC){
   }
 
   const est=r=>norm(i.estado>=0?r[i.estado]:"");
-  const avaliou=r=>norm(i.avR>=0?r[i.avR]:"")==="SIM";
-  const o={tot:manter.length,ganho:0,perda:0,and:0,outro:0,aval:0,
+  // quem compareceu vem do Feegow (aba Marcações, status Atendido), nao do campo
+  // "Avaliação Realizada?" do RD, que fica em branco na maioria dos casos.
+  const atendidos=new Map();                      // chave -> datas de comparecimento
+  if(MC&&MC.M&&MC.M.rows){
+    const stOk=norm(CFG.stRealizada);
+    const põe=(k,d)=>{ if(!k)return; const a=atendidos.get(k)||[]; a.push(+d); atendidos.set(k,a); };
+    for(const r of MC.M.rows){
+      if(norm(MC.iSt>=0?r[MC.iSt]:"")!==stOk)continue;
+      const d=toDate(MC.iDc>=0?r[MC.iDc]:null); if(!d)continue;
+      const fid=String((MC.iIdPac>=0?r[MC.iIdPac]:"")??"").trim().replace(/\.0+$/,"");
+      if(fid)põe("F:"+fid,d);
+      põe("N:"+pacKey(MC.iPac>=0?r[MC.iPac]:""),d);
+    }
+  }
+  const iFee=pick(c,"ID Feegow");
+  // exige atendimento a partir da criação do lead: sem isso, uma consulta antiga
+  // do mesmo paciente contaria como avaliação deste lead
+  const compareceu=r=>{
+    const dc=cri(r); if(!dc)return false;
+    const piso=+dc-864e5;                        // 1 dia de folga
+    const fid=String((iFee>=0?r[iFee]:"")??"").trim().replace(/\.0+$/,"");
+    const listas=[fid?atendidos.get("F:"+fid):null,
+                  atendidos.get("N:"+pacKey(i.nome>=0?r[i.nome]:""))];
+    return listas.some(L=>L&&L.some(t=>t>=piso));
+  };
+  const campoRD=r=>norm(i.avR>=0?r[i.avR]:"")==="SIM";
+  const avaliou=r=>compareceu(r)||campoRD(r);
+  const o={tot:manter.length,ganho:0,perda:0,and:0,outro:0,aval:0,avalRD:0,avalSoFeegow:0,
            dup:dupCopia+dupJanela,dupCopia,dupJanela,
            tPri:[],tGanho:[],tPerda:[],
            resp:new Map(),fonte:new Map(),meio:new Map(),avaliador:new Map(),motivos:new Map()};
@@ -1513,7 +1539,7 @@ function funilPrevendas(p,MC){
   for(const r of manter){
     const e=est(r), a=avaliou(r);
     const tipo=e==="VENDIDA"?"ganho":e==="PERDIDA"?"perda":e==="EM ANDAMENTO"?"and":"outro";
-    o[tipo]++; if(a)o.aval++;
+    o[tipo]++; if(a){o.aval++; if(campoRD(r))o.avalRD++; else o.avalSoFeegow++;}
     const dc=cri(r), dp=dataHora(r,i.dPri,i.hPri), df=dataHora(r,i.dFec,i.hFec);
     if(dc&&dp&&dp>=dc)o.tPri.push((dp-dc)/3600000);
     if(dc&&df&&df>=dc){ if(tipo==="ganho")o.tGanho.push((df-dc)/3600000);
@@ -2190,7 +2216,11 @@ function renderFunil(F,EV){
     st("Perdidos",INT.format(F.perda)+' <small>'+fpct(pct(F.perda,F.tot))+"</small>","var(--neg)")+
     st("Em andamento",INT.format(F.and)+' <small>'+fpct(pct(F.and,F.tot))+"</small>","var(--tc)")+
     st("Avaliações realizadas",INT.format(F.aval)+' <small>'+fpct(pct(F.aval,F.tot))+"</small>","var(--tec)");
-  $("fnSub").textContent=F.dup?F.dup+" duplicado(s) expurgado(s) — "+F.dupJanela+" por proximidade de criação, "+F.dupCopia+" marcados como cópia":"nenhum duplicado no período";
+  if(F.avalSoFeegow)$("fnSub").insertAdjacentHTML("beforeend","");
+  $("fnSub").textContent=
+    (F.dup?F.dup+" duplicado(s) expurgado(s) · ":"")+
+    "comparecimento pela agenda do Feegow"+
+    (F.avalSoFeegow?" · "+INT.format(F.avalSoFeegow)+" sem o campo marcado no CRM":"");
   $("fnTempos").innerHTML=
     st("Até o primeiro contato",fmtDur(F.mPri),"var(--tc)")+
     st("Até o ganho",fmtDur(F.mGanho),"var(--pos)")+
