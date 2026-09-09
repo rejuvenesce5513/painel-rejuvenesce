@@ -220,6 +220,7 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
     <button id="tabCom" class="on">Comercial</button>
     <button id="tabPre">Pré-vendas</button>
     <button id="tabCom2">Comissões</button>
+    <button id="tabCir">Cirurgias</button>
     <button id="tabMts">Metas</button>
   </div>
   <div class="ctl">
@@ -552,6 +553,40 @@ Não é subconjunto dos leads acima: inclui remarcações, retornos e quem agend
 </div>
 </div>
 
+<div id="viewCir" style="display:none">
+<div id="cirLock" class="msg warn" style="display:none"></div>
+<div id="cirBody">
+
+<section class="card hojebar">
+  <div class="card-head"><h2>Hoje</h2><span class="eyebrow" id="cirHojeSub"></span></div>
+  <div class="stats" id="cirHoje"></div>
+</section>
+
+<section class="card" style="margin-top:14px">
+  <div class="card-head"><h2>Acumulado do ano</h2><span class="eyebrow" id="cirAnoSub"></span></div>
+  <div class="track"><div class="fillproj" id="cirAnoProj" style="width:0%"></div><div class="fill" id="cirAnoFill" style="width:0%"></div></div>
+  <div class="stats" id="cirAno" style="margin-top:14px"></div>
+</section>
+
+<section class="card" style="margin-top:14px">
+  <div class="card-head"><h2>Período selecionado</h2><span class="eyebrow" id="cirPerSub"></span></div>
+  <div class="track"><div class="fill" id="cirPerFill" style="width:0%"></div></div>
+  <div class="stats" id="cirPer" style="margin-top:14px"></div>
+</section>
+
+<section class="aux" style="margin-top:14px">
+  <div class="card tc">
+    <div class="card-head"><h2>Situação no período</h2><span class="eyebrow" id="cirSitSub"></span></div>
+    <div id="cirSit"></div>
+  </div>
+  <div class="card tec">
+    <div class="card-head"><h2>Cirurgias por dia</h2><span class="eyebrow">realizadas · últimos 31 dias do período</span></div>
+    <div id="cirDias"></div>
+  </div>
+</section>
+</div>
+</div>
+
 <div id="viewMts" style="display:none">
 <div id="mtLock" class="msg warn" style="display:none"></div>
 <div id="mtBody">
@@ -638,6 +673,15 @@ Não é subconjunto dos leads acima: inclui remarcações, retornos e quem agend
   <div class="f"><label>Arquivo das metas no SharePoint</label><input id="cArqMet" placeholder="https://...&#47;Metas.xlsx">
     <div class="h" id="cArqMetH">Colunas: Mês | Item | Meta | Serviço. Item pode ser "Transplante", "Terapia", "Supermeta %" ou o nome do vendedor.</div></div>
   <div class="f"><label>Aba das metas</label><input id="cShMet" value="Metas"></div>
+  <hr>
+  <div class="f"><label>Arquivo de cirurgias no SharePoint</label><input id="cArqCir" placeholder="https://...&#47;Cirurgias.xlsx">
+    <div class="h">Colunas: DATA | ID AGENDAMENTO | PROCEDIMENTO | ID FEEGOW | SITUAÇÃO | VALOR.</div></div>
+  <div class="row2">
+    <div class="f"><label>Aba das cirurgias</label><input id="cShCir" value="Cirurgias"></div>
+    <div class="f"><label>Cirurgias por dia útil</label><input id="cCirDia" type="number" min="1" value="11"></div>
+  </div>
+  <div class="f"><label>Feriados (dd/mm/aaaa, separados por vírgula)</label><input id="cFeriados" placeholder="07/09/2026, 12/10/2026">
+    <div class="h">Descontados do cálculo de dias úteis.</div></div>
   <div class="row2">
     <div class="f"><label>Aba do funil de pré-vendas</label><input id="cShPv" value="Prevendas"></div>
     <div class="f"><label>Janela de duplicidade (min)</label><input id="cDedup" type="number" min="0" value="5"></div>
@@ -846,6 +890,10 @@ const NATIVO = {
       ]
     }
   ],
+  "arqCirurgias": "https://rejuvenesce.sharepoint.com/sites/ClnicaRejuvenesce-Comercial/Documentos%20Compartilhados/Cirurgias.xlsx",
+  "shCirurgias": "Cirurgias",
+  "cirPorDia": 11,
+  "feriados": "",
   "arqMetas": "https://rejuvenesce.sharepoint.com/sites/ClnicaRejuvenesce-Comercial/Documentos%20Compartilhados/Metas.xlsx",
   "shMetasCfg": "Metas",
   "shPrevendas": "Prevendas",
@@ -862,7 +910,7 @@ const store={
   set(k,v){ try{localStorage.setItem(k,v);}catch(e){mem[k]=v;} },
   del(k){ try{localStorage.removeItem(k);}catch(e){delete mem[k];} }
 };
-const DEF={versao:"",admins:"",chaveAdmin:"",metas:{},superPct:10,arqMetas:"",shMetasCfg:"Metas",shPrevendas:"Prevendas",dedupMin:5,ghPainelRepo:"",ghPainelPath:"index.html",ghPainelBranch:"main",ghTokenPainel:"",acessos:[],acessoPadrao:[],arqRegras:"",shRegras:"Parâmetros Comissões",regrasComissao:"",tenant:"89aed341-1dc6-4d0d-b5c7-e8df4293d21d",client:"",file:"",autoEntrar:true,ghRepo:"",ghWf:"sync.yml",ghToken:"",shVendas:"Vendas",shMarc:"Marcações",shMetas:"Metas",
+const DEF={versao:"",admins:"",chaveAdmin:"",metas:{},superPct:10,arqCirurgias:"",shCirurgias:"Cirurgias",cirPorDia:11,feriados:"",arqMetas:"",shMetasCfg:"Metas",shPrevendas:"Prevendas",dedupMin:5,ghPainelRepo:"",ghPainelPath:"index.html",ghPainelBranch:"main",ghTokenPainel:"",acessos:[],acessoPadrao:[],arqRegras:"",shRegras:"Parâmetros Comissões",regrasComissao:"",tenant:"89aed341-1dc6-4d0d-b5c7-e8df4293d21d",client:"",file:"",autoEntrar:true,ghRepo:"",ghWf:"sync.yml",ghToken:"",shVendas:"Vendas",shMarc:"Marcações",shMetas:"Metas",
   refresh:10,splitTC:90,splitTE:10,mapTC:"TC,TB,TS,BH",mapTE:"TEC",ignorar:"Sem deal comercial,—,JARVYS",marcaAgendada:"Data Agendada",stRealizada:"Atendido",stNoShow:"Não compareceu",stRemarcada:"Remarcado",stFuturo:"Marcado",stCancelado:"Desmarcado pelo paciente,Cancelado pelo profissional",mesesCheios:true,shParams:"Parâmetros Comissões",arqParams:"",emailsComissao:"",equipePre:"Beatriz,Fabiana,Amanda",incluirOrfas:false,etapasVenda:"FECHAMENTO,FINALIZADO,REVISAO DE PENDENCIAS",onlyPrimeira:true,ignoraZero:true,coorte:"fechamento"};
 // versao nova zera preferencias, mas NUNCA o que e conexao/credencial
 if(store.get("rjv.cfgv")!==NATIVO.versao){
@@ -1263,6 +1311,7 @@ function computar(){
 
   out.com=comissoes(V,cv,p);
 
+  out.cir2=calcCirurgias(p);
   out.funil=funilPrevendas(p,{M,cm,iDc,iTipo,iSt,iPac,iIdPac,compradores,porFeegow});
 
 
@@ -1605,6 +1654,74 @@ function normVend(v){                       // aceita número antigo ou {tc,te}
   if(v&&typeof v==="object")return {tc:toNum(v.tc),te:toNum(v.te)};
   const n=toNum(v); return {tc:n,te:0,semSplit:n>0};
 }
+function feriadosSet(){
+  const out=new Set();
+  for(const t of String(CFG.feriados||"").split(",")){
+    const d=toDate(t.trim()); if(d)out.add(ymdUTC(d));
+  }
+  return out;
+}
+function diasUteis(a,b,fer){
+  fer=fer||feriadosSet();
+  let n=0, d=new Date(a);
+  while(d<=b){
+    const w=d.getUTCDay();
+    if(w>=1&&w<=5&&!fer.has(ymdUTC(d)))n++;
+    d=new Date(+d+864e5);
+  }
+  return n;
+}
+
+function calcCirurgias(p){
+  const C=CIRURGIAS;
+  if(!C||!C.headers||!C.rows)return null;
+  const c=colmap(C.headers);
+  const iD=pick(c,"DATA","Data"), iA=pick(c,"ID AGENDAMENTO","Id Agendamento"),
+        iP=pick(c,"PROCEDIMENTO","Procedimento"), iF=pick(c,"ID FEEGOW","Id Feegow","ID Paciente"),
+        iS=pick(c,"SITUAÇÃO","Situação","Situacao"), iV=pick(c,"VALOR","Valor");
+  const stOk=norm(CFG.stRealizada);                       // "Atendido"
+  const aguard=["AGUARDANDO","CHAMANDO","EM ATENDIMENTO","AGUARDANDO PAGAMENTO"];
+  const hj=new Date(); const hoje=new Date(Date.UTC(hj.getFullYear(),hj.getMonth(),hj.getDate()));
+  const anoIni=new Date(Date.UTC(hoje.getUTCFullYear(),0,1));
+  const anoFim=new Date(Date.UTC(hoje.getUTCFullYear(),11,31));
+  const fer=feriadosSet(), porDia=toNum(CFG.cirPorDia)||11;
+
+  const o={hojeAtend:0,hojeAguard:0,hojeTot:0,
+           anoReal:0,perReal:0,perAgend:0,perValor:0,
+           porSit:new Map(),porDiaMapa:new Map()};
+  for(const r of C.rows){
+    const d=toDate(iD>=0?r[iD]:null); if(!d)continue;
+    const st=norm(iS>=0?r[iS]:"");
+    const real=st===stOk;
+    if(+d===+hoje){
+      if(real)o.hojeAtend++;
+      else if(aguard.some(x=>st.includes(x)))o.hojeAguard++;
+    }
+    if(d>=anoIni&&d<=anoFim&&real)o.anoReal++;
+    if(d>=p.a&&d<=p.b){
+      o.perAgend++;
+      o.porSit.set(st||"(sem status)",(o.porSit.get(st||"(sem status)")||0)+1);
+      if(real){
+        o.perReal++;
+        o.perValor+=toNum(iV>=0?r[iV]:0);
+        const k=ymdUTC(d); o.porDiaMapa.set(k,(o.porDiaMapa.get(k)||0)+1);
+      }
+    }
+  }
+  o.hojeTot=o.hojeAtend+o.hojeAguard;
+  o.duHoje=diasUteis(hoje,hoje,fer)||1;
+  o.metaHoje=porDia*o.duHoje;
+  o.duAnoAte=diasUteis(anoIni,hoje,fer);
+  o.duAno=diasUteis(anoIni,anoFim,fer);
+  o.metaAnoAte=porDia*o.duAnoAte;
+  o.metaAno=porDia*o.duAno;
+  o.duPer=diasUteis(p.a,p.b,fer);
+  o.metaPer=porDia*o.duPer;
+  o.mediaDia=o.duPer?o.perReal/o.duPer:0;
+  o.porDia=porDia;
+  return o;
+}
+
 function metasDoMes(mes){
   const r=METAS_REM&&METAS_REM[mes];
   const cru=r||((CFG.metas||{})[mes]);
@@ -1864,6 +1981,7 @@ function render(){
   renderComissoes(D,p);
 
   renderFunil(D.funil,D.ev);
+  renderCirurgias(D.cir2,p);
 
   const av=[];
   if(A.outro.q)av.push("R$ "+INT.format(Math.round(A.outro.v))+" em "+A.outro.q+" negócio(s) de serviços fora do mapeamento entram só na barra principal.");
@@ -1879,7 +1997,7 @@ function render(){
   $("pilha").style.display=av.length?"inline-flex":"none";
   $("avisos").style.display=(av.length&&mostrarAvisos)?"":"none";
 }
-const ABAS=[["com","Comercial"],["pre","Pré-vendas"],["cms","Comissões"],["mts","Metas"]];
+const ABAS=[["com","Comercial"],["pre","Pré-vendas"],["cir","Cirurgias"],["cms","Comissões"],["mts","Metas"]];
 
 function emailAtual(){ return norm((USUARIO&&(USUARIO.mail||USUARIO.userPrincipalName))||""); }
 
@@ -1895,10 +2013,11 @@ function abasPermitidas(){
 
 function aplicaAcessos(){
   const ok=abasPermitidas();
-  const bt={com:"tabCom",pre:"tabPre",cms:"tabCom2",mts:"tabMts"};
+  const bt={com:"tabCom",pre:"tabPre",cir:"tabCir",cms:"tabCom2",mts:"tabMts"};
   for(const [k] of ABAS)$(bt[k]).style.display=ok.includes(k)?"":"none";
   if(!ok.length){
-    $("viewComercial").style.display=$("viewPre").style.display=$("viewCom").style.display=$("viewMts").style.display="none";
+    $("viewComercial").style.display=$("viewPre").style.display=$("viewCom").style.display=
+      $("viewMts").style.display=$("viewCir").style.display="none";
     $("banner").innerHTML='<div class="msg warn"><b>Nenhum painel liberado para '+
       esc(emailAtual()||"seu usuário")+'.</b><br>Peça acesso a quem administra.</div>';
     return;
@@ -2211,6 +2330,77 @@ function renderComissoes(D,p){
     (REGRAS_FONTE?" · regras: "+REGRAS_FONTE:" · regras locais deste navegador");
 }
 
+function renderCirurgias(K,p){
+  const lock=$("cirLock"), body=$("cirBody"); if(!lock)return;
+  if(!K){
+    lock.style.display=""; body.style.display="none";
+    lock.innerHTML=CIR_ERRO
+      ? "<b>Não consegui ler a planilha de cirurgias.</b><br>"+esc(CIR_ERRO)
+      : "<b>Planilha de cirurgias não configurada.</b><br>Aponte o arquivo em Configurar.";
+    return;
+  }
+  lock.style.display="none"; body.style.display="";
+  const st=(r,v,c,sub)=>'<div class="stat"><div class="l">'+r+'</div><div class="v num" style="color:'+
+    (c||"var(--txt)")+'">'+v+'</div>'+(sub?'<div class="l" style="margin-top:3px">'+sub+'</div>':"")+'</div>';
+  const cor=x=>x>=100?"var(--pos)":x>=70?"var(--tec)":"var(--neg)";
+
+  const ocHoje=pct(K.hojeTot,K.metaHoje);
+  $("cirHoje").innerHTML=
+    st("Na agenda de hoje",INT.format(K.hojeTot))+
+    st("Já atendidas",INT.format(K.hojeAtend),"var(--pos)")+
+    st("Aguardando",INT.format(K.hojeAguard),"var(--tc)")+
+    st("Ocupação do dia",fpct(ocHoje),cor(ocHoje),INT.format(K.hojeTot)+" de "+INT.format(K.metaHoje));
+  $("cirHojeSub").textContent=new Date().toLocaleDateString("pt-BR",{weekday:"long",day:"2-digit",month:"long"});
+
+  const ocAno=pct(K.anoReal,K.metaAnoAte);
+  const projAno=K.duAnoAte?K.anoReal/K.duAnoAte*K.duAno:0;
+  $("cirAnoFill").style.width=Math.min(100,ocAno)+"%";
+  $("cirAnoProj").style.width=Math.min(100,pct(projAno,K.metaAno))+"%";
+  $("cirAno").innerHTML=
+    st("Realizadas no ano",INT.format(K.anoReal),"var(--pos)")+
+    st("Meta até hoje",INT.format(K.metaAnoAte),null,INT.format(K.duAnoAte)+" dias úteis × "+K.porDia)+
+    st("Ocupação",fpct(ocAno),cor(ocAno))+
+    st("Meta do ano",INT.format(K.metaAno),"var(--muted)",INT.format(K.duAno)+" dias úteis")+
+    st("Projeção no ritmo",INT.format(Math.round(projAno)),"var(--tc)",fpct(pct(projAno,K.metaAno))+" da meta anual");
+  $("cirAnoSub").textContent="não muda com o período selecionado";
+
+  const ocPer=pct(K.perReal,K.metaPer);
+  $("cirPerFill").style.width=Math.min(100,ocPer)+"%";
+  $("cirPer").innerHTML=
+    st("Realizadas",INT.format(K.perReal),"var(--pos)")+
+    st("Agendadas",INT.format(K.perAgend),"var(--tc)")+
+    st("Média por dia útil",(K.mediaDia).toFixed(1).replace(".",","),null,"meta "+K.porDia)+
+    st("Ocupação",fpct(ocPer),cor(ocPer),INT.format(K.perReal)+" de "+INT.format(K.metaPer))+
+    (K.perValor?st("Valor",BRL.format(K.perValor),"var(--tec)"):"");
+  $("cirPerSub").textContent=INT.format(K.duPer)+" dia(s) útil(eis) no período";
+
+  const barras=(alvo,pares,total,c2)=>{
+    const el=$(alvo); if(!el)return; el.innerHTML="";
+    if(!pares.length){el.innerHTML='<div style="color:var(--dim);font-size:13px">sem dados no período</div>';return;}
+    for(const [k,v] of pares)
+      el.insertAdjacentHTML("beforeend",
+        '<div style="margin-bottom:9px"><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:3px">'+
+        '<span>'+esc(k)+'</span><span class="num"><b>'+INT.format(v)+'</b> <span style="color:var(--muted)">'+
+        fpct(pct(v,total))+'</span></span></div><div class="minitrack" style="margin:0">'+
+        '<div class="minifill" style="width:'+pct(v,total)+'%;background:'+c2+'"></div></div></div>');
+  };
+  barras("cirSit",[...K.porSit.entries()].sort((a,b)=>b[1]-a[1]),K.perAgend||1,"var(--tc)");
+  $("cirSitSub").textContent=INT.format(K.perAgend)+" agendamentos";
+  const dias=[...K.porDiaMapa.entries()].sort().slice(-31);
+  const maxD=Math.max(1,...dias.map(x=>x[1]));
+  const el=$("cirDias"); el.innerHTML="";
+  if(!dias.length)el.innerHTML='<div style="color:var(--dim);font-size:13px">sem cirurgias realizadas no período</div>';
+  for(const [k,v] of dias){
+    const [a2,m2,d2]=k.split("-");
+    el.insertAdjacentHTML("beforeend",
+      '<div style="display:flex;align-items:center;gap:9px;margin-bottom:5px;font-size:12.5px">'+
+      '<span style="width:52px;color:var(--muted)">'+d2+"/"+m2+'</span>'+
+      '<div class="minitrack" style="margin:0;flex:1"><div class="minifill" style="width:'+(v/maxD*100)+
+      '%;background:'+(v>=K.porDia?"var(--pos)":"var(--tec)")+'"></div></div>'+
+      '<span class="num" style="width:26px;text-align:right"><b>'+v+"</b></span></div>");
+  }
+}
+
 function renderFunil(F,EV){
   const bloco=$("fnBloco"); if(!bloco)return;
   if(!F){ bloco.style.display="none"; return; }
@@ -2401,6 +2591,7 @@ function shareId(u){
 const REF={drive:null,item:null,nome:null,mod:null};
 let PARAMS=null, PARAMS_ERRO=null, USUARIO=null, REGRAS_REMOTAS=null, REGRAS_ERRO=null, REGRAS_P=null, REGRAS_FONTE="";
 let METAS_REM=null, METAS_ERRO=null, REF_METAS=null, METAS_LINHAS=0;
+let CIRURGIAS=null, CIR_ERRO=null;
 
 function lerGradeMetas(rows){
   const out={};
@@ -2511,6 +2702,13 @@ async function carregar(){
       const refP = CFG.arqParams ? await resolveItem2(tk,CFG.arqParams) : ref;
       PARAMS=await readSheet(tk,refP,CFG.shParams,true);
     }catch(e){ PARAMS_ERRO=String(e.message||e); }
+    CIRURGIAS=null; CIR_ERRO=null;
+    if(CFG.arqCirurgias){
+      try{
+        const refC=await resolveItem2(tk,CFG.arqCirurgias);
+        CIRURGIAS=await readSheet(tk,refC,CFG.shCirurgias);
+      }catch(e){ CIR_ERRO=String(e.message||e); }
+    }
     METAS_REM=null; METAS_ERRO=null;
     if(CFG.arqMetas){
       try{
@@ -2551,7 +2749,7 @@ function setStatus(k,t){$("dot").className="dot "+k;$("statusTxt").textContent=t
 
 /* ============================ config UI ============================ */
 const F={cTenant:"tenant",cClient:"client",cFile:"file",cShVendas:"shVendas",cShMarc:"shMarc",cShMetas:"shMetas",
-  cRefresh:"refresh",cSplitTC:"splitTC",cSplitTE:"splitTE",cMapTC:"mapTC",cMapTE:"mapTE",cIgnorar:"ignorar",cAgendada:"marcaAgendada",cStRe:"stRealizada",cStNs:"stNoShow",cStRm:"stRemarcada",cStFu:"stFuturo",cStCa:"stCancelado",cRegras:"regrasComissao",cAdmins:"admins",cArqReg:"arqRegras",cShReg:"shRegras",cGhPRepo:"ghPainelRepo",cGhPPath:"ghPainelPath",cGhPBr:"ghPainelBranch",cGhPTok:"ghTokenPainel",cArqMet:"arqMetas",cShMet:"shMetasCfg",cShPv:"shPrevendas",cDedup:"dedupMin",cEmails:"emailsComissao",cEquipe:"equipePre",cOrfas:"incluirOrfas",cEtapas:"etapasVenda",
+  cRefresh:"refresh",cSplitTC:"splitTC",cSplitTE:"splitTE",cMapTC:"mapTC",cMapTE:"mapTE",cIgnorar:"ignorar",cAgendada:"marcaAgendada",cStRe:"stRealizada",cStNs:"stNoShow",cStRm:"stRemarcada",cStFu:"stFuturo",cStCa:"stCancelado",cRegras:"regrasComissao",cAdmins:"admins",cArqReg:"arqRegras",cShReg:"shRegras",cGhPRepo:"ghPainelRepo",cGhPPath:"ghPainelPath",cGhPBr:"ghPainelBranch",cGhPTok:"ghTokenPainel",cArqMet:"arqMetas",cShMet:"shMetasCfg",cArqCir:"arqCirurgias",cShCir:"shCirurgias",cCirDia:"cirPorDia",cFeriados:"feriados",cShPv:"shPrevendas",cDedup:"dedupMin",cEmails:"emailsComissao",cEquipe:"equipePre",cOrfas:"incluirOrfas",cEtapas:"etapasVenda",
   cOnlyPrimeira:"onlyPrimeira",cIgnoraZero:"ignoraZero",cCoorte:"coorte",cAutoEntrar:"autoEntrar",cGhRepo:"ghRepo",cGhWf:"ghWf",cGhToken:"ghToken"};
 function cfgToUI(){editorAcessos();for(const id in F){const el=$(id);if(el.type==="checkbox")el.checked=!!CFG[F[id]];else el.value=CFG[F[id]];}
   $("cRedirect").textContent=REDIRECT;}
@@ -2646,20 +2844,23 @@ let ABA_ATUAL="com";
 function aba(q){
   ABA_ATUAL=q;
   $("tituloPainel").textContent={com:"Painel Comercial",pre:"Painel Pré-vendas",
-    cms:"Painel Comissões",mts:"Configuração de Metas"}[q]||"Painel";
+    cir:"Painel Cirurgias",cms:"Painel Comissões",mts:"Configuração de Metas"}[q]||"Painel";
   $("viewComercial").style.display=q==="com"?"":"none";
   $("viewPre").style.display=q==="pre"?"":"none";
   $("viewCom").style.display=q==="cms"?"":"none";
   $("viewMts").style.display=q==="mts"?"":"none";
+  $("viewCir").style.display=q==="cir"?"":"none";
   $("tabCom").className=q==="com"?"on":"";
   $("tabPre").className=q==="pre"?"on":"";
   $("tabCom2").className=q==="cms"?"on":"";
   $("tabMts").className=q==="mts"?"on":"";
+  $("tabCir").className=q==="cir"?"on":"";
   if(q==="mts")editorMetas();
 }
 $("tabCom").onclick=()=>aba("com");
 $("tabPre").onclick=()=>aba("pre");
 $("tabCom2").onclick=()=>aba("cms");
+$("tabCir").onclick=()=>aba("cir");
 $("tabMts").onclick=()=>aba("mts");
 ["mtTC","mtTE","mtPct"].forEach(id=>$(id).onchange=()=>{lerMetas();editorMetas();});
 $("mtGravar").onclick=escreverMetas;
