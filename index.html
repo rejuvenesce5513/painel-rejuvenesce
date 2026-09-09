@@ -395,6 +395,12 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
   <div class="card-head"><h2>1 · Funil de pré-vendas</h2><span class="eyebrow" id="fnSub"></span></div>
   <div class="h" style="margin:-4px 0 12px">leads da aba de pré-vendas, contados pela data de criação</div>
   <div class="stats" id="fnCards"></div>
+  <div style="margin-top:14px;padding-top:12px;border-top:1px dashed var(--line);display:flex;
+              align-items:baseline;gap:12px;flex-wrap:wrap">
+    <div class="l" style="min-width:0">DESTES 235, COMPARECERAM</div>
+    <div class="v num" id="fnAval1" style="color:var(--tec);font-size:26px">0</div>
+    <div class="h" id="fnAval2" style="flex:1;min-width:220px"></div>
+  </div>
 </section>
 
 <section class="card" style="margin-top:14px">
@@ -2210,17 +2216,24 @@ function renderFunil(F,EV){
   if(!F){ bloco.style.display="none"; return; }
   bloco.style.display="";
   const st=(r,v,c)=>'<div class="stat"><div class="l">'+r+'</div><div class="v num" style="color:'+(c||"var(--txt)")+'">'+v+'</div></div>';
+  const soma=F.ganho+F.perda+F.and+F.outro;
   $("fnCards").innerHTML=
     st("Leads recebidos",INT.format(F.tot))+
     st("Ganhos",INT.format(F.ganho)+' <small>'+fpct(pct(F.ganho,F.tot))+"</small>","var(--pos)")+
     st("Perdidos",INT.format(F.perda)+' <small>'+fpct(pct(F.perda,F.tot))+"</small>","var(--neg)")+
     st("Em andamento",INT.format(F.and)+' <small>'+fpct(pct(F.and,F.tot))+"</small>","var(--tc)")+
-    st("Avaliações realizadas",INT.format(F.aval)+' <small>'+fpct(pct(F.aval,F.tot))+"</small>","var(--tec)");
-  if(F.avalSoFeegow)$("fnSub").insertAdjacentHTML("beforeend","");
-  $("fnSub").textContent=
-    (F.dup?F.dup+" duplicado(s) expurgado(s) · ":"")+
-    "comparecimento pela agenda do Feegow"+
-    (F.avalSoFeegow?" · "+INT.format(F.avalSoFeegow)+" sem o campo marcado no CRM":"");
+    (F.outro?st("Outro estado",INT.format(F.outro),"var(--muted)"):"");
+  const el1=$("fnAval1"), el2=$("fnAval2");
+  if(el1){
+    el1.textContent=INT.format(F.aval)+"  ("+fpct(pct(F.aval,F.tot))+")";
+    el1.previousElementSibling.textContent="DESTES "+INT.format(F.tot)+", COMPARECERAM";
+    el2.innerHTML="Não é um quarto estado: cruza com ganhos, perdidos e em andamento, "+
+      "por isso não entra na soma acima."+
+      (F.avalSoFeegow?" <b>"+INT.format(F.avalSoFeegow)+"</b> sem o campo marcado no CRM — "+
+       "contados pela agenda do Feegow.":"");
+  }
+  $("fnSub").textContent=(F.dup?F.dup+" duplicado(s) expurgado(s) · ":"")+
+    "ganhos + perdidos + em andamento = "+INT.format(soma)+" de "+INT.format(F.tot);
   $("fnTempos").innerHTML=
     st("Até o primeiro contato",fmtDur(F.mPri),"var(--tc)")+
     st("Até o ganho",fmtDur(F.mGanho),"var(--pos)")+
