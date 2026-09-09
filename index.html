@@ -684,7 +684,6 @@ Não é subconjunto dos leads acima: inclui remarcações, retornos e quem agend
   </div>
   <div class="msg warn" style="margin-top:4px">O token fica apenas neste navegador e <b>não</b> entra no link de instalação. Use um token restrito a este repositório, só com permissão Actions.</div>
   <hr>
-  <label class="chk"><input type="checkbox" id="cMeses" checked><span>Período personalizado assume os meses completos (27/08 a 04/09 vira 01/08 a 30/09)</span></label>
   <label class="chk"><input type="checkbox" id="cAutoEntrar" checked><span>Entrar automaticamente ao abrir</span></label>
   <hr>
   <hr>
@@ -943,12 +942,6 @@ function periodo(){
     if($("dtIni").value)a=new Date($("dtIni").value+"T00:00:00Z");
     if($("dtFim").value)b=new Date($("dtFim").value+"T00:00:00Z");
     aLit=a; bLit=b;
-    if(CFG.mesesCheios){
-      const a2=new Date(Date.UTC(a.getUTCFullYear(),a.getUTCMonth(),1));
-      const b2=new Date(Date.UTC(b.getUTCFullYear(),b.getUTCMonth()+1,0));
-      expandido=(+a2!==+a)||(+b2!==+b);
-      a=a2; b=b2;
-    }
   }
   const hoje=new Date(Date.UTC(now.getFullYear(),now.getMonth(),now.getDate()));
   const ref=hoje<a?a:(hoje>b?b:hoje);
@@ -959,8 +952,8 @@ function periodo(){
   // o Comercial trabalha sempre com o intervalo literal
   const diasLit = Math.round((bLit-aLit)/864e5)+1;
   const decLit  = Math.max(1,Math.min(diasLit,Math.round((Math.min(hoje,bLit)-aLit)/864e5)+1));
-  return {a:aLit,b:bLit,                       // COMERCIAL: intervalo literal
-          aExp:a,bExp:b,                         // PRÉ-VENDAS: meses completos
+  return {a:aLit,b:bLit,                       // intervalo literal, para todas as abas
+          aExp:aLit,bExp:bLit,
           aLit,bLit,ref:new Date(Math.min(hoje,bLit)),
           totalDias:diasLit,decorridos:decLit,frac:Math.min(1,decLit/diasLit),
           totalDiasExp:totalDias,decorridosExp:decorridos,
@@ -1610,7 +1603,7 @@ function render(){
   const p=D.p, m=D.meta, A=D.agg;
   const fmtP=d=>d.toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit",year:"numeric",timeZone:"UTC"});
   $("periodLabel").textContent=fmtP(p.a)+" a "+fmtP(p.b)+"  ·  dia "+p.decorridos+" de "+p.totalDias+
-    (p.expandido?"  ·  ajustado para meses completos":"");
+    "";
 
   const pctTot=pct(A.tot.v,m.total);
   $("gVal").textContent=BRL.format(A.tot.v);
@@ -1753,11 +1746,11 @@ function render(){
   };
   setPv("pvAg",pm.ag,ph.ag,0,EQ.ag);
   const fmtD=d=>d.toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit",year:"numeric",timeZone:"UTC"});
-  const alvoH = p.dentro ? ph : P.lit;
-  $("hojeTit").textContent = p.dentro ? "Hoje" : "Intervalo selecionado";
-  $("hojeSub").textContent = p.dentro
-    ? new Date().toLocaleDateString("pt-BR",{weekday:"long",day:"2-digit",month:"long"})
-    : fmtD(p.aLit)+" a "+fmtD(p.bLit)+(p.expandido?" · os cards abaixo usam os meses completos":"");
+  const faixa=document.querySelector("#viewPre .hojebar");
+  if(faixa)faixa.style.display=p.dentro?"":"none";      // fora do período seria cópia dos cards
+  const alvoH = ph;
+  $("hojeTit").textContent = "Hoje";
+  $("hojeSub").textContent = new Date().toLocaleDateString("pt-BR",{weekday:"long",day:"2-digit",month:"long"});
   $("hojeNums").innerHTML=[["Agendadas",alvoH.ag,"var(--txt)"],["Realizadas",alvoH.re,"var(--pos)"],
     ["No-show",alvoH.ns,"var(--neg)"],["Remarcadas",alvoH.rm,"var(--tec)"],
     ["Por acontecer",alvoH.fu,"var(--tc)"],["Não ocorrerão",alvoH.ot,"var(--muted)"]]
@@ -2515,7 +2508,7 @@ function setStatus(k,t){$("dot").className="dot "+k;$("statusTxt").textContent=t
 
 /* ============================ config UI ============================ */
 const F={cTenant:"tenant",cClient:"client",cFile:"file",cShVendas:"shVendas",cShMarc:"shMarc",cShMetas:"shMetas",
-  cRefresh:"refresh",cSplitTC:"splitTC",cSplitTE:"splitTE",cMapTC:"mapTC",cMapTE:"mapTE",cIgnorar:"ignorar",cAgendada:"marcaAgendada",cStRe:"stRealizada",cStNs:"stNoShow",cStRm:"stRemarcada",cStFu:"stFuturo",cStCa:"stCancelado",cMeses:"mesesCheios",cRegras:"regrasComissao",cAdmins:"admins",cArqReg:"arqRegras",cShReg:"shRegras",cGhPRepo:"ghPainelRepo",cGhPPath:"ghPainelPath",cGhPBr:"ghPainelBranch",cGhPTok:"ghTokenPainel",cArqMet:"arqMetas",cShMet:"shMetasCfg",cShPv:"shPrevendas",cDedup:"dedupMin",cEmails:"emailsComissao",cEquipe:"equipePre",cOrfas:"incluirOrfas",cEtapas:"etapasVenda",
+  cRefresh:"refresh",cSplitTC:"splitTC",cSplitTE:"splitTE",cMapTC:"mapTC",cMapTE:"mapTE",cIgnorar:"ignorar",cAgendada:"marcaAgendada",cStRe:"stRealizada",cStNs:"stNoShow",cStRm:"stRemarcada",cStFu:"stFuturo",cStCa:"stCancelado",cRegras:"regrasComissao",cAdmins:"admins",cArqReg:"arqRegras",cShReg:"shRegras",cGhPRepo:"ghPainelRepo",cGhPPath:"ghPainelPath",cGhPBr:"ghPainelBranch",cGhPTok:"ghTokenPainel",cArqMet:"arqMetas",cShMet:"shMetasCfg",cShPv:"shPrevendas",cDedup:"dedupMin",cEmails:"emailsComissao",cEquipe:"equipePre",cOrfas:"incluirOrfas",cEtapas:"etapasVenda",
   cOnlyPrimeira:"onlyPrimeira",cIgnoraZero:"ignoraZero",cCoorte:"coorte",cAutoEntrar:"autoEntrar",cGhRepo:"ghRepo",cGhWf:"ghWf",cGhToken:"ghToken"};
 function cfgToUI(){editorAcessos();for(const id in F){const el=$(id);if(el.type==="checkbox")el.checked=!!CFG[F[id]];else el.value=CFG[F[id]];}
   $("cRedirect").textContent=REDIRECT;}
