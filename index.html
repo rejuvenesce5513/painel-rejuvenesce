@@ -1234,12 +1234,13 @@ function computar(){
     mTC+=m.tc*fr; mTE+=m.te*fr;
   }
   const mCfg=temCfg?{tc:mTC,te:mTE}:null;
+  const fatorMes=new Map(fatiasMes.map(f=>[f.ym, f.duMes?f.du/f.duMes:0]));
   if(mCfg){ metaTC=mCfg.tc; metaTE=mCfg.te; meta=mCfg.tc+mCfg.te; }
   if(metaTC==null)metaTC=meta*(CFG.splitTC/100);
   if(metaTE==null)metaTE=meta*(CFG.splitTE/100);
   out.meta={total:meta,tc:metaTC,te:metaTE,
             estimada:(iMtc<0||iMte<0)&&!mCfg, daConfig:!!mCfg, fatias:fatiasMes.length,
-            duSel, duTot};
+            duSel, duTot, fatorMes};
 
   const iK=pick(cv,"MM/AAAA da Avaliação","MM/AAAA da Avaliacao","MM/AAAA Avaliação");
   const iNome=pick(cv,"Nome");
@@ -1650,9 +1651,13 @@ function funilPrevendas(p,MC){
     avR:pick(c,"Avaliação Realizada?"),aval:pick(c,"Avaliador"),
     idc:pick(c,"ID do Contato"),motivo:pick(c,"Motivo de Perda")};
   const cri=r=>dataHora(r,i.dCri,i.hCri);
+  // o recorte compara datas: sem truncar a hora, um lead das 14:30 do último dia
+  // ficaria fora, porque o limite do período é meia-noite
+  const criDia=r=>{const d=cri(r);
+    return d?new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate())):null;};
 
   // recorte do periodo por data de criacao
-  let base=P.rows.filter(r=>{const d=cri(r);return d&&d>=p.aExp&&d<=p.bExp;});
+  let base=P.rows.filter(r=>{const d=criDia(r);return d&&d>=p.aExp&&d<=p.bExp;});
 
   // ---- expurgo de duplicados ----
   const jan=(toNum(CFG.dedupMin)||0)*60000;
@@ -1904,6 +1909,17 @@ function metaVendedorSep(mes,nome){
   return {tc:0,te:0,tot:0};
 }
 function metaVendedor(mes,nome){ return metaVendedorSep(mes,nome).tot; }
+
+/* meta do vendedor no recorte: mesmo fatiamento por dias úteis da meta da clínica */
+function metaVendedorPeriodo(fatorMes,nome){
+  let tc=0,te=0;
+  if(fatorMes)for(const [ym,fr] of fatorMes){
+    if(!fr)continue;
+    const v=metaVendedorSep(ym,nome);
+    tc+=v.tc*fr; te+=v.te*fr;
+  }
+  return {tc,te,tot:tc+te};
+}
 function superPctDoMes(mes){
   const m=metasDoMes(mes);
   return (m&&m.superPct)?toNum(m.superPct):(toNum(CFG.superPct)||0);
@@ -1980,7 +1996,7 @@ function render(){
     const cel=o=>'<td class="v-money sep num">'+BRL.format(o.v)+'</td><td class="v-sub num">'+INT.format(o.q)+
       '</td><td class="v-sub num">'+(o.qTicket?BRL.format(tm(o)):"—")+'</td>';
     const celTot=x=>{
-      const mv=metaVendedor(p.mesChave,x.nome), at=mv?pct(x.tot.v,mv):null;
+      const mv=metaVendedorPeriodo(D.meta.fatorMes,x.nome).tot, at=mv?pct(x.tot.v,mv):null;
       const cor=at==null?"var(--dim)":at>=100*superF(MT_MES)?"var(--tc)":at>=100?"var(--pos)":at>=70?"var(--tec)":"var(--neg)";
       return '<td class="v-money sep num">'+BRL.format(x.tot.v)+'</td><td class="v-sub num">'+INT.format(x.tot.q)+
         '</td><td class="v-sub num">'+(mv?BRL.format(mv):"—")+'</td>'+
@@ -1998,7 +2014,7 @@ function render(){
   const T=D.rank.reduce((a,r)=>{["tc","te","tot"].forEach(k=>{a[k].v+=r[k].v;a[k].q+=r[k].q;a[k].vTicket+=r[k].vTicket;a[k].qTicket+=r[k].qTicket;});
     a.fech+=r.fech;a.aval+=r.aval;return a;},{tc:{v:0,q:0,vTicket:0,qTicket:0},te:{v:0,q:0,vTicket:0,qTicket:0},tot:{v:0,q:0,vTicket:0,qTicket:0},fech:0,aval:0});
   const celf=o=>'<td class="sep num">'+BRL.format(o.v)+'</td><td class="num">'+INT.format(o.q)+'</td><td class="num">'+(o.qTicket?BRL.format(tm(o)):"—")+'</td>';
-  const metaSoma=D.rank.reduce((a,x)=>a+metaVendedor(p.mesChave,x.nome),0);
+  const metaSoma=D.rank.reduce((a,x)=>a+metaVendedorPeriodo(D.meta.fatorMes,x.nome).tot,0);
   $("rankFoot").innerHTML='<tr><td colspan="2" class="l">Total</td>'+celf(T.tc)+celf(T.te)+
     '<td class="sep num">'+BRL.format(T.tot.v)+'</td><td class="num">'+INT.format(T.tot.q)+
     '</td><td class="num">'+(metaSoma?BRL.format(metaSoma):"—")+
