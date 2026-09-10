@@ -1687,7 +1687,7 @@ function calcCirurgias(p){
   const fer=feriadosSet(), porDia=toNum(CFG.cirPorDia)||11;
 
   const o={hojeAtend:0,hojeAguard:0,hojeTot:0,
-           anoReal:0,perReal:0,perAgend:0,perValor:0,
+           anoReal:0,perReal:0,perAgend:0,perValor:0,perPorVir:0,perPerdida:0,
            porSit:new Map(),porDiaMapa:new Map()};
   for(const r of C.rows){
     const d=toDate(iD>=0?r[iD]:null); if(!d)continue;
@@ -1705,6 +1705,11 @@ function calcCirurgias(p){
         o.perReal++;
         o.perValor+=toNum(iV>=0?r[iV]:0);
         const k=ymdUTC(d); o.porDiaMapa.set(k,(o.porDiaMapa.get(k)||0)+1);
+      }else if(st.includes("NAO COMPARECEU")||st.includes("CANCEL")||st.includes("DESMARC")){
+        o.perPerdida++;
+      }else{
+        o.perPorVir++;                       // marcado, aguardando, em atendimento
+        const k=ymdUTC(d); o.porDiaMapa.set(k,(o.porDiaMapa.get(k)||0)+0);
       }
     }
   }
@@ -1718,6 +1723,9 @@ function calcCirurgias(p){
   o.duPer=diasUteis(p.a,p.b,fer);
   o.metaPer=porDia*o.duPer;
   o.mediaDia=o.duPer?o.perReal/o.duPer:0;
+  o.perPrev=o.perReal+o.perPorVir;                       // já aconteceu + ainda vai acontecer
+  o.mediaPrev=o.duPer?o.perPrev/o.duPer:0;
+  o.futuro=p.a>hoje;                                      // período inteiro à frente
   o.porDia=porDia;
   return o;
 }
@@ -2364,15 +2372,21 @@ function renderCirurgias(K,p){
     st("Projeção no ritmo",INT.format(Math.round(projAno)),"var(--tc)",fpct(pct(projAno,K.metaAno))+" da meta anual");
   $("cirAnoSub").textContent="não muda com o período selecionado";
 
-  const ocPer=pct(K.perReal,K.metaPer);
-  $("cirPerFill").style.width=Math.min(100,ocPer)+"%";
+  const ocPer=pct(K.perReal,K.metaPer), ocPrev=pct(K.perPrev,K.metaPer);
+  $("cirPerFill").style.width=Math.min(100,K.futuro?ocPrev:ocPer)+"%";
   $("cirPer").innerHTML=
     st("Realizadas",INT.format(K.perReal),"var(--pos)")+
-    st("Agendadas",INT.format(K.perAgend),"var(--tc)")+
-    st("Média por dia útil",(K.mediaDia).toFixed(1).replace(".",","),null,"meta "+K.porDia)+
-    st("Ocupação",fpct(ocPer),cor(ocPer),INT.format(K.perReal)+" de "+INT.format(K.metaPer))+
+    st("Ainda por acontecer",INT.format(K.perPorVir),"var(--tc)")+
+    (K.perPerdida?st("Não ocorreram",INT.format(K.perPerdida),"var(--neg)"):"")+
+    st("Ocupação realizada",fpct(ocPer),cor(ocPer),INT.format(K.perReal)+" de "+INT.format(K.metaPer))+
+    st("Ocupação se cumprir tudo",fpct(ocPrev),cor(ocPrev),INT.format(K.perPrev)+" de "+INT.format(K.metaPer))+
+    st("Média por dia útil",(K.mediaDia).toFixed(1).replace(".",","),
+       K.mediaDia>=K.porDia?"var(--pos)":null,"só realizadas · meta "+K.porDia)+
+    st("Média se cumprir tudo",(K.mediaPrev).toFixed(1).replace(".",","),
+       K.mediaPrev>=K.porDia?"var(--pos)":"var(--tc)","realizadas + agenda · meta "+K.porDia)+
     (K.perValor?st("Valor",BRL.format(K.perValor),"var(--tec)"):"");
-  $("cirPerSub").textContent=INT.format(K.duPer)+" dia(s) útil(eis) no período";
+  $("cirPerSub").textContent=INT.format(K.duPer)+" dia(s) útil(eis)"+
+    (K.futuro?" · período à frente: a agenda ainda vai mudar":"");
 
   const barras=(alvo,pares,total,c2)=>{
     const el=$(alvo); if(!el)return; el.innerHTML="";
