@@ -192,8 +192,12 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
 .diaChip{display:flex;align-items:baseline;gap:7px;padding:6px 10px;border-radius:var(--r);
   border:1px solid var(--line);background:var(--panel2);font-size:12.5px}
 .diaChip b{font-family:"IBM Plex Mono";font-variant-numeric:tabular-nums}
-.diaChip.vermelho{border-color:var(--neg)} .diaChip.vermelho b{color:var(--neg)}
-.diaChip.ambar{border-color:var(--tec)} .diaChip.ambar b{color:var(--tec)}
+.diaChip.vermelho{background:var(--neg);border-color:var(--neg);color:#fff}
+.diaChip.vermelho b{color:#fff}
+.diaChip.ambar{background:var(--tec);border-color:var(--tec);color:#fff}
+.diaChip.ambar b{color:#fff}
+.diaChip.zero{background:var(--neg);border-color:var(--neg);color:#fff;
+  box-shadow:0 0 0 2px var(--panel),0 0 0 4px var(--neg)}
 .par{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 @media(max-width:900px){.par{grid-template-columns:1fr}}
 .hojebar{border-left:3px solid var(--tc);margin-bottom:14px}
@@ -2574,8 +2578,8 @@ function renderCirurgias(K,p){
       : "";
     al.innerHTML=L.map(x=>{
       const dd=x.d.toLocaleDateString("pt-BR",{weekday:"short",day:"2-digit",month:"2-digit",timeZone:"UTC"});
-      return '<span class="diaChip '+(x.oc<70?"vermelho":"ambar")+'">'+esc(dd)+
-        " <b>"+x.n+"/"+K.porDia+"</b></span>";
+      const cls=x.n===0?"zero":x.oc<70?"vermelho":"ambar";
+      return '<span class="diaChip '+cls+'">'+esc(dd)+" <b>"+x.n+"/"+K.porDia+"</b></span>";
     }).join("");
   }
 
