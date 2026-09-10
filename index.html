@@ -15,6 +15,7 @@
   --r:4px;
   --grid:#1E2A35; --hl:#1A2530; --hl2:#1F1A12; --onTc:#06232A;
   --fillA:#1E7F8B; --fillEdge:#7FE4EE; --tickC:#33475699;
+  --amarelo:#E3C13C; --amareloTxt:#231D06;
   --wBg:#2A2114; --wLn:#5C4520; --wTx:#F0C880;
   --eBg:#2B1817; --eLn:#5C2B27; --eTx:#F0A49C;
   --shadow:0 18px 50px #0009;
@@ -25,6 +26,7 @@ html[data-tema="claro"]{
   --tc:#0D7B88; --tec:#A8720F; --pos:#12855C; --neg:#B93A2C; --pace:#14212B;
   --grid:#E4EBF0; --hl:#EEF4F7; --hl2:#FBF3E2; --onTc:#FFFFFF;
   --fillA:#0D7B88; --fillEdge:#0A5C66; --tickC:#C3D0D9;
+  --amarelo:#D9A800; --amareloTxt:#241C00;
   --wBg:#FCF3DF; --wLn:#E0C68A; --wTx:#7A5710;
   --eBg:#FCECEA; --eLn:#E7B4AC; --eTx:#8C2A1E;
   --shadow:0 18px 50px #1421291f;
@@ -36,7 +38,8 @@ html[data-tema="claro"]{
     --tc:#0D7B88; --tec:#A8720F; --pos:#12855C; --neg:#B93A2C; --pace:#14212B;
     --grid:#E4EBF0; --hl:#EEF4F7; --hl2:#FBF3E2; --onTc:#FFFFFF;
     --fillA:#0D7B88; --fillEdge:#0A5C66; --tickC:#C3D0D9;
-    --wBg:#FCF3DF; --wLn:#E0C68A; --wTx:#7A5710;
+    --amarelo:#D9A800; --amareloTxt:#241C00;
+  --wBg:#FCF3DF; --wLn:#E0C68A; --wTx:#7A5710;
     --eBg:#FCECEA; --eLn:#E7B4AC; --eTx:#8C2A1E;
     --shadow:0 18px 50px #1421291f;
   }
@@ -192,12 +195,14 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
 .diaChip{display:flex;align-items:baseline;gap:7px;padding:6px 10px;border-radius:var(--r);
   border:1px solid var(--line);background:var(--panel2);font-size:12.5px}
 .diaChip b{font-family:"IBM Plex Mono";font-variant-numeric:tabular-nums}
+.diaChip{cursor:default}
 .diaChip.vermelho{background:var(--neg);border-color:var(--neg);color:#fff}
 .diaChip.vermelho b{color:#fff}
 .diaChip.ambar{background:var(--tec);border-color:var(--tec);color:#fff}
 .diaChip.ambar b{color:#fff}
-.diaChip.zero{background:var(--neg);border-color:var(--neg);color:#fff;
-  box-shadow:0 0 0 2px var(--panel),0 0 0 4px var(--neg)}
+.diaChip.amarelo{background:var(--amarelo);border-color:var(--amarelo);color:var(--amareloTxt)}
+.diaChip.amarelo b{color:var(--amareloTxt)}
+.diaChip.zero{box-shadow:0 0 0 2px var(--panel),0 0 0 4px var(--neg)}
 .par{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 @media(max-width:900px){.par{grid-template-columns:1fr}}
 .hojebar{border-left:3px solid var(--tc);margin-bottom:14px}
@@ -749,7 +754,7 @@ Não é subconjunto dos leads acima: inclui remarcações, retornos e quem agend
   </div>
   <div class="row2">
     <div class="f"><label>Horizonte do alerta (dias)</label><input id="cHoriz" type="number" min="7" value="45"></div>
-    <div class="f"><label>Alerta abaixo de (% de ocupação)</label><input id="cAlerta" type="number" min="1" max="100" value="80"></div>
+    <div class="f"><label>Alertar com (% de vagas livres) ou mais</label><input id="cAlerta" type="number" min="1" max="100" value="50"></div>
   </div>
   <div class="f"><label>Feriados (dd/mm/aaaa, separados por vírgula)</label><input id="cFeriados" placeholder="07/09/2026, 12/10/2026">
     <div class="h">Descontados do cálculo de dias úteis.</div></div>
@@ -986,7 +991,7 @@ const NATIVO = {
   "shCirurgias": "Cirurgias",
   "cirPorDia": 11,
   "cirHorizonte": 45,
-  "cirAlertaPct": 80,
+  "cirAlertaLivre": 50,
   "feriados": "01/01/2026, 16/02/2026, 17/02/2026, 03/04/2026, 21/04/2026, 01/05/2026, 04/06/2026, 07/09/2026, 12/10/2026, 02/11/2026, 15/11/2026, 20/11/2026, 25/12/2026",
   "arqMetas": "https://rejuvenesce.sharepoint.com/sites/ClnicaRejuvenesce-Comercial/Documentos%20Compartilhados/Metas.xlsx",
   "shMetasCfg": "Metas",
@@ -1004,7 +1009,7 @@ const store={
   set(k,v){ try{localStorage.setItem(k,v);}catch(e){mem[k]=v;} },
   del(k){ try{localStorage.removeItem(k);}catch(e){delete mem[k];} }
 };
-const DEF={versao:"",admins:"",chaveAdmin:"",metas:{},superPct:10,arqCirurgias:"",shCirurgias:"Cirurgias",cirPorDia:11,cirHorizonte:45,cirAlertaPct:80,feriados:"",arqMetas:"",shMetasCfg:"Metas",shPrevendas:"Prevendas",dedupMin:5,ghPainelRepo:"",ghPainelPath:"index.html",ghPainelBranch:"main",ghTokenPainel:"",acessos:[],acessoPadrao:[],arqRegras:"",shRegras:"Parâmetros Comissões",regrasComissao:"",tenant:"89aed341-1dc6-4d0d-b5c7-e8df4293d21d",client:"",file:"",autoEntrar:true,ghRepo:"",ghWf:"sync.yml",ghToken:"",shVendas:"Vendas",shMarc:"Marcações",shMetas:"Metas",
+const DEF={versao:"",admins:"",chaveAdmin:"",metas:{},superPct:10,arqCirurgias:"",shCirurgias:"Cirurgias",cirPorDia:11,cirHorizonte:45,cirAlertaLivre:50,feriados:"",arqMetas:"",shMetasCfg:"Metas",shPrevendas:"Prevendas",dedupMin:5,ghPainelRepo:"",ghPainelPath:"index.html",ghPainelBranch:"main",ghTokenPainel:"",acessos:[],acessoPadrao:[],arqRegras:"",shRegras:"Parâmetros Comissões",regrasComissao:"",tenant:"89aed341-1dc6-4d0d-b5c7-e8df4293d21d",client:"",file:"",autoEntrar:true,ghRepo:"",ghWf:"sync.yml",ghToken:"",shVendas:"Vendas",shMarc:"Marcações",shMetas:"Metas",
   refresh:10,splitTC:90,splitTE:10,mapTC:"TC,TB,TS,BH",mapTE:"TEC",ignorar:"Sem deal comercial,—,JARVYS",marcaAgendada:"Data Agendada",stRealizada:"Atendido",stNoShow:"Não compareceu",stRemarcada:"Remarcado",stFuturo:"Marcado",stCancelado:"Desmarcado pelo paciente,Cancelado pelo profissional",mesesCheios:true,shParams:"Parâmetros Comissões",arqParams:"",emailsComissao:"",equipePre:"Beatriz,Fabiana,Amanda",incluirOrfas:false,etapasVenda:"FECHAMENTO,FINALIZADO,REVISAO DE PENDENCIAS",onlyPrimeira:true,ignoraZero:true,coorte:"fechamento"};
 // versao nova zera preferencias, mas NUNCA o que e conexao/credencial
 if(store.get("rjv.cfgv")!==NATIVO.versao){
@@ -1849,9 +1854,10 @@ function calcCirurgias(p){
     const d=new Date(+hoje+i*864e5), w=d.getUTCDay();
     if(w===0||w===6||fer.has(ymdUTC(d)))continue;
     const cel=todosDias.get(ymdUTC(d))||0;
-    if(cel/porDia*100 < (toNum(CFG.cirAlertaPct)||50)){
-      o.alerta.push({d,n:cel,livres:Math.max(0,porDia-cel),oc:cel/porDia*100});
-      o.alertaVagas+=Math.max(0,porDia-cel);
+    const livres=Math.max(0,porDia-cel), pctLivre=porDia?livres/porDia*100:0;
+    if(pctLivre >= (toNum(CFG.cirAlertaLivre)||50)){
+      o.alerta.push({d,n:cel,livres,pctLivre,oc:cel/porDia*100});
+      o.alertaVagas+=livres;
     }
   }
 
@@ -2573,13 +2579,17 @@ function renderCirurgias(K,p){
     const L=K.alerta||[];
     box.style.display=L.length?"":"none";
     $("cirAlertaSub").textContent=L.length
-      ? INT.format(L.length)+" dia(s) útil(eis) abaixo de "+(toNum(CFG.cirAlertaPct)||50)+
-        "% · "+INT.format(K.alertaVagas)+" vaga(s) livre(s)"
+      ? INT.format(L.length)+" dia(s) útil(eis) com "+(toNum(CFG.cirAlertaLivre)||50)+
+        "% ou mais de vagas livres · "+INT.format(K.alertaVagas)+" no total"
       : "";
     al.innerHTML=L.map(x=>{
       const dd=x.d.toLocaleDateString("pt-BR",{weekday:"short",day:"2-digit",month:"2-digit",timeZone:"UTC"});
-      const cls=x.n===0?"zero":x.oc<70?"vermelho":"ambar";
-      return '<span class="diaChip '+cls+'">'+esc(dd)+" <b>"+x.n+"/"+K.porDia+"</b></span>";
+      // cor pela FATIA LIVRE: 71%+ vermelho, 60-70% âmbar, 50-59% amarelo
+      const p2=x.pctLivre;
+      const cls=(p2>=71?"vermelho":p2>=60?"ambar":"amarelo")+(x.n===0?" zero":"");
+      return '<span class="diaChip '+cls+'" title="'+x.livres+" de "+K.porDia+
+        " vagas livres · "+Math.round(p2)+'% livre">'+esc(dd)+
+        " <b>"+x.n+"/"+K.porDia+"</b></span>";
     }).join("");
   }
 
@@ -2980,7 +2990,7 @@ function setStatus(k,t){$("dot").className="dot "+k;$("statusTxt").textContent=t
 
 /* ============================ config UI ============================ */
 const F={cTenant:"tenant",cClient:"client",cFile:"file",cShVendas:"shVendas",cShMarc:"shMarc",cShMetas:"shMetas",
-  cRefresh:"refresh",cSplitTC:"splitTC",cSplitTE:"splitTE",cMapTC:"mapTC",cMapTE:"mapTE",cIgnorar:"ignorar",cAgendada:"marcaAgendada",cStRe:"stRealizada",cStNs:"stNoShow",cStRm:"stRemarcada",cStFu:"stFuturo",cStCa:"stCancelado",cRegras:"regrasComissao",cAdmins:"admins",cArqReg:"arqRegras",cShReg:"shRegras",cGhPRepo:"ghPainelRepo",cGhPPath:"ghPainelPath",cGhPBr:"ghPainelBranch",cGhPTok:"ghTokenPainel",cArqMet:"arqMetas",cShMet:"shMetasCfg",cArqCir:"arqCirurgias",cShCir:"shCirurgias",cCirDia:"cirPorDia",cHoriz:"cirHorizonte",cAlerta:"cirAlertaPct",cFeriados:"feriados",cShPv:"shPrevendas",cDedup:"dedupMin",cEmails:"emailsComissao",cEquipe:"equipePre",cOrfas:"incluirOrfas",cEtapas:"etapasVenda",
+  cRefresh:"refresh",cSplitTC:"splitTC",cSplitTE:"splitTE",cMapTC:"mapTC",cMapTE:"mapTE",cIgnorar:"ignorar",cAgendada:"marcaAgendada",cStRe:"stRealizada",cStNs:"stNoShow",cStRm:"stRemarcada",cStFu:"stFuturo",cStCa:"stCancelado",cRegras:"regrasComissao",cAdmins:"admins",cArqReg:"arqRegras",cShReg:"shRegras",cGhPRepo:"ghPainelRepo",cGhPPath:"ghPainelPath",cGhPBr:"ghPainelBranch",cGhPTok:"ghTokenPainel",cArqMet:"arqMetas",cShMet:"shMetasCfg",cArqCir:"arqCirurgias",cShCir:"shCirurgias",cCirDia:"cirPorDia",cHoriz:"cirHorizonte",cAlerta:"cirAlertaLivre",cFeriados:"feriados",cShPv:"shPrevendas",cDedup:"dedupMin",cEmails:"emailsComissao",cEquipe:"equipePre",cOrfas:"incluirOrfas",cEtapas:"etapasVenda",
   cOnlyPrimeira:"onlyPrimeira",cIgnoraZero:"ignoraZero",cCoorte:"coorte",cAutoEntrar:"autoEntrar",cGhRepo:"ghRepo",cGhWf:"ghWf",cGhToken:"ghToken"};
 function cfgToUI(){editorAcessos();for(const id in F){const el=$(id);if(el.type==="checkbox")el.checked=!!CFG[F[id]];else el.value=CFG[F[id]];}
   $("cRedirect").textContent=REDIRECT;}
