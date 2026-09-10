@@ -622,6 +622,15 @@ Não é subconjunto dos leads acima: inclui remarcações, retornos e quem agend
 </div>
 <div class="h" id="cirPerSub" style="margin-top:8px;padding-left:3px"></div>
 
+<section class="rank" style="margin-top:14px">
+  <div class="rank-head"><h2>Histórico do ano</h2><span class="eyebrow" id="cirHistSub"></span></div>
+  <div style="overflow-x:auto"><table>
+    <thead><tr><th class="l">Mês</th><th class="sep">Cirurgias</th><th>Meta</th>
+      <th>Ocupação</th><th>Por dia útil</th><th class="sep">Dias úteis</th><th>Previstas</th></tr></thead>
+    <tbody id="cirHist"></tbody><tfoot id="cirHistF"></tfoot>
+  </table></div>
+</section>
+
 <section class="aux" style="margin-top:14px">
   <div class="card tc">
     <div class="card-head"><h2>Situação no período</h2><span class="eyebrow" id="cirSitSub"></span></div>
@@ -1740,6 +1749,7 @@ function calcCirurgias(p){
   const anoFim=new Date(Date.UTC(hoje.getUTCFullYear(),11,31));
   const fer=feriadosSet(), porDia=toNum(CFG.cirPorDia)||11;
 
+  const porMesReal=new Map(), porMesTot=new Map();
   const o={hojeAtend:0,hojeAguard:0,hojeMarc:0,hojeTot:0,
            anoReal:0,perReal:0,perAgend:0,perValor:0,perPorVir:0,perPerdida:0,
            porSit:new Map(),porDiaMapa:new Map()};
@@ -1753,7 +1763,12 @@ function calcCirurgias(p){
       else if(!(st.includes("NAO COMPARECEU")||st.includes("CANCEL")||st.includes("DESMARC")))
         o.hojeMarc++;                       // "Marcado - confirmado / nao confirmado"
     }
-    if(d>=anoIni&&d<=anoFim&&real)o.anoReal++;
+    if(d>=anoIni&&d<=anoFim){
+      const mm=d.getUTCMonth();
+      const perdida=st.includes("NAO COMPARECEU")||st.includes("CANCEL")||st.includes("DESMARC");
+      if(real){ o.anoReal++; porMesReal.set(mm,(porMesReal.get(mm)||0)+1); }
+      if(real||!perdida)porMesTot.set(mm,(porMesTot.get(mm)||0)+1);
+    }
     if(d>=p.a&&d<=p.b){
       o.perAgend++;
       o.porSit.set(st||"(sem status)",(o.porSit.get(st||"(sem status)")||0)+1);
@@ -1785,6 +1800,21 @@ function calcCirurgias(p){
   o.mediaPrev=o.duPer?o.perPrev/o.duPer:0;   // projeta sobre o periodo inteiro
   o.futuro=p.a>hoje;                                      // período inteiro à frente
   o.porDia=porDia;
+
+  // histórico do ano, mês a mês
+  o.meses=[];
+  for(let m=0;m<12;m++){
+    const ini=new Date(Date.UTC(hoje.getUTCFullYear(),m,1));
+    const fim=new Date(Date.UTC(hoje.getUTCFullYear(),m+1,0));
+    if(ini>hoje&&!porMesTot.has(m))continue;               // mês futuro ainda sem agenda
+    const du=diasUteis(ini,fim,fer);
+    const duD=(hoje<ini)?0:diasUteis(ini,new Date(Math.min(+hoje,+fim)),fer);
+    const real=porMesReal.get(m)||0, prev=porMesTot.get(m)||0;
+    o.meses.push({m,ini,du,duD,real,prev,meta:porDia*du,
+                  ocup:(porDia*du)?real/(porDia*du)*100:0,
+                  media:duD?real/duD:null,
+                  fechado:fim<hoje});
+  }
   return o;
 }
 
@@ -2482,6 +2512,33 @@ function renderCirurgias(K,p){
         fpct(pct(v,total))+'</span></span></div><div class="minitrack" style="margin:0">'+
         '<div class="minifill" style="width:'+pct(v,total)+'%;background:'+c2+'"></div></div></div>');
   };
+  const th=$("cirHist"); th.innerHTML="";
+  const MES=["janeiro","fevereiro","março","abril","maio","junho","julho","agosto",
+             "setembro","outubro","novembro","dezembro"];
+  let sR=0,sM=0,sD=0,sP=0;
+  for(const x of (K.meses||[])){
+    sR+=x.real; sM+=x.meta; sD+=x.duD; sP+=x.prev;
+    const c=cor(x.ocup);
+    th.insertAdjacentHTML("beforeend",
+      '<tr'+(x.fechado?"":' style="color:var(--muted)"')+'><td class="l name">'+MES[x.m]+
+      (x.fechado?"":' <span class="l">em curso</span>')+'</td>'+
+      '<td class="sep v-money num">'+INT.format(x.real)+'</td>'+
+      '<td class="v-sub num">'+INT.format(x.meta)+'</td>'+
+      '<td class="num" style="color:'+c+'">'+fpct(x.ocup)+
+        '<span class="bar-inline"><i style="width:'+Math.min(100,x.ocup)+'%;background:'+c+'"></i></span></td>'+
+      '<td class="num" style="color:'+(x.media!=null&&x.media>=K.porDia?"var(--pos)":"var(--txt)")+'">'+
+        (x.media!=null?x.media.toFixed(1).replace(".",","):"—")+'</td>'+
+      '<td class="sep v-sub num">'+INT.format(x.du)+'</td>'+
+      '<td class="v-sub num">'+INT.format(x.prev)+'</td></tr>');
+  }
+  if(!(K.meses||[]).length)th.innerHTML='<tr><td class="l" colspan="7" style="color:var(--dim)">sem dados no ano</td></tr>';
+  $("cirHistF").innerHTML=(K.meses||[]).length?'<tr><td class="l">Ano</td>'+
+    '<td class="sep num">'+INT.format(sR)+'</td><td class="num">'+INT.format(sM)+'</td>'+
+    '<td class="num">'+fpct(pct(sR,sM))+'</td>'+
+    '<td class="num">'+(sD?(sR/sD).toFixed(1).replace(".",","):"—")+'</td>'+
+    '<td class="sep num">'+INT.format(K.duAno)+'</td><td class="num">'+INT.format(sP)+'</td></tr>':"";
+  $("cirHistSub").textContent="meta "+K.porDia+" por dia útil · ocupação sobre o mês inteiro";
+
   barras("cirSit",[...K.porSit.entries()].sort((a,b)=>b[1]-a[1]),K.perAgend||1,"var(--tc)");
   $("cirSitSub").textContent=INT.format(K.perAgend)+" agendamentos";
   const dias=[...K.porDiaMapa.entries()].sort().slice(-31);
