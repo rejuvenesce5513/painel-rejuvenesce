@@ -184,7 +184,8 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
 .slot.fila{background:transparent;border:2px solid var(--tc)}
 .anoGrid{display:grid;grid-template-columns:230px 1fr;gap:26px;align-items:start}
 .anoHero{border-right:1px solid var(--line);padding-right:22px}
-.anoHero .v{line-height:1.05}
+.anoHero .v{line-height:1.02;font-size:52px}
+.anoHero{align-self:stretch}
 @media(max-width:820px){.anoGrid{grid-template-columns:1fr}
   .anoHero{border-right:none;border-bottom:1px solid var(--line);padding:0 0 16px}}
 .par{display:grid;grid-template-columns:1fr 1fr;gap:14px}
@@ -238,6 +239,19 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
     <select id="periodo">
       <option value="mes">Mês atual</option>
       <option value="mesant">Mês anterior</option>
+      <optgroup label="Passado">
+        <option value="hoje">Hoje</option>
+        <option value="ontem">Ontem</option>
+        <option value="-7">Últimos 7 dias</option>
+        <option value="-15">Últimos 15 dias</option>
+        <option value="-30">Últimos 30 dias</option>
+      </optgroup>
+      <optgroup label="Futuro">
+        <option value="amanha">Amanhã</option>
+        <option value="+7">Próximos 7 dias</option>
+        <option value="+15">Próximos 15 dias</option>
+        <option value="+30">Próximos 30 dias</option>
+      </optgroup>
       <option value="custom">Período personalizado</option>
     </select>
     <input type="date" id="dtIni" style="display:none">
@@ -568,14 +582,7 @@ Não é subconjunto dos leads acima: inclui remarcações, retornos e quem agend
 <div id="cirLock" class="msg warn" style="display:none"></div>
 <div id="cirBody">
 
-<section class="card hojebar">
-  <div class="card-head"><h2>Hoje</h2><span class="eyebrow" id="cirHojeSub"></span></div>
-  <div class="slots" id="cirSlots"></div>
-  <div class="h" id="cirSlotsLeg" style="margin-bottom:12px"></div>
-  <div class="stats" id="cirHoje"></div>
-</section>
-
-<section class="card" style="margin-top:14px">
+<section class="card" style="margin-bottom:14px">
   <div class="card-head"><h2>Acumulado do ano</h2><span class="eyebrow" id="cirAnoSub"></span></div>
   <div class="anoGrid">
     <div class="anoHero">
@@ -583,14 +590,22 @@ Não é subconjunto dos leads acima: inclui remarcações, retornos e quem agend
       <div class="v disp num" id="cirAnoNum">0</div>
       <div class="l" id="cirAnoNumS"></div>
       <div class="l" style="margin-top:14px">Por dia útil</div>
-      <div class="v disp num" id="cirAnoMedia" style="font-size:34px">0</div>
+      <div class="v disp num" id="cirAnoMedia" style="font-size:40px">0</div>
       <div class="l" id="cirAnoMediaS"></div>
     </div>
     <div class="anoLado">
       <div class="track"><div class="fillproj" id="cirAnoProj" style="width:0%"></div><div class="fill" id="cirAnoFill" style="width:0%"></div></div>
       <div class="stats" id="cirAno" style="margin-top:16px"></div>
+      <div class="h" id="cirAnoNota" style="margin-top:12px"></div>
     </div>
   </div>
+</section>
+
+<section class="card hojebar">
+  <div class="card-head"><h2>Hoje</h2><span class="eyebrow" id="cirHojeSub"></span></div>
+  <div class="slots" id="cirSlots"></div>
+  <div class="h" id="cirSlotsLeg" style="margin-bottom:12px"></div>
+  <div class="stats" id="cirHoje"></div>
 </section>
 
 <div class="par" style="margin-top:14px">
@@ -1024,6 +1039,12 @@ function periodo(){
   let a=new Date(Date.UTC(now.getFullYear(),now.getMonth(),1)),
       b=new Date(Date.UTC(now.getFullYear(),now.getMonth()+1,0));
   if(t==="mesant"){a=new Date(Date.UTC(now.getFullYear(),now.getMonth()-1,1));b=new Date(Date.UTC(now.getFullYear(),now.getMonth(),0));}
+  const hj0=new Date(Date.UTC(now.getFullYear(),now.getMonth(),now.getDate()));
+  const dia=n=>new Date(+hj0+n*864e5);
+  const atalhos={hoje:[hj0,hj0], ontem:[dia(-1),dia(-1)], amanha:[dia(1),dia(1)],
+    "-7":[dia(-6),hj0], "-15":[dia(-14),hj0], "-30":[dia(-29),hj0],
+    "+7":[hj0,dia(6)], "+15":[hj0,dia(14)], "+30":[hj0,dia(29)]};
+  if(atalhos[t]){ a=atalhos[t][0]; b=atalhos[t][1]; aLit=a; bLit=b; }
   let expandido=false;
   if(t==="custom"){
     if($("dtIni").value)a=new Date($("dtIni").value+"T00:00:00Z");
@@ -1719,7 +1740,7 @@ function calcCirurgias(p){
   const anoFim=new Date(Date.UTC(hoje.getUTCFullYear(),11,31));
   const fer=feriadosSet(), porDia=toNum(CFG.cirPorDia)||11;
 
-  const o={hojeAtend:0,hojeAguard:0,hojeTot:0,
+  const o={hojeAtend:0,hojeAguard:0,hojeMarc:0,hojeTot:0,
            anoReal:0,perReal:0,perAgend:0,perValor:0,perPorVir:0,perPerdida:0,
            porSit:new Map(),porDiaMapa:new Map()};
   for(const r of C.rows){
@@ -1729,6 +1750,8 @@ function calcCirurgias(p){
     if(+d===+hoje){
       if(real)o.hojeAtend++;
       else if(aguard.some(x=>st.includes(x)))o.hojeAguard++;
+      else if(!(st.includes("NAO COMPARECEU")||st.includes("CANCEL")||st.includes("DESMARC")))
+        o.hojeMarc++;                       // "Marcado - confirmado / nao confirmado"
     }
     if(d>=anoIni&&d<=anoFim&&real)o.anoReal++;
     if(d>=p.a&&d<=p.b){
@@ -1746,7 +1769,7 @@ function calcCirurgias(p){
       }
     }
   }
-  o.hojeTot=o.hojeAtend+o.hojeAguard;
+  o.hojeTot=o.hojeAtend+o.hojeAguard+o.hojeMarc;
   o.duHoje=diasUteis(hoje,hoje,fer)||1;
   o.metaHoje=porDia*o.duHoje;
   o.duAnoAte=diasUteis(anoIni,hoje,fer);
@@ -2393,12 +2416,13 @@ function renderCirurgias(K,p){
     vagas+='<div class="slot'+(i<K.hojeAtend?" feita":i<K.hojeTot?" fila":"")+'"></div>';
   for(let i=K.metaHoje;i<K.hojeTot;i++)vagas+='<div class="slot feita"></div>';   // acima da capacidade
   $("cirSlots").innerHTML=vagas;
-  $("cirSlotsLeg").textContent=K.hojeAtend+" concluída(s), "+K.hojeAguard+" na fila, "+
-    Math.max(0,K.metaHoje-K.hojeTot)+" vaga(s) livre(s) de "+K.metaHoje;
+  $("cirSlotsLeg").textContent=K.hojeAtend+" concluída(s), "+(K.hojeAguard+K.hojeMarc)+
+    " por fazer, "+Math.max(0,K.metaHoje-K.hojeTot)+" vaga(s) livre(s) de "+K.metaHoje;
   $("cirHoje").innerHTML=
     st("Na agenda",INT.format(K.hojeTot))+
     st("Concluídas",INT.format(K.hojeAtend),"var(--pos)")+
     st("Na fila",INT.format(K.hojeAguard),"var(--tc)")+
+    st("Ainda marcadas",INT.format(K.hojeMarc),"var(--tec)")+
     st("Ocupação do dia",fpct(ocHoje),cor(ocHoje));
   $("cirHojeSub").textContent=new Date().toLocaleDateString("pt-BR",{weekday:"long",day:"2-digit",month:"long"});
 
@@ -2420,6 +2444,11 @@ function renderCirurgias(K,p){
     st("Faltam para a meta",INT.format(Math.max(0,K.metaAno-K.anoReal)),"var(--tec)",
        INT.format(Math.max(0,K.duAno-K.duAnoAte))+" dias úteis restantes");
   $("cirAnoSub").textContent="não muda com o período selecionado";
+  const falta=Math.max(0,K.metaAno-K.anoReal), duRest=Math.max(0,K.duAno-K.duAnoAte);
+  $("cirAnoNota").textContent=duRest
+    ? "Para fechar a meta seriam "+(falta/duRest).toFixed(1).replace(".",",")+
+      " por dia útil nos "+INT.format(duRest)+" dias restantes."
+    : "Ano encerrado.";
 
   const ocPer=pct(K.perReal,K.metaPer), ocPrev=pct(K.perPrev,K.metaPer);
   $("cirPerFill").style.width=Math.min(100,ocPer)+"%";
