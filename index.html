@@ -2422,7 +2422,7 @@ function renderCirurgias(K,p){
     st("Na agenda",INT.format(K.hojeTot))+
     st("Concluídas",INT.format(K.hojeAtend),"var(--pos)")+
     st("Na fila",INT.format(K.hojeAguard),"var(--tc)")+
-    st("Ainda marcadas",INT.format(K.hojeMarc),"var(--tec)")+
+    st("Previstas",INT.format(K.hojeMarc),"var(--tec)")+
     st("Ocupação do dia",fpct(ocHoje),cor(ocHoje));
   $("cirHojeSub").textContent=new Date().toLocaleDateString("pt-BR",{weekday:"long",day:"2-digit",month:"long"});
 
