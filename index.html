@@ -818,8 +818,8 @@ Não é subconjunto dos leads acima: inclui remarcações, retornos e quem agend
    ═══════════════════════════════════════════════════════════════════════ */
 /* NATIVO-INICIO */
 const NATIVO = {
-  "versao": "5",
-  "admins": "fabricio.araujo@clinicarejuvenesce.com.br",
+  "versao": "6",
+  "admins": "fabricio.araujo@clinicarejuvenesce.com.br, francis.arantes@clinicarejuvenesce.com.br,raissa.fortini@clinicarejuvenesce.com.br,samuel.nascimento@clinicarejuvenesce.com.br",
   "chaveAdmin": "cfg_rjvnsc",
   "tenant": "89aed341-1dc6-4d0d-b5c7-e8df4293d21d",
   "client": "b7a0f205-e154-42b3-a8c5-3a3df93ac749",
@@ -853,13 +853,18 @@ const NATIVO = {
   "emailsComissao": "fabricio.araujo@clinicarejuvenesce.com.br, samuel.nascimento@clinicarejuvenesce.com.br, francis@clinicarejuvenesce.com.br, raissa.fortini@clinicarejuvenesce.com.br",
   "superPct": 10,
   "metas": {},
-  "acessoPadrao": [],
+  "acessoPadrao": [
+    "com",
+    "pre",
+    "cir"
+  ],
   "acessos": [
     {
       "e": "fabricio.araujo@clinicarejuvenesce.com.br",
       "t": [
         "com",
         "pre",
+        "cir",
         "cms",
         "mts"
       ]
@@ -869,6 +874,7 @@ const NATIVO = {
       "t": [
         "com",
         "pre",
+        "cir",
         "cms",
         "mts"
       ]
@@ -878,6 +884,7 @@ const NATIVO = {
       "t": [
         "com",
         "pre",
+        "cir",
         "cms",
         "mts"
       ]
@@ -887,6 +894,7 @@ const NATIVO = {
       "t": [
         "com",
         "pre",
+        "cir",
         "cms",
         "mts"
       ]
@@ -894,31 +902,41 @@ const NATIVO = {
     {
       "e": "fernando.delazari@clinicarejuvenesce.com.br",
       "t": [
-        "com"
+        "com",
+        "pre",
+        "cir"
       ]
     },
     {
       "e": "alexandre.fritz@clinicarejuvenesce.com.br",
       "t": [
-        "com"
+        "com",
+        "pre",
+        "cir"
       ]
     },
     {
       "e": "guilherme.conti@clinicarejuvenesce.com.br",
       "t": [
-        "com"
+        "com",
+        "pre",
+        "cir"
       ]
     },
     {
       "e": "ricardo.melo@clinicarejuvenesce.com.br",
       "t": [
-        "com"
+        "com",
+        "pre",
+        "cir"
       ]
     },
     {
       "e": "larissa.souza@clinicarejuvenesce.com.br",
       "t": [
-        "com"
+        "com",
+        "pre",
+        "cir"
       ]
     },
     {
@@ -943,14 +961,17 @@ const NATIVO = {
       "e": "gabriel.torres@clinicarejuvenesce.com.br",
       "t": [
         "com",
-        "pre"
+        "pre",
+        "cir",
+        "cms",
+        "mts"
       ]
     }
   ],
   "arqCirurgias": "https://rejuvenesce.sharepoint.com/sites/ClnicaRejuvenesce-Comercial/Documentos%20Compartilhados/Cirurgias.xlsx",
   "shCirurgias": "Cirurgias",
   "cirPorDia": 11,
-  "feriados": "",
+  "feriados": "01/01/2026, 16/02/2026, 17/02/2026, 03/04/2026, 21/04/2026, 01/05/2026, 04/06/2026, 07/09/2026, 12/10/2026, 02/11/2026, 15/11/2026, 20/11/2026, 25/12/2026",
   "arqMetas": "https://rejuvenesce.sharepoint.com/sites/ClnicaRejuvenesce-Comercial/Documentos%20Compartilhados/Metas.xlsx",
   "shMetasCfg": "Metas",
   "shPrevendas": "Prevendas",
@@ -1795,6 +1816,7 @@ function calcCirurgias(p){
   o.metaPer=porDia*o.duPer;
   // a media so pode dividir por dias que ja aconteceram
   o.duDecor=(hoje<p.a)?0:diasUteis(p.a,new Date(Math.min(+hoje,+p.b)),fer);
+  o.metaDecor=porDia*o.duDecor;                       // capacidade ja disponivel no periodo
   o.mediaDia=o.duDecor?o.perReal/o.duDecor:0;
   o.perPrev=o.perReal+o.perPorVir;                       // já aconteceu + ainda vai acontecer
   o.mediaPrev=o.duPer?o.perPrev/o.duPer:0;   // projeta sobre o periodo inteiro
@@ -1810,8 +1832,10 @@ function calcCirurgias(p){
     const du=diasUteis(ini,fim,fer);
     const duD=(hoje<ini)?0:diasUteis(ini,new Date(Math.min(+hoje,+fim)),fer);
     const real=porMesReal.get(m)||0, prev=porMesTot.get(m)||0;
-    o.meses.push({m,ini,du,duD,real,prev,meta:porDia*du,
-                  ocup:(porDia*du)?real/(porDia*du)*100:0,
+    o.meses.push({m,ini,du,duD,real,prev,
+                  meta:porDia*du,                    // capacidade do mês inteiro
+                  metaAte:porDia*duD,                // capacidade já disponível
+                  ocup:(porDia*duD)?real/(porDia*duD)*100:null,
                   media:duD?real/duD:null,
                   fechado:fim<hoje});
   }
@@ -2480,17 +2504,18 @@ function renderCirurgias(K,p){
       " por dia útil nos "+INT.format(duRest)+" dias restantes."
     : "Ano encerrado.";
 
-  const ocPer=pct(K.perReal,K.metaPer), ocPrev=pct(K.perPrev,K.metaPer);
+  const ocPer=K.metaDecor?pct(K.perReal,K.metaDecor):0;   // contra o que ja foi possivel
+  const ocPrev=pct(K.perPrev,K.metaPer);                  // contra o periodo inteiro
   $("cirPerFill").style.width=Math.min(100,ocPer)+"%";
   $("cirPrevFill").style.width=Math.min(100,ocPrev)+"%";
-  $("cirRealPct").textContent=fpct(ocPer); $("cirRealPct").style.color=cor(ocPer);
+  $("cirRealPct").textContent=K.duDecor?fpct(ocPer):"—"; $("cirRealPct").style.color=cor(ocPer);
   $("cirPrevPct").textContent=fpct(ocPrev); $("cirPrevPct").style.color=cor(ocPrev);
   $("cirPerReal").innerHTML=
     st("Cirurgias",INT.format(K.perReal),"var(--pos)")+
     st("Por dia útil",K.duDecor?K.mediaDia.toFixed(1).replace(".",","):"—",
        K.mediaDia>=K.porDia?"var(--pos)":null,
        K.duDecor?INT.format(K.duDecor)+" dia(s) útil(eis) decorrido(s) · meta "+K.porDia:"o período ainda não começou")+
-    st("Das vagas",INT.format(K.perReal)+" de "+INT.format(K.metaPer))+
+    st("Das vagas até hoje",INT.format(K.perReal)+" de "+INT.format(K.metaDecor))+
     (K.perValor?st("Valor",BRL.format(K.perValor),"var(--tec)"):"");
   $("cirPerPrev").innerHTML=
     st("Cirurgias",INT.format(K.perPrev),"var(--tc)",INT.format(K.perPorVir)+" ainda por acontecer")+
@@ -2517,15 +2542,17 @@ function renderCirurgias(K,p){
              "setembro","outubro","novembro","dezembro"];
   let sR=0,sM=0,sD=0,sP=0;
   for(const x of (K.meses||[])){
-    sR+=x.real; sM+=x.meta; sD+=x.duD; sP+=x.prev;
-    const c=cor(x.ocup);
+    sR+=x.real; sP+=x.prev;
+    if(x.duD){ sM+=x.metaAte; sD+=x.duD; }        // mês que ainda não começou não entra no total
+    const c=x.ocup==null?"var(--dim)":cor(x.ocup);
     th.insertAdjacentHTML("beforeend",
       '<tr'+(x.fechado?"":' style="color:var(--muted)"')+'><td class="l name">'+MES[x.m]+
       (x.fechado?"":' <span class="l">em curso</span>')+'</td>'+
       '<td class="sep v-money num">'+INT.format(x.real)+'</td>'+
       '<td class="v-sub num">'+INT.format(x.meta)+'</td>'+
-      '<td class="num" style="color:'+c+'">'+fpct(x.ocup)+
-        '<span class="bar-inline"><i style="width:'+Math.min(100,x.ocup)+'%;background:'+c+'"></i></span></td>'+
+      '<td class="num" style="color:'+c+'">'+(x.ocup==null?"—":fpct(x.ocup))+
+        (x.ocup==null?"":'<span class="bar-inline"><i style="width:'+Math.min(100,x.ocup)+
+         '%;background:'+c+'"></i></span>')+'</td>'+
       '<td class="num" style="color:'+(x.media!=null&&x.media>=K.porDia?"var(--pos)":"var(--txt)")+'">'+
         (x.media!=null?x.media.toFixed(1).replace(".",","):"—")+'</td>'+
       '<td class="sep v-sub num">'+INT.format(x.du)+'</td>'+
@@ -2537,7 +2564,7 @@ function renderCirurgias(K,p){
     '<td class="num">'+fpct(pct(sR,sM))+'</td>'+
     '<td class="num">'+(sD?(sR/sD).toFixed(1).replace(".",","):"—")+'</td>'+
     '<td class="sep num">'+INT.format(K.duAno)+'</td><td class="num">'+INT.format(sP)+'</td></tr>':"";
-  $("cirHistSub").textContent="meta "+K.porDia+" por dia útil · ocupação sobre o mês inteiro";
+  $("cirHistSub").textContent="meta "+K.porDia+" por dia útil · ocupação sobre os dias úteis já decorridos";
 
   barras("cirSit",[...K.porSit.entries()].sort((a,b)=>b[1]-a[1]),K.perAgend||1,"var(--tc)");
   $("cirSitSub").textContent=INT.format(K.perAgend)+" agendamentos";
