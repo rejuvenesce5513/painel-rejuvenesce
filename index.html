@@ -309,6 +309,7 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
     <div><span class="k">Desvio vs. ritmo</span><span class="num" id="fDelta">—</span></div>
     <div><span class="k">Falta</span><span class="num" id="fFalta">—</span></div>
     <div><span class="k">Média/dia útil restante</span><span class="num" id="fDia">—</span></div>
+    <div><span class="k">Base da meta</span><span class="num" id="fMetaBase">—</span></div>
     <div><span class="k">Projeção no ritmo atual</span><span class="num" id="fProj">—</span></div>
   </div>
 </section>
@@ -1208,23 +1209,28 @@ function computar(){
     const diasMes=new Date(Date.UTC(p.a.getUTCFullYear(),p.a.getUTCMonth()+1,0)).getUTCDate();
     meta=meta*(p.totalDias/diasMes); metaTC=metaTC&&metaTC*(p.totalDias/diasMes); metaTE=metaTE&&metaTE*(p.totalDias/diasMes);
   }
-  // dentro do mesmo mês usa a meta cheia; atravessando meses, soma o proporcional de cada um
+  // meta proporcional aos DIAS UTEIS do recorte dentro de cada mês.
+  // Período = mês inteiro -> meta cheia. "Hoje" -> um dia útil da meta do mês.
+  const ferM=feriadosSet();
   const fatiasMes=(()=>{
     const out=[]; let cur=new Date(Date.UTC(p.a.getUTCFullYear(),p.a.getUTCMonth(),1));
     while(cur<=p.b){
       const ini=new Date(Math.max(cur,p.a));
       const fimMes=new Date(Date.UTC(cur.getUTCFullYear(),cur.getUTCMonth()+1,0));
       const fim=new Date(Math.min(fimMes,p.b));
-      out.push({ym:ymUTC(cur),dias:Math.round((fim-ini)/864e5)+1,diasMes:fimMes.getUTCDate()});
+      out.push({ym:ymUTC(cur),
+                du:diasUteis(ini,fim,ferM),
+                duMes:diasUteis(new Date(Date.UTC(cur.getUTCFullYear(),cur.getUTCMonth(),1)),fimMes,ferM)});
       cur=new Date(Date.UTC(cur.getUTCFullYear(),cur.getUTCMonth()+1,1));
     }
     return out;
   })();
-  let mTC=0,mTE=0,temCfg=false;
+  let mTC=0,mTE=0,temCfg=false,duSel=0,duTot=0;
   for(const f of fatiasMes){
+    duSel+=f.du; duTot+=f.duMes;
     const m=metasDoMes(f.ym); if(!m||!(m.tc||m.te))continue;
     temCfg=true;
-    const fr = fatiasMes.length===1 ? 1 : f.dias/f.diasMes;
+    const fr = f.duMes ? f.du/f.duMes : 0;
     mTC+=m.tc*fr; mTE+=m.te*fr;
   }
   const mCfg=temCfg?{tc:mTC,te:mTE}:null;
@@ -1232,7 +1238,8 @@ function computar(){
   if(metaTC==null)metaTC=meta*(CFG.splitTC/100);
   if(metaTE==null)metaTE=meta*(CFG.splitTE/100);
   out.meta={total:meta,tc:metaTC,te:metaTE,
-            estimada:(iMtc<0||iMte<0)&&!mCfg, daConfig:!!mCfg, fatias:fatiasMes.length};
+            estimada:(iMtc<0||iMte<0)&&!mCfg, daConfig:!!mCfg, fatias:fatiasMes.length,
+            duSel, duTot};
 
   const iK=pick(cv,"MM/AAAA da Avaliação","MM/AAAA da Avaliacao","MM/AAAA Avaliação");
   const iNome=pick(cv,"Nome");
@@ -1935,6 +1942,10 @@ function render(){
   const projecao=emCurso?A.tot.v*(p.totalDias/p.decorridos):A.tot.v;
   const pctProj=pct(projecao,m.total);
   $("gProj").style.width=(emCurso?Math.min(100,pctProj):0)+"%";
+  const mm=$("fMetaBase");
+  if(mm)mm.textContent=D.meta.daConfig
+    ? INT.format(D.meta.duSel)+" de "+INT.format(D.meta.duTot)+" dia(s) útil(eis) da meta mensal"
+    : "";
   $("fProj").innerHTML=emCurso
     ? BRL.format(projecao)+' <span style="color:'+(pctProj>=100?"var(--pos)":"var(--neg)")+'">('+fpct(pctProj)+" da meta)</span>"
     : '<span style="color:var(--dim)">período encerrado</span>';
