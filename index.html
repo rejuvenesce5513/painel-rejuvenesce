@@ -182,6 +182,11 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
 .slot{flex:1;height:30px;border-radius:2px;background:var(--panel2);border:1px solid var(--line)}
 .slot.feita{background:var(--pos);border-color:var(--pos)}
 .slot.fila{background:transparent;border:2px solid var(--tc)}
+.anoGrid{display:grid;grid-template-columns:230px 1fr;gap:26px;align-items:start}
+.anoHero{border-right:1px solid var(--line);padding-right:22px}
+.anoHero .v{line-height:1.05}
+@media(max-width:820px){.anoGrid{grid-template-columns:1fr}
+  .anoHero{border-right:none;border-bottom:1px solid var(--line);padding:0 0 16px}}
 .par{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 @media(max-width:900px){.par{grid-template-columns:1fr}}
 .hojebar{border-left:3px solid var(--tc);margin-bottom:14px}
@@ -572,8 +577,20 @@ Não é subconjunto dos leads acima: inclui remarcações, retornos e quem agend
 
 <section class="card" style="margin-top:14px">
   <div class="card-head"><h2>Acumulado do ano</h2><span class="eyebrow" id="cirAnoSub"></span></div>
-  <div class="track"><div class="fillproj" id="cirAnoProj" style="width:0%"></div><div class="fill" id="cirAnoFill" style="width:0%"></div></div>
-  <div class="stats" id="cirAno" style="margin-top:14px"></div>
+  <div class="anoGrid">
+    <div class="anoHero">
+      <div class="l">Cirurgias realizadas</div>
+      <div class="v disp num" id="cirAnoNum">0</div>
+      <div class="l" id="cirAnoNumS"></div>
+      <div class="l" style="margin-top:14px">Por dia útil</div>
+      <div class="v disp num" id="cirAnoMedia" style="font-size:34px">0</div>
+      <div class="l" id="cirAnoMediaS"></div>
+    </div>
+    <div class="anoLado">
+      <div class="track"><div class="fillproj" id="cirAnoProj" style="width:0%"></div><div class="fill" id="cirAnoFill" style="width:0%"></div></div>
+      <div class="stats" id="cirAno" style="margin-top:16px"></div>
+    </div>
+  </div>
 </section>
 
 <div class="par" style="margin-top:14px">
@@ -1738,9 +1755,11 @@ function calcCirurgias(p){
   o.metaAno=porDia*o.duAno;
   o.duPer=diasUteis(p.a,p.b,fer);
   o.metaPer=porDia*o.duPer;
-  o.mediaDia=o.duPer?o.perReal/o.duPer:0;
+  // a media so pode dividir por dias que ja aconteceram
+  o.duDecor=(hoje<p.a)?0:diasUteis(p.a,new Date(Math.min(+hoje,+p.b)),fer);
+  o.mediaDia=o.duDecor?o.perReal/o.duDecor:0;
   o.perPrev=o.perReal+o.perPorVir;                       // já aconteceu + ainda vai acontecer
-  o.mediaPrev=o.duPer?o.perPrev/o.duPer:0;
+  o.mediaPrev=o.duPer?o.perPrev/o.duPer:0;   // projeta sobre o periodo inteiro
   o.futuro=p.a>hoje;                                      // período inteiro à frente
   o.porDia=porDia;
   return o;
@@ -2388,14 +2407,18 @@ function renderCirurgias(K,p){
   $("cirAnoFill").style.width=Math.min(100,ocAno)+"%";
   $("cirAnoProj").style.width=Math.min(100,pct(projAno,K.metaAno))+"%";
   const mediaAno=K.duAnoAte?K.anoReal/K.duAnoAte:0;
+  $("cirAnoNum").textContent=INT.format(K.anoReal);
+  $("cirAnoNum").style.color="var(--pos)";
+  $("cirAnoNumS").textContent="de "+INT.format(K.metaAnoAte)+" possíveis até hoje";
+  $("cirAnoMedia").textContent=mediaAno.toFixed(1).replace(".",",");
+  $("cirAnoMedia").style.color=mediaAno>=K.porDia?"var(--pos)":"var(--tec)";
+  $("cirAnoMediaS").textContent="meta "+K.porDia+" · faltam "+(K.porDia-mediaAno).toFixed(1).replace(".",",");
   $("cirAno").innerHTML=
-    st("Realizadas no ano",INT.format(K.anoReal),"var(--pos)")+
-    st("Média por dia útil",mediaAno.toFixed(1).replace(".",","),
-       mediaAno>=K.porDia?"var(--pos)":null,"meta "+K.porDia)+
-    st("Meta até hoje",INT.format(K.metaAnoAte),null,INT.format(K.duAnoAte)+" dias úteis × "+K.porDia)+
-    st("Ocupação",fpct(ocAno),cor(ocAno))+
-    st("Meta do ano",INT.format(K.metaAno),"var(--muted)",INT.format(K.duAno)+" dias úteis")+
-    st("Projeção no ritmo",INT.format(Math.round(projAno)),"var(--tc)",fpct(pct(projAno,K.metaAno))+" da meta anual");
+    st("Ocupação",fpct(ocAno),cor(ocAno),INT.format(K.duAnoAte)+" dias úteis decorridos")+
+    st("Projeção no ritmo",INT.format(Math.round(projAno)),"var(--tc)",fpct(pct(projAno,K.metaAno))+" da meta anual")+
+    st("Meta do ano",INT.format(K.metaAno),"var(--muted)",INT.format(K.duAno)+" dias úteis × "+K.porDia)+
+    st("Faltam para a meta",INT.format(Math.max(0,K.metaAno-K.anoReal)),"var(--tec)",
+       INT.format(Math.max(0,K.duAno-K.duAnoAte))+" dias úteis restantes");
   $("cirAnoSub").textContent="não muda com o período selecionado";
 
   const ocPer=pct(K.perReal,K.metaPer), ocPrev=pct(K.perPrev,K.metaPer);
@@ -2405,8 +2428,9 @@ function renderCirurgias(K,p){
   $("cirPrevPct").textContent=fpct(ocPrev); $("cirPrevPct").style.color=cor(ocPrev);
   $("cirPerReal").innerHTML=
     st("Cirurgias",INT.format(K.perReal),"var(--pos)")+
-    st("Por dia útil",K.mediaDia.toFixed(1).replace(".",","),
-       K.mediaDia>=K.porDia?"var(--pos)":null,"meta "+K.porDia)+
+    st("Por dia útil",K.duDecor?K.mediaDia.toFixed(1).replace(".",","):"—",
+       K.mediaDia>=K.porDia?"var(--pos)":null,
+       K.duDecor?INT.format(K.duDecor)+" dia(s) útil(eis) decorrido(s) · meta "+K.porDia:"o período ainda não começou")+
     st("Das vagas",INT.format(K.perReal)+" de "+INT.format(K.metaPer))+
     (K.perValor?st("Valor",BRL.format(K.perValor),"var(--tec)"):"");
   $("cirPerPrev").innerHTML=
