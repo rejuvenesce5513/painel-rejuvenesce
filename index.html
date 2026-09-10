@@ -188,6 +188,12 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
 .anoHero{align-self:stretch}
 @media(max-width:820px){.anoGrid{grid-template-columns:1fr}
   .anoHero{border-right:none;border-bottom:1px solid var(--line);padding:0 0 16px}}
+.diasAlerta{display:flex;flex-wrap:wrap;gap:7px}
+.diaChip{display:flex;align-items:baseline;gap:7px;padding:6px 10px;border-radius:var(--r);
+  border:1px solid var(--line);background:var(--panel2);font-size:12.5px}
+.diaChip b{font-family:"IBM Plex Mono";font-variant-numeric:tabular-nums}
+.diaChip.vermelho{border-color:var(--neg)} .diaChip.vermelho b{color:var(--neg)}
+.diaChip.ambar{border-color:var(--tec)} .diaChip.ambar b{color:var(--tec)}
 .par{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 @media(max-width:900px){.par{grid-template-columns:1fr}}
 .hojebar{border-left:3px solid var(--tc);margin-bottom:14px}
@@ -231,8 +237,8 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
   <div class="tabs">
     <button id="tabCom" class="on">Comercial</button>
     <button id="tabPre">Pré-vendas</button>
-    <button id="tabCom2">Comissões</button>
     <button id="tabCir">Cirurgias</button>
+    <button id="tabCom2">Comissões</button>
     <button id="tabMts">Metas</button>
   </div>
   <div class="ctl">
@@ -608,24 +614,30 @@ Não é subconjunto dos leads acima: inclui remarcações, retornos e quem agend
   <div class="stats" id="cirHoje"></div>
 </section>
 
-<section class="card" id="cirAlertaBox" style="margin-top:14px;border-left:3px solid var(--neg);display:none">
-  <div class="card-head"><h2>Atenção — agenda vazia</h2><span class="eyebrow" id="cirAlertaSub"></span></div>
-  <div id="cirAlerta"></div>
-</section>
-
 <div class="par" style="margin-top:14px">
-  <section class="card" style="border-left:3px solid var(--pos)">
-    <div class="card-head"><h2>Realizado no período</h2><span class="card-pct disp num" id="cirRealPct">—</span></div>
-    <div class="minitrack"><div class="minifill" id="cirPerFill" style="width:0%"></div></div>
-    <div class="stats" id="cirPerReal" style="margin-top:12px"></div>
+  <section class="card" id="cirAlertaBox" style="border-left:3px solid var(--neg);display:none">
+    <div class="card-head"><h2>Atenção — agenda vazia</h2><span class="eyebrow" id="cirAlertaSub"></span></div>
+    <div id="cirAlerta" class="diasAlerta"></div>
   </section>
-  <section class="card" style="border-left:3px solid var(--tc)">
-    <div class="card-head"><h2>Se cumprir a agenda</h2><span class="card-pct disp num" id="cirPrevPct">—</span></div>
-    <div class="minitrack"><div class="minifill" id="cirPrevFill" style="width:0%;background:var(--tc)"></div></div>
-    <div class="stats" id="cirPerPrev" style="margin-top:12px"></div>
-  </section>
+  <div>
+    <section class="card" style="border-left:3px solid var(--pos)">
+      <div class="card-head"><h2>Realizado no período</h2><span class="card-pct disp num" id="cirRealPct">—</span></div>
+      <div class="minitrack"><div class="minifill" id="cirPerFill" style="width:0%"></div></div>
+      <div class="stats" id="cirPerReal" style="margin-top:12px"></div>
+    </section>
+    <section class="card" style="border-left:3px solid var(--tc);margin-top:14px">
+      <div class="card-head"><h2>Se cumprir a agenda</h2><span class="card-pct disp num" id="cirPrevPct">—</span></div>
+      <div class="minitrack"><div class="minifill" id="cirPrevFill" style="width:0%;background:var(--tc)"></div></div>
+      <div class="stats" id="cirPerPrev" style="margin-top:12px"></div>
+    </section>
+  </div>
 </div>
 <div class="h" id="cirPerSub" style="margin-top:8px;padding-left:3px"></div>
+
+<section class="card" style="margin-top:14px">
+  <div class="card-head"><h2>Cirurgias por dia</h2><span class="eyebrow" id="cirDiasSub"></span></div>
+  <div id="cirDias"></div>
+</section>
 
 <section class="rank" style="margin-top:14px">
   <div class="rank-head"><h2>Histórico do ano</h2><span class="eyebrow" id="cirHistSub"></span></div>
@@ -634,17 +646,6 @@ Não é subconjunto dos leads acima: inclui remarcações, retornos e quem agend
       <th>Ocupação</th><th>Por dia útil</th><th class="sep">Dias úteis</th><th>Previstas</th></tr></thead>
     <tbody id="cirHist"></tbody><tfoot id="cirHistF"></tfoot>
   </table></div>
-</section>
-
-<section class="aux" style="margin-top:14px">
-  <div class="card tc">
-    <div class="card-head"><h2>Situação no período</h2><span class="eyebrow" id="cirSitSub"></span></div>
-    <div id="cirSit"></div>
-  </div>
-  <div class="card tec">
-    <div class="card-head"><h2>Cirurgias por dia</h2><span class="eyebrow" id="cirDiasSub"></span></div>
-    <div id="cirDias"></div>
-  </div>
 </section>
 </div>
 </div>
@@ -744,7 +745,7 @@ Não é subconjunto dos leads acima: inclui remarcações, retornos e quem agend
   </div>
   <div class="row2">
     <div class="f"><label>Horizonte do alerta (dias)</label><input id="cHoriz" type="number" min="7" value="45"></div>
-    <div class="f"><label>Alerta abaixo de (% de ocupação)</label><input id="cAlerta" type="number" min="1" max="100" value="50"></div>
+    <div class="f"><label>Alerta abaixo de (% de ocupação)</label><input id="cAlerta" type="number" min="1" max="100" value="80"></div>
   </div>
   <div class="f"><label>Feriados (dd/mm/aaaa, separados por vírgula)</label><input id="cFeriados" placeholder="07/09/2026, 12/10/2026">
     <div class="h">Descontados do cálculo de dias úteis.</div></div>
@@ -981,7 +982,7 @@ const NATIVO = {
   "shCirurgias": "Cirurgias",
   "cirPorDia": 11,
   "cirHorizonte": 45,
-  "cirAlertaPct": 50,
+  "cirAlertaPct": 80,
   "feriados": "01/01/2026, 16/02/2026, 17/02/2026, 03/04/2026, 21/04/2026, 01/05/2026, 04/06/2026, 07/09/2026, 12/10/2026, 02/11/2026, 15/11/2026, 20/11/2026, 25/12/2026",
   "arqMetas": "https://rejuvenesce.sharepoint.com/sites/ClnicaRejuvenesce-Comercial/Documentos%20Compartilhados/Metas.xlsx",
   "shMetasCfg": "Metas",
@@ -999,7 +1000,7 @@ const store={
   set(k,v){ try{localStorage.setItem(k,v);}catch(e){mem[k]=v;} },
   del(k){ try{localStorage.removeItem(k);}catch(e){delete mem[k];} }
 };
-const DEF={versao:"",admins:"",chaveAdmin:"",metas:{},superPct:10,arqCirurgias:"",shCirurgias:"Cirurgias",cirPorDia:11,cirHorizonte:45,cirAlertaPct:50,feriados:"",arqMetas:"",shMetasCfg:"Metas",shPrevendas:"Prevendas",dedupMin:5,ghPainelRepo:"",ghPainelPath:"index.html",ghPainelBranch:"main",ghTokenPainel:"",acessos:[],acessoPadrao:[],arqRegras:"",shRegras:"Parâmetros Comissões",regrasComissao:"",tenant:"89aed341-1dc6-4d0d-b5c7-e8df4293d21d",client:"",file:"",autoEntrar:true,ghRepo:"",ghWf:"sync.yml",ghToken:"",shVendas:"Vendas",shMarc:"Marcações",shMetas:"Metas",
+const DEF={versao:"",admins:"",chaveAdmin:"",metas:{},superPct:10,arqCirurgias:"",shCirurgias:"Cirurgias",cirPorDia:11,cirHorizonte:45,cirAlertaPct:80,feriados:"",arqMetas:"",shMetasCfg:"Metas",shPrevendas:"Prevendas",dedupMin:5,ghPainelRepo:"",ghPainelPath:"index.html",ghPainelBranch:"main",ghTokenPainel:"",acessos:[],acessoPadrao:[],arqRegras:"",shRegras:"Parâmetros Comissões",regrasComissao:"",tenant:"89aed341-1dc6-4d0d-b5c7-e8df4293d21d",client:"",file:"",autoEntrar:true,ghRepo:"",ghWf:"sync.yml",ghToken:"",shVendas:"Vendas",shMarc:"Marcações",shMetas:"Metas",
   refresh:10,splitTC:90,splitTE:10,mapTC:"TC,TB,TS,BH",mapTE:"TEC",ignorar:"Sem deal comercial,—,JARVYS",marcaAgendada:"Data Agendada",stRealizada:"Atendido",stNoShow:"Não compareceu",stRemarcada:"Remarcado",stFuturo:"Marcado",stCancelado:"Desmarcado pelo paciente,Cancelado pelo profissional",mesesCheios:true,shParams:"Parâmetros Comissões",arqParams:"",emailsComissao:"",equipePre:"Beatriz,Fabiana,Amanda",incluirOrfas:false,etapasVenda:"FECHAMENTO,FINALIZADO,REVISAO DE PENDENCIAS",onlyPrimeira:true,ignoraZero:true,coorte:"fechamento"};
 // versao nova zera preferencias, mas NUNCA o que e conexao/credencial
 if(store.get("rjv.cfgv")!==NATIVO.versao){
@@ -1788,10 +1789,9 @@ function calcCirurgias(p){
   for(const r of C.rows){
     const d=toDate(iD>=0?r[iD]:null); if(!d)continue;
     const st=norm(iS>=0?r[iS]:"");
-    const real=st===stOk;
+    const real=st===stOk||aguard.some(x=>st.includes(x));   // na sala já conta
     if(+d===+hoje){
       if(real)o.hojeAtend++;
-      else if(aguard.some(x=>st.includes(x)))o.hojeAguard++;
       else if(!(st.includes("NAO COMPARECEU")||st.includes("CANCEL")||st.includes("DESMARC")))
         o.hojeMarc++;                       // "Marcado - confirmado / nao confirmado"
     }
@@ -1814,15 +1814,13 @@ function calcCirurgias(p){
         cel.feitas++;
       }else if(st.includes("NAO COMPARECEU")||st.includes("CANCEL")||st.includes("DESMARC")){
         o.perPerdida++;
-      }else if(aguard.some(x=>st.includes(x))){
-        o.perPorVir++; cel.feitas++;         // na fila, conta como já em andamento
       }else{
         o.perPorVir++; cel.prev++;           // marcado, com ou sem confirmação
       }
       o.porDiaMapa.set(k,cel);
     }
   }
-  o.hojeTot=o.hojeAtend+o.hojeAguard+o.hojeMarc;
+  o.hojeTot=o.hojeAtend+o.hojeMarc;
   o.duHoje=diasUteis(hoje,hoje,fer)||1;
   o.metaHoje=porDia*o.duHoje;
   o.duAnoAte=diasUteis(anoIni,hoje,fer);
@@ -2500,12 +2498,11 @@ function renderCirurgias(K,p){
     vagas+='<div class="slot'+(i<K.hojeAtend?" feita":i<K.hojeTot?" fila":"")+'"></div>';
   for(let i=K.metaHoje;i<K.hojeTot;i++)vagas+='<div class="slot feita"></div>';   // acima da capacidade
   $("cirSlots").innerHTML=vagas;
-  $("cirSlotsLeg").textContent=K.hojeAtend+" concluída(s), "+(K.hojeAguard+K.hojeMarc)+
-    " por fazer, "+Math.max(0,K.metaHoje-K.hojeTot)+" vaga(s) livre(s) de "+K.metaHoje;
+  $("cirSlotsLeg").textContent=K.hojeAtend+" concluída(s), "+K.hojeMarc+
+    " prevista(s), "+Math.max(0,K.metaHoje-K.hojeTot)+" vaga(s) livre(s) de "+K.metaHoje;
   $("cirHoje").innerHTML=
     st("Na agenda",INT.format(K.hojeTot))+
     st("Concluídas",INT.format(K.hojeAtend),"var(--pos)")+
-    st("Na fila",INT.format(K.hojeAguard),"var(--tc)")+
     st("Previstas",INT.format(K.hojeMarc),"var(--tec)")+
     st("Ocupação do dia",fpct(ocHoje),cor(ocHoje));
   $("cirHojeSub").textContent=new Date().toLocaleDateString("pt-BR",{weekday:"long",day:"2-digit",month:"long"});
@@ -2577,14 +2574,8 @@ function renderCirurgias(K,p){
       : "";
     al.innerHTML=L.map(x=>{
       const dd=x.d.toLocaleDateString("pt-BR",{weekday:"short",day:"2-digit",month:"2-digit",timeZone:"UTC"});
-      const c=x.oc===0?"var(--neg)":x.oc<25?"var(--neg)":"var(--tec)";
-      return '<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;font-size:13px">'+
-        '<span style="width:96px;color:var(--muted)">'+esc(dd)+'</span>'+
-        '<div class="minitrack" style="margin:0;flex:1"><div class="minifill" style="width:'+
-          Math.min(100,x.oc)+'%;background:'+c+'"></div></div>'+
-        '<span class="num" style="width:118px;text-align:right">'+
-          '<b style="color:'+c+'">'+x.n+"</b> de "+K.porDia+
-          ' <span style="color:var(--muted)">· '+x.livres+" livre(s)</span></span></div>";
+      return '<span class="diaChip '+(x.oc<70?"vermelho":"ambar")+'">'+esc(dd)+
+        " <b>"+x.n+"/"+K.porDia+"</b></span>";
     }).join("");
   }
 
@@ -2617,8 +2608,6 @@ function renderCirurgias(K,p){
     '<td class="sep num">'+INT.format(K.duAno)+'</td><td class="num">'+INT.format(sP)+'</td></tr>':"";
   $("cirHistSub").textContent="meta "+K.porDia+" por dia útil · ocupação sobre os dias úteis já decorridos";
 
-  barras("cirSit",[...K.porSit.entries()].sort((a,b)=>b[1]-a[1]),K.perAgend||1,"var(--tc)");
-  $("cirSitSub").textContent=INT.format(K.perAgend)+" agendamentos";
   const dias=[...K.porDiaMapa.entries()].sort().slice(-31);
   const maxD=Math.max(K.porDia,...dias.map(x=>x[1].feitas+x[1].prev));
   const el=$("cirDias"); el.innerHTML="";
