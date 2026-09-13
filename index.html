@@ -173,6 +173,9 @@ tfoot td{padding:12px 10px;text-align:right;border-top:1px solid var(--line);fon
 #cfgTabs button{font-size:12px;padding:6px 11px;border-radius:99px;background:var(--panel2);
   border:1px solid var(--line);color:var(--muted)}
 #cfgTabs button.on{background:var(--tc);border-color:var(--tc);color:var(--onTc);font-weight:600}
+.per{display:grid;grid-template-columns:1.1fr 1.4fr auto auto;gap:7px;align-items:center;margin-bottom:6px}
+.per input,.per select{width:100%}
+@media(max-width:760px){.per{grid-template-columns:1fr 1fr}}
 .apr{display:grid;grid-template-columns:1fr 18px 1fr;gap:8px;align-items:center;margin-bottom:6px;font-size:13px}
 .apr .de{color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .apr .seta{color:var(--dim);text-align:center}
@@ -901,19 +904,60 @@ const NATIVO = {
   "emailsComissao": "fabricio.araujo@clinicarejuvenesce.com.br, samuel.nascimento@clinicarejuvenesce.com.br, francis@clinicarejuvenesce.com.br, raissa.fortini@clinicarejuvenesce.com.br",
   "superPct": 10,
   "pessoas": [
-    { "e": "fernando.delazari@clinicarejuvenesce.com.br", "nome": "Fernando Delazari", "tipo": "vendedor" },
-    { "e": "guilherme.conti@clinicarejuvenesce.com.br", "nome": "Guilherme Conti", "tipo": "vendedor" },
-    { "e": "ricardo.melo@clinicarejuvenesce.com.br", "nome": "Ricardo Melo", "tipo": "vendedor" },
-    { "e": "alexandre.fritz@clinicarejuvenesce.com.br", "nome": "Alexandre Fritz", "tipo": "vendedor" },
-    { "e": "larissa.souza@clinicarejuvenesce.com.br", "nome": "Larissa Mendes de Souza", "tipo": "vendedor" },
-    { "e": "beatriz.olinda@clinicarejuvenesce.com.br", "nome": "Beatriz Olinda Santiago", "tipo": "prevendas" },
-    { "e": "fabiana.vieira@clinicarejuvenesce.com.br", "nome": "Fabiana da costa vieira", "tipo": "prevendas" },
-    { "e": "amanda.silva@clinicarejuvenesce.com.br", "nome": "amanda", "tipo": "prevendas" }
+    {
+      "e": "fernando.delazari@clinicarejuvenesce.com.br",
+      "nome": "Fernando Delazari",
+      "tipo": "vendedor"
+    },
+    {
+      "e": "guilherme.conti@clinicarejuvenesce.com.br",
+      "nome": "Guilherme Conti",
+      "tipo": "vendedor"
+    },
+    {
+      "e": "ricardo.melo@clinicarejuvenesce.com.br",
+      "nome": "Ricardo Melo",
+      "tipo": "vendedor"
+    },
+    {
+      "e": "alexandre.fritz@clinicarejuvenesce.com.br",
+      "nome": "Alexandre Fritz",
+      "tipo": "vendedor"
+    },
+    {
+      "e": "larissa.souza@clinicarejuvenesce.com.br",
+      "nome": "Larissa Mendes de Souza",
+      "tipo": "vendedor"
+    },
+    {
+      "e": "beatriz.olinda@clinicarejuvenesce.com.br",
+      "nome": "Beatriz Olinda Santiago",
+      "tipo": "prevendas"
+    },
+    {
+      "e": "fabiana.vieira@clinicarejuvenesce.com.br",
+      "nome": "Fabiana da costa vieira",
+      "tipo": "prevendas"
+    },
+    {
+      "e": "amanda.silva@clinicarejuvenesce.com.br",
+      "nome": "amanda",
+      "tipo": "prevendas"
+    }
   ],
   "liderancas": [
-    { "e": "camila.espinula@clinicarejuvenesce.com.br", "nome": "Camila Thais Espinula" },
-    { "e": "fabricio.araujo@clinicarejuvenesce.com.br", "nome": "Fabrício de Araújo Paula" },
-    { "e": "raissa.fortini@clinicarejuvenesce.com.br", "nome": "Raissa Fortini Andrade" }
+    {
+      "e": "camila.espinula@clinicarejuvenesce.com.br",
+      "nome": "Camila Thais Espinula"
+    },
+    {
+      "e": "fabricio.araujo@clinicarejuvenesce.com.br",
+      "nome": "Fabrício de Araújo Paula"
+    },
+    {
+      "e": "raissa.fortini@clinicarejuvenesce.com.br",
+      "nome": "Raissa Fortini Andrade"
+    }
   ],
   "premioComercialPct": 0.1,
   "premioSupermetaVend": 3500,
@@ -923,7 +967,40 @@ const NATIVO = {
   "vigenciaEntrada": "01/09/2026",
   "shEntrada": "Fechamentos",
   "premioTecMinimo": 60000,
-  "apelidos": {},
+  "apelidos": {
+    "BEATRIZ OLINDA SANTIAGO": "BEATRIZ OLINDA SANTIAGO DA SILVA",
+    "PRISCILA OLIVEIRA": "PRISCILA PAULA DE OLIVEIRA",
+    "MATHEUS FIGUEIREDO": "Matheus Figueiredo Silva",
+    "MATHEUS": "Matheus Figueiredo Silva",
+    "FERNANDO DELAZARI": "Fernando Delazari Moreira",
+    "FERNANDO": "Fernando Delazari Moreira",
+    "GUILHERME CONTI": "GUILHERME CONTI GOMES DE ALMEIDA",
+    "VICTOR": "VICTOR FABIANO OLIVEIRA SANTOS",
+    "RICARDO MELO": "Ricardo Melo Lopes",
+    "LAVINIA": "LAVINIA FLORES CORLAITE",
+    "LAVINIA CORLAITE": "LAVINIA FLORES CORLAITE",
+    "LARISSA MENDES": "Larissa Mendes de Souza",
+    "ALEXANDRE FRITZ": "ALEXANDRE RHUAN ALMEIDA FRITZ",
+    "LEONARDO": "Leonardo Fernandes",
+    "STEPHANIE MACEDO": "STEPHANIE KAMILLA PEREIRA MACEDO",
+    "AMANDA SILVA": "AMANDA KETLYN PEREIRA SILVA",
+    "AMANDA": "AMANDA KETLYN PEREIRA SILVA",
+    "OLIVIA": "Olivia Maria Pereira Siqueira",
+    "RAISSA FORTINI": "RAISSA FORTINI ANDRADE",
+    "FILIPE ZINATELLI": "FILIPE SALVADOR ZINATELLI COELHO",
+    "PATRICIA": "PATRICIA MARQUES QUINTELA",
+    "PATRICIA QUINTELA": "PATRICIA MARQUES QUINTELA",
+    "WENDY TEIXEIRA": "Wendy Teixeira Matos",
+    "GABRIELA": "Gabriela Almeida Mattos",
+    "ISABELLA FERNANDES": "ISABELLA FERNANDES EXENFORD FREITAS",
+    "LETICIA": "Leticia Campos Tavares",
+    "MARIA FERNANDA": "Maria Fernanda Prata Dabian Haddad",
+    "CAMILA ESPINULA": "CAMILA THAIS ESPINULA",
+    "SARAH": "SARAH SANTOS AZEVEDO",
+    "FRANCIS ARANTES": "FRANCIS ARANTES SAMPAIO",
+    "ANA CAROLINA": "ANA CAROLINA P. DE ALMEIDA",
+    "SAMUEL SANTANA": "SAMUEL SANTANA DO NASCIMENTO"
+  },
   "rankSoCadastrados": true,
   "pesosMeta": "Vendedor Avaliador Sênior=1,40|Vendedor Avaliador=1,20|Vendedor Nível 3 / Sênior=1,10|Vendedor Nível 2=1,00|Vendedor Nível 1=0,80",
   "metas": {},
@@ -1373,11 +1450,12 @@ function computar(){
     const et=norm(r[iEc]);
     const fechou=et==="FECHAMENTO";
     if(fechou)ev.convMarc++; else if(et.includes("PERDID"))ev.perd++;
-    const key=norm(r[iVc])||"—";
+    const brutoVc=canon(titled(r[iVc])||"—");
+    const key=chaveUnica(vend,brutoVc);
     if(!vend.has(key))vend.set(key,{tc:novo(),te:novo(),outro:novo(),tot:novo(),fech:0,aval:0});
     const s=vend.get(key); s.aval++;
     if(comprou){ s.fech++; convTot++; }
-    if(!nomes.has(key))nomes.set(key,titled(r[iVc])||"—");
+    nomes.set(key,nomeMaisCompleto(nomes.get(key),brutoVc));
   }
   // numerador vem da aba Vendas: venda cuja avaliacao caiu no periodo
   const orfas=[...compradores.entries()].filter(([k,o])=>!casados.has(k)&&!temAval.has(o.pac));
@@ -1387,10 +1465,11 @@ function computar(){
       avalMes.set(o.ym,(avalMes.get(o.ym)||0)+1);
       if(!compPeriodo.has(k))continue;
       ev.tot++; convTot++;
-      const key=o.resp||"—";
+      const brutoOr=canon(titled(o.nome||o.resp||"—"));
+      const key=chaveUnica(vend,brutoOr);
       if(!vend.has(key))vend.set(key,{tc:novo(),te:novo(),outro:novo(),tot:novo(),fech:0,aval:0});
       const sv=vend.get(key); sv.aval++; sv.fech++;
-      if(!nomes.has(key))nomes.set(key,o.nome||"—");
+      nomes.set(key,nomeMaisCompleto(nomes.get(key),brutoOr));
     }
   }
   ev.orfasAbsorvidas=CFG.incluirOrfas?orfas.filter(([k])=>compPeriodo.has(k)).length:0;
@@ -2599,6 +2678,48 @@ function aplicaCfgTabs(g){
   dr.querySelectorAll("#cfgTabs button").forEach(b=>b.className=b.dataset.g===g?"on":"");
 }
 
+const TIPOS_PESSOA=[["vendedor","Vendedor"],["prevendas","Pré-vendas"],["lideranca","Liderança"]];
+
+function pessoasUnificadas(){
+  const out=(CFG.pessoas||[]).map(x=>({e:x.e||"",nome:x.nome||"",tipo:x.tipo||"vendedor"}));
+  for(const l of (CFG.liderancas||[]))
+    if(!out.some(x=>norm(x.e)===norm(l.e)))out.push({e:l.e||"",nome:l.nome||"",tipo:"lideranca"});
+  return out;
+}
+
+function editorPessoas(){
+  const cx=$("peList"); if(!cx)return;
+  const L=pessoasUnificadas();
+  cx.innerHTML=L.map((x,i)=>
+    '<div class="per">'+
+    '<input type="text" class="pen" value="'+esc(x.nome)+'" placeholder="nome como aparece nos dados">'+
+    '<input type="text" class="pee" value="'+esc(x.e)+'" placeholder="email@clinicarejuvenesce.com.br">'+
+    '<select class="pet">'+TIPOS_PESSOA.map(([v,r])=>'<option value="'+v+'"'+
+      (x.tipo===v?" selected":"")+">"+r+"</option>").join("")+"</select>"+
+    '<button class="acx pex" data-i="'+i+'" title="Remover">&times;</button></div>').join("")
+    ||'<div style="color:var(--dim);font-size:13px">nenhuma pessoa cadastrada</div>';
+  cx.querySelectorAll(".pex").forEach(b=>b.onclick=()=>{
+    lerPessoas(); const L2=pessoasUnificadas(); L2.splice(+b.dataset.i,1); gravaPessoas(L2); editorPessoas();
+  });
+}
+
+function gravaPessoas(L){
+  CFG.pessoas=L.filter(x=>x.tipo!=="lideranca"&&(x.nome||x.e))
+               .map(x=>({e:x.e,nome:x.nome,tipo:x.tipo}));
+  CFG.liderancas=L.filter(x=>x.tipo==="lideranca"&&(x.nome||x.e))
+                  .map(x=>({e:x.e,nome:x.nome}));
+}
+
+function lerPessoas(){
+  const cx=$("peList"); if(!cx)return;
+  const linhas=[...cx.querySelectorAll(".per")];
+  if(!linhas.length)return;
+  gravaPessoas(linhas.map(r=>({
+    nome:(r.querySelector(".pen")||{}).value||"",
+    e:(r.querySelector(".pee")||{}).value||"",
+    tipo:(r.querySelector(".pet")||{}).value||"vendedor"})));
+}
+
 function editorApelidos(){
   const cx=$("apLista"); if(!cx)return;
   const L=nomesDeTodasAsFontes();
@@ -3715,6 +3836,22 @@ async function publicarGitHub(){
 $("cPublicar").onclick=publicarGitHub;
 $("cSairAdmin").onclick=()=>{store.del("rjv.destrava");$("drawer").classList.remove("open");atualizaAdmin();};
 document.querySelectorAll("#cfgTabs button").forEach(b=>b.onclick=()=>aplicaCfgTabs(b.dataset.g));
+$("peAdd").onclick=()=>{ lerPessoas();
+  gravaPessoas(pessoasUnificadas().concat([{e:"",nome:"",tipo:"vendedor"}])); editorPessoas(); };
+$("peAlinhar").onclick=()=>{
+  lerPessoas(); lerApelidos();
+  const fontes=nomesDeTodasAsFontes().map(x=>canon(x.nome));
+  let n=0;
+  const L=pessoasUnificadas().map(x=>{
+    if(!x.nome)return x;
+    const of=fontes.find(f=>mesmaPessoa(f,x.nome));
+    if(of&&norm(of)!==norm(x.nome)){ n++; return Object.assign({},x,{nome:of}); }
+    return x;
+  });
+  gravaPessoas(L); editorPessoas();
+  $("cfgNotes").textContent=n?n+" nome(s) alinhado(s) ao que aparece nos dados. Confira e salve."
+                             :"Todos os nomes já batem com os dados.";
+};
 $("apSugerir").onclick=()=>{
   lerApelidos();
   const L=nomesDeTodasAsFontes(); const m=Object.assign({},CFG.apelidos||{});
