@@ -168,6 +168,11 @@ tfoot td{padding:12px 10px;text-align:right;border-top:1px solid var(--line);fon
 .f input,.f select{width:100%}
 .f .h{font-size:11.5px;color:var(--dim);margin-top:4px;line-height:1.45}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+#cfgTabs{display:flex;gap:4px;flex-wrap:wrap;margin:0 0 16px;position:sticky;top:0;z-index:2;
+  background:var(--panel);padding:10px 0 10px;border-bottom:1px solid var(--line)}
+#cfgTabs button{font-size:12px;padding:6px 11px;border-radius:99px;background:var(--panel2);
+  border:1px solid var(--line);color:var(--muted)}
+#cfgTabs button.on{background:var(--tc);border-color:var(--tc);color:var(--onTc);font-weight:600}
 .apr{display:grid;grid-template-columns:1fr 18px 1fr;gap:8px;align-items:center;margin-bottom:6px;font-size:13px}
 .apr .de{color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .apr .seta{color:var(--dim);text-align:center}
@@ -2636,6 +2641,58 @@ function nomesDeTodasAsFontes(){
   junta(RAW&&RAW[CFG.shPrevendas],["Responsável","Avaliador"]);
   junta(RAW&&(RAW[CFG.shMarc]||RAW["Marcações"]),["Quem agendou","Profissional","Vendedor comercial"]);
   return [...vis.values()].sort((a,b)=>b.n-a.n);
+}
+
+/* O Configurar virou longo demais: agrupa os campos em subabas pelo id de cada um. */
+const CFG_GRUPOS=[
+  {id:"con", rot:"Conexão",  ids:["cTenant","cClient","cRedirect","cFile","cShVendas","cShMarc",
+      "cShMetas","cShPv","cRefresh","cAutoEntrar"]},
+  {id:"arq", rot:"Arquivos", ids:["cArqMet","cShMet","cShEnt","cArqCir","cShCir","cArqReg","cShReg",
+      "cRegras","cModelo","cEtAnt","cVigEt"]},
+  {id:"pes", rot:"Pessoas",  ids:["acList","acAdd","acPadrao","cAdmins","cEmails","cEquipe",
+      "apLista","apSugerir","apLimpar","cRankSo","cIgnorar"]},
+  {id:"met", rot:"Metas e comissões", ids:["cSplitTC","cSplitTE","cMapTC","cMapTE","cEtapas"]},
+  {id:"cir", rot:"Cirurgias", ids:["cCirDia","cHoriz","cAlerta","cFeriados"]},
+  {id:"pre", rot:"Pré-vendas", ids:["cAgendada","cStRe","cStNs","cStRm","cStFu","cStCa","cDedup",
+      "cOnlyPrimeira","cIgnoraZero","cOrfas","cCoorte"]},
+  {id:"pub", rot:"Publicação", ids:["cGhRepo","cGhWf","cGhToken","cGhPRepo","cGhPPath","cGhPBr",
+      "cGhPTok","cCeleb","cCelebSom"]}
+];
+let CFG_ABA="con";
+
+function montaCfgTabs(){
+  const dr=$("drawer"); if(!dr||dr.dataset.tabs==="1")return;
+  const dono=new Map();
+  CFG_GRUPOS.forEach(g=>g.ids.forEach(i=>dono.set(i,g.id)));
+  const filhos=[...dr.children];
+  const rodape=filhos[filhos.length-1];                 // botões e notas ficam sempre visíveis
+  let atual="con";
+  for(const el of filhos){
+    if(el.id==="cfgTabs"||el===rodape||el.id==="cfgNotes")continue;
+    if(el.contains&&el.querySelector){
+      const achado=[...el.querySelectorAll("[id]")].map(x=>dono.get(x.id)).find(Boolean)
+                 ||(dono.get(el.id)||null);
+      if(achado)atual=achado;
+    }
+    el.dataset.grupo=atual;
+  }
+  const barra=document.createElement("div");
+  barra.id="cfgTabs";
+  barra.innerHTML=CFG_GRUPOS.map(g=>'<button data-g="'+g.id+'">'+esc(g.rot)+"</button>").join("");
+  dr.insertBefore(barra,dr.firstChild);
+  barra.querySelectorAll("button").forEach(b=>b.onclick=()=>{ CFG_ABA=b.dataset.g; aplicaCfgTabs(); });
+  dr.dataset.tabs="1";
+  aplicaCfgTabs();
+}
+
+function aplicaCfgTabs(){
+  const dr=$("drawer"); if(!dr)return;
+  for(const el of dr.children){
+    if(el.id==="cfgTabs")continue;
+    if(el.dataset&&el.dataset.grupo)el.style.display=el.dataset.grupo===CFG_ABA?"":"none";
+  }
+  const b=$("cfgTabs");
+  if(b)b.querySelectorAll("button").forEach(x=>x.className=x.dataset.g===CFG_ABA?"on":"");
 }
 
 function editorApelidos(){
