@@ -2364,6 +2364,7 @@ function render(){
 
   renderFunil(D.funil,D.ev);
   renderCirurgias(D.cir2,p);
+  montaVisao();                            // a lista acompanha período e aba
   if(ABA_ATUAL==="mts")editorMetas();      // o mês mudou: o editor acompanha
 
   const av=[];
@@ -2622,6 +2623,13 @@ function focoTem(nome,tipo){
   return FOCOS.some(f=>(!tipo||f.tipo!==tipo)&&mesmaPessoa(nome,f.nome));
 }
 function rotuloVisao(){
+  const vis=FOCOS.filter(f=>ABA_ATUAL==="com"?f.tipo!=="prevendas":f.tipo!=="vendedor");
+  if(!vis.length)return "Visão: equipe";
+  if(vis.length===1)return vis[0].nome;
+  if(vis.length<=2)return vis.map(f=>f.nome.split(" ")[0]).join(" + ");
+  return vis.length+" selecionados";
+}
+function rotuloVisaoAntigo(){
   if(!FOCOS.length)return "Visão: equipe";
   if(FOCOS.length===1)return FOCOS[0].nome;
   if(FOCOS.length<=2)return FOCOS.map(f=>f.nome.split(" ")[0]).join(" + ");
@@ -2631,13 +2639,21 @@ function rotuloVisao(){
    sem depender de cadastro. Ordenados por volume, com um teto para não virar lista infinita. */
 function pessoasDosDados(){
   const ign=new Set(String(CFG.ignorar||"").split(",").map(norm).filter(Boolean));
-  const conta=(tab,cols,min)=>{
+  let p=null; try{ p=periodo(); }catch(e){}
+  const conta=(tab,cols,colData,min)=>{
     const m=new Map();
     if(!tab||!tab.rows)return m;
     const c=colmap(tab.headers);
     const i=cols.map(x=>pick(c,x)).find(x=>x>=0);
     if(i==null||i<0)return m;
+    const id=colData.map(x=>pick(c,x)).find(x=>x>=0);
     for(const r of tab.rows){
+      if(p&&id!=null&&id>=0){                       // só quem aparece no período
+        const d=toDate(r[id]);
+        if(!d)continue;
+        const dd=new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate()));
+        if(dd<p.a||dd>p.b)continue;
+      }
       const bruto=String((r[i]??"")).trim(); if(!bruto)continue;
       const k=norm(bruto); if(!k||ign.has(k))continue;
       const at=m.get(k)||{nome:bruto,n:0}; at.n++; m.set(k,at);
@@ -2647,9 +2663,9 @@ function pessoasDosDados(){
   const V=RAW&&(RAW[CFG.shVendas]||RAW.Vendas);
   const P=RAW&&RAW[CFG.shPrevendas];
   const M=RAW&&(RAW[CFG.shMarc]||RAW["Marcações"]);
-  const pre=new Map([...conta(P,["Responsável"],3)]);
-  for(const [k,v] of conta(M,["Quem agendou"],3))if(!pre.has(k))pre.set(k,v);
-  return {vend:[...conta(V,["Responsável"],1).values()].slice(0,40),
+  const pre=new Map([...conta(P,["Responsável"],["Data de criação"],2)]);
+  for(const [k,v] of conta(M,["Quem agendou"],["Data consulta"],2))if(!pre.has(k))pre.set(k,v);
+  return {vend:[...conta(V,["Responsável"],["Data de fechamento"],1).values()].slice(0,40),
           pre:[...pre.values()].slice(0,40)};
 }
 
@@ -2670,14 +2686,17 @@ function montaVisao(){
   if(!wrap)return;
   wrap.style.display="";
   const LV=listaVisao();
-  const L=LV.vend.concat(LV.pre);
-  const assin=L.map(x=>x.tipo+":"+x.nome).join("|");
+  const soVend=ABA_ATUAL==="com", soPre=ABA_ATUAL==="pre";
+  if(!soVend&&!soPre){ wrap.style.display="none"; return; }   // outras abas não usam foco
+  const grVend=soVend?LV.vend:[], grPre=soPre?LV.pre:[];
+  const L=grVend.concat(grPre);
+  const assin=ABA_ATUAL+"|"+L.map(x=>x.tipo+":"+x.nome).join("|");
   if(menu.dataset.assin!==assin){
     const gr=(rot,arr)=>arr.length?'<div class="gr">'+rot+"</div>"+arr.map(x=>
         '<label><input type="checkbox" class="vx" data-nome="'+esc(x.nome)+'" data-tipo="'+x.tipo+
         '"><span'+(x.cad?"":' style="color:var(--muted)"')+'>'+esc(x.nome)+
         (x.cad?"":' <span class="l">não cadastrado</span>')+"</span></label>").join(""):"";
-    menu.innerHTML=gr("Vendedores",LV.vend)+gr("Pré-vendas",LV.pre)+
+    menu.innerHTML=gr("Vendedores",grVend)+gr("Pré-vendas (SDR)",grPre)+
       '<div class="rodape"><button id="vTodos">Equipe inteira</button>'+
       '<button id="vFechar">Fechar</button></div>';
     menu.dataset.assin=assin;
@@ -3685,6 +3704,7 @@ function aba(q){
   $("tabMts").className=q==="mts"?"on":"";
   $("tabCir").className=q==="cir"?"on":"";
   if(q==="mts")editorMetas();
+  montaVisao();
 }
 $("tabCom").onclick=()=>aba("com");
 $("tabPre").onclick=()=>aba("pre");
