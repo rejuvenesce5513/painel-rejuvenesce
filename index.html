@@ -799,7 +799,7 @@ Não é subconjunto dos leads acima: inclui remarcações, retornos e quem agend
 </div>
 <div class="cfgG" data-g="pes" style="display:none">
 <div class="f"><label>Pessoas — vendedores, pré-vendas e lideranças</label>
-    <div class="h">Nome, e-mail, função e a quais painéis cada um tem acesso. O nome deve bater com o que aparece nos dados — use "Alinhar pelos nomes oficiais" depois da unificação abaixo.</div>
+    <div class="h">Nome, e-mail, função e a quais painéis cada um tem acesso. Administradores sempre veem tudo; a aba Comissões ainda depende da permissão no arquivo de regras. O nome deve bater com o que aparece nos dados — use "Alinhar pelos nomes oficiais" depois da unificação abaixo.</div>
     <div id="peList" style="margin-top:8px"></div>
     <div style="display:flex;gap:9px;margin-top:8px;flex-wrap:wrap">
       <button id="peAdd">+ Adicionar pessoa</button>
@@ -808,21 +808,19 @@ Não é subconjunto dos leads acima: inclui remarcações, retornos e quem agend
   </div>
   <hr>
   <div class="f"><label>Equipe de pré-vendas</label><input id="cEquipe" value="Beatriz,Fabiana,Amanda">
-    <div class="h">Primeiro nome basta. Quem não estiver aqui entra como agendamento esporádico — soma no total, fora do resultado do setor.</div></div><div class="f"><label>Quem vê quais painéis</label>
-    <div id="acList"></div>
-    <button id="acAdd">+ Adicionar pessoa</button>
-    <div class="h">Administradores sempre veem tudo. A aba Comissões ainda depende da permissão no arquivo de regras.</div>
-  </div><div class="f"><label>Padrão para quem não está na lista</label>
+    <div class="h">Primeiro nome basta. Quem não estiver aqui entra como agendamento esporádico — soma no total, fora do resultado do setor.</div></div><div class="f"><label>Padrão para quem não está na lista</label>
     <div class="tp" id="acPadrao" style="display:flex;gap:14px;flex-wrap:wrap;font-size:13px"></div>
   </div><div class="f"><label>E-mails com acesso à aba Comissões</label><input id="cEmails" placeholder="fabricio@clinicarejuvenesce.com.br, ...">
     <div class="h">Vazio libera para quem já acessa os parâmetros. Trava de tela, não de dados.</div></div><label class="chk"><input type="checkbox" id="cRankSo" checked><span>No ranking, listar apenas os vendedores cadastrados (os demais viram uma linha "Outros")</span></label><div class="f"><label>Rótulos a excluir do ranking</label><input id="cIgnorar" value="Sem deal comercial,—,JARVYS">
     <div class="h">Valores da coluna Responsável/Vendedor comercial que não são vendedores.</div></div><div class="f"><label>Unificação de nomes</label>
     <div class="h">A mesma pessoa às vezes aparece com grafias diferentes no RD, no Feegow e na planilha.
       Escreva o nome oficial ao lado de cada variação para somar tudo numa linha só.</div>
-    <div style="display:flex;gap:9px;margin:8px 0">
+    <div style="display:flex;gap:9px;margin:8px 0;flex-wrap:wrap;align-items:center">
       <button id="apSugerir">Sugerir automaticamente</button>
       <button id="apLimpar">Limpar vínculos</button>
+      <label class="chk" style="margin:0"><input type="checkbox" id="apTodos"><span>mostrar todos os nomes</span></label>
     </div>
+    <div class="h" id="apResumo" style="margin-bottom:6px"></div>
     <div id="apLista" style="max-height:320px;overflow:auto;border:1px solid var(--line);border-radius:var(--r);padding:8px"></div>
   </div><div class="f"><label>Administradores do painel</label><input id="cAdmins" value="fabricio.araujo@clinicarejuvenesce.com.br">
     <div class="h">Só estes e-mails enxergam o botão Configurar. Os demais recebem a configuração pronta.</div></div>
@@ -1177,8 +1175,8 @@ let ADMIN=false;
 let CFG=Object.assign({},DEF,NATIVO,SALVO);
 // infraestrutura: quando o bloco nativo define, ele manda — ajuste local nao sobrepoe.
 // (evita que um valor velho no navegador esconda o caminho publicado)
-for(const k of ["arqMetas","shMetasCfg","arqRegras","shRegras","acessos","acessoPadrao",
-                "admins","chaveAdmin","file","tenant","client"]){
+for(const k of ["arqMetas","shMetasCfg","arqRegras","shRegras",
+                "file","tenant","client"]){
   if(NATIVO[k]!==undefined&&NATIVO[k]!==""&&!(Array.isArray(NATIVO[k])&&!NATIVO[k].length))
     CFG[k]=NATIVO[k];
 }
@@ -2722,9 +2720,11 @@ function gravaPessoas(L){
   CFG.liderancas=val.filter(x=>x.tipo==="lideranca").map(x=>({e:x.e,nome:x.nome}));
   CFG.acessos=val.filter(x=>x.e&&(x.paineis||[]).length).map(x=>({e:x.e,t:x.paineis.slice()}));
 }
-function editorPessoas(){
+let PESSOAS_ED=null;
+function editorPessoas(recarregar){
   const cx=$("peList"); if(!cx)return;
-  const L=pessoasUnificadas();
+  if(recarregar||!PESSOAS_ED)PESSOAS_ED=pessoasUnificadas();
+  const L=PESSOAS_ED;
   cx.innerHTML=L.map((x,i)=>
     '<div class="per">'+
     '<input type="text" class="pen" value="'+esc(x.nome)+'" placeholder="nome como aparece nos dados">'+
@@ -2737,13 +2737,18 @@ function editorPessoas(){
     "</div>").join("")
     ||'<div style="color:var(--dim);font-size:13px">nenhuma pessoa cadastrada</div>';
   cx.querySelectorAll(".pex").forEach(b=>b.onclick=()=>{
-    lerPessoas(); const L2=pessoasUnificadas(); L2.splice(+b.dataset.i,1); gravaPessoas(L2); editorPessoas();
+    lerPessoas(); PESSOAS_ED.splice(+b.dataset.i,1); editorPessoas();
   });
 }
 function lerPessoas(){
   const cx=$("peList"); if(!cx)return;
   const linhas=[...cx.querySelectorAll(".per")];
   if(!linhas.length)return;
+  PESSOAS_ED=linhas.map(r=>({
+    nome:(r.querySelector(".pen")||{}).value||"",
+    e:(r.querySelector(".pee")||{}).value||"",
+    tipo:(r.querySelector(".pet")||{}).value||"vendedor",
+    paineis:[...r.querySelectorAll(".pec")].filter(c=>c.checked).map(c=>c.dataset.p)}));
   gravaPessoas(linhas.map(r=>({
     nome:(r.querySelector(".pen")||{}).value||"",
     e:(r.querySelector(".pee")||{}).value||"",
@@ -2753,14 +2758,26 @@ function lerPessoas(){
 
 function editorApelidos(){
   const cx=$("apLista"); if(!cx)return;
-  const L=nomesDeTodasAsFontes();
+  const Ltodos=nomesDeTodasAsFontes();
   const mapa=CFG.apelidos||{};
+  const temVinculo=x=>!!mapa[norm(x.nome)];
+  const pareceOutro=x=>Ltodos.some(y=>norm(y.nome)!==norm(x.nome)&&mesmaPessoa(y.nome,x.nome));
+  const precisa=x=>temVinculo(x)||pareceOutro(x);
+  const verTodos=$("apTodos")&&$("apTodos").checked;
+  const L=verTodos?Ltodos:Ltodos.filter(precisa);
+  const nVinc=Ltodos.filter(temVinculo).length;
+  const nPend=Ltodos.filter(x=>!temVinculo(x)&&pareceOutro(x)).length;
+  const r=$("apResumo");
+  if(r)r.innerHTML="<b>"+nVinc+"</b> vinculado(s) · <b"+(nPend?' style="color:var(--neg)"':"")+">"+
+    nPend+"</b> parecido(s) sem vínculo · "+(Ltodos.length-nVinc-nPend)+
+    " sem parecido (não precisam de vínculo)";
   cx.innerHTML=L.map(x=>{
     const of=mapa[norm(x.nome)]||"";
     return '<div class="apr'+(of?" lig":"")+'"><span class="de" title="'+esc(x.nome)+'">'+esc(x.nome)+
       ' <span class="l">'+x.n+"</span></span><span class=\"seta\">→</span>"+
       '<input class="apv" data-de="'+esc(x.nome)+'" value="'+esc(of)+'" placeholder="nome oficial"></div>';
-  }).join("")||'<div style="color:var(--dim);font-size:13px">conecte-se para carregar os nomes</div>';
+  }).join("")||'<div style="color:var(--dim);font-size:13px">'+
+    (Ltodos.length?"nenhum nome precisa de vínculo":"conecte-se para carregar os nomes")+"</div>";
 }
 
 function lerApelidos(){
@@ -3816,7 +3833,7 @@ function uiToCfg(){lerEditor();for(const id in F){const el=$(id);if(!el)continue
   store.set("rjv.cfg",JSON.stringify(dif)); Object.assign(SALVO,dif);}
 function openCfg(msg){
   $("drawer").classList.add("open");
-  editorPessoas(); editorApelidos();        // os dados já podem ter chegado
+  editorPessoas(true); editorApelidos();    // os dados já podem ter chegado
   $("cfgNotes").textContent=msg||"";
 }
 
@@ -3872,19 +3889,21 @@ async function publicarGitHub(){
 $("cPublicar").onclick=publicarGitHub;
 $("cSairAdmin").onclick=()=>{store.del("rjv.destrava");$("drawer").classList.remove("open");atualizaAdmin();};
 document.querySelectorAll("#cfgTabs button").forEach(b=>b.onclick=()=>aplicaCfgTabs(b.dataset.g));
+$("apTodos").onchange=()=>editorApelidos();
 $("peAdd").onclick=()=>{ lerPessoas();
-  gravaPessoas(pessoasUnificadas().concat([{e:"",nome:"",tipo:"vendedor"}])); editorPessoas(); };
+  PESSOAS_ED=(PESSOAS_ED||[]).concat([{e:"",nome:"",tipo:"vendedor",paineis:["com"]}]);
+  editorPessoas(); };
 $("peAlinhar").onclick=()=>{
   lerPessoas(); lerApelidos();
   const fontes=nomesDeTodasAsFontes().map(x=>canon(x.nome));
   let n=0;
-  const L=pessoasUnificadas().map(x=>{
+  const L=(PESSOAS_ED||pessoasUnificadas()).map(x=>{
     if(!x.nome)return x;
     const of=fontes.find(f=>mesmaPessoa(f,x.nome));
     if(of&&norm(of)!==norm(x.nome)){ n++; return Object.assign({},x,{nome:of}); }
     return x;
   });
-  gravaPessoas(L); editorPessoas();
+  PESSOAS_ED=L; gravaPessoas(L); editorPessoas();
   $("cfgNotes").textContent=n?n+" nome(s) alinhado(s) ao que aparece nos dados. Confira e salve.":"Todos os nomes já batem com os dados.";
 };
 $("apSugerir").onclick=()=>{
@@ -3905,7 +3924,7 @@ $("apSugerir").onclick=()=>{
   $("cfgNotes").textContent=n?n+" variação(ões) vinculada(s). Confira antes de salvar.":"Nenhuma variação encontrada.";
 };
 $("apLimpar").onclick=()=>{ CFG.apelidos={}; editorApelidos(); $("cfgNotes").textContent="Vínculos limpos."; };
-$("acAdd").onclick=()=>{lerEditor();(CFG.acessos=CFG.acessos||[]).push({e:"",t:["com"]});editorAcessos();};
+/* o editor de acessos foi absorvido pelo editor de pessoas */
 $("cModelo").onclick=()=>{$("cRegras").value=REGRAS_MODELO;};
 $("cNativo").onclick=async()=>{
   const nota=t=>{$("cfgNotes").innerHTML=t;};
