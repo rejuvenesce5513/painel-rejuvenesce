@@ -217,6 +217,16 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
 .leg b{width:9px;height:9px;border-radius:2px;display:inline-block;flex:none;position:relative;top:-1px}
 .leg .n{font-family:"IBM Plex Mono";font-variant-numeric:tabular-nums;font-weight:600}
 .leg .p{color:var(--muted);font-size:12px}
+#visaoMenu{display:none;position:absolute;top:calc(100% + 6px);left:0;z-index:70;min-width:262px;
+  background:var(--panel);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);
+  padding:8px;max-height:64vh;overflow:auto}
+#visaoMenu.aberto{display:block}
+#visaoMenu .gr{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);
+  padding:8px 8px 4px}
+#visaoMenu label{display:flex;align-items:center;gap:9px;padding:6px 8px;border-radius:3px;cursor:pointer;font-size:13.5px}
+#visaoMenu label:hover{background:var(--hl)}
+#visaoMenu input{width:auto;margin:0}
+#visaoMenu .rodape{display:flex;gap:8px;padding:8px;border-top:1px solid var(--line);margin-top:6px}
 #festa{position:fixed;inset:0;z-index:90;display:none;align-items:center;justify-content:center;
   background:#0008;backdrop-filter:blur(3px)}
 #festaCard{background:var(--panel);border:1px solid var(--tc);border-radius:10px;
@@ -284,7 +294,10 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
     </select>
     <input type="date" id="dtIni" style="display:none">
     <input type="date" id="dtFim" style="display:none">
-    <select id="visao" style="display:none"><option value="">Visão: equipe</option></select>
+    <div id="visaoWrap" style="position:relative;display:none">
+      <button id="visaoBtn">Visão: equipe</button>
+      <div id="visaoMenu"></div>
+    </div>
     <button id="btnRefresh">Atualizar</button>
     <button id="btnSync" style="display:none">Sincronizar agora</button>
     <button id="btnCfg" style="display:none">Configurar</button>
@@ -2059,7 +2072,7 @@ function render(){
   let D; try{ D=computar(); }catch(e){ $("banner").innerHTML='<div class="msg err">'+esc(e.message)+'</div>'; return; }
   const p=D.p, m=D.meta, A=D.agg;
   const fmtP=d=>d.toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit",year:"numeric",timeZone:"UTC"});
-  $("periodLabel").textContent=(FOCO?FOCO.nome+"  ·  ":"")+fmtP(p.a)+" a "+fmtP(p.b)+"  ·  dia "+p.decorridos+" de "+p.totalDias+
+  $("periodLabel").textContent=(FOCOS.length?rotuloVisao()+"  ·  ":"")+fmtP(p.a)+" a "+fmtP(p.b)+"  ·  dia "+p.decorridos+" de "+p.totalDias+
     "";
 
   const pctTot=pct(A.tot.v,m.total);
@@ -2118,8 +2131,7 @@ function render(){
 
   const tb=$("rankBody"); tb.innerHTML="";
   const maxConv=Math.max(...D.rank.map(r=>pct(r.fech,r.aval)),1);
-  const focoCom = FOCO && FOCO.tipo!=="prevendas" ? FOCO.nome : null;
-  D.rank.filter(r=>!focoCom||mesmaPessoa(r.nome,focoCom)).forEach((r,i)=>{
+  D.rank.filter(r=>focoTem(r.nome,"prevendas")).forEach((r,i)=>{
     const cv=pct(r.fech,r.aval);
     const cel=o=>'<td class="v-money sep num">'+BRL.format(o.v)+'</td><td class="v-sub num">'+INT.format(o.q)+
       '</td><td class="v-sub num">'+(o.qTicket?BRL.format(tm(o)):"—")+'</td>';
@@ -2254,8 +2266,7 @@ function render(){
   const pb=$("pvBody"); pb.innerHTML="";
   const maxEx=Math.max(...P.lista.filter(x=>x.eq).map(x=>pct(x.re,x.ag)),1);
   let sepPosto=false;
-  const focoPre = FOCO && FOCO.tipo!=="vendedor" ? FOCO.nome : null;
-  P.lista.filter(x=>!focoPre||mesmaPessoa(x.nome,focoPre)).forEach((x,i)=>{
+  P.lista.filter(x=>focoTem(x.nome,"vendedor")).forEach((x,i)=>{
     const ex=pct(x.re,x.ag);
     if(!x.eq&&!sepPosto){sepPosto=true;
       pb.insertAdjacentHTML("beforeend",'<tr><td colspan="11" class="l eyebrow" style="padding-top:14px;color:var(--dim)">Agendamentos esporádicos — fora do setor</td></tr>');}
@@ -2305,6 +2316,7 @@ function render(){
 
   renderFunil(D.funil,D.ev);
   renderCirurgias(D.cir2,p);
+  if(ABA_ATUAL==="mts")editorMetas();      // o mês mudou: o editor acompanha
 
   const av=[];
   if(A.outro.q)av.push("R$ "+INT.format(Math.round(A.outro.v))+" em "+A.outro.q+" negócio(s) de serviços fora do mapeamento entram só na barra principal.");
@@ -2422,15 +2434,21 @@ function editorMetas(){
     "<b>Estes valores estão só neste navegador.</b> Ninguém mais os vê. "+
     "Clique em <b>Gravar na planilha de metas</b> para publicá-los para a equipe.";
   $("mtTC").value=m.tc||""; $("mtTE").value=m.te||"";
-  const entAtual=toNum(rasc?rasc.entradaVal:(metasDoMes(MT_MES)||{}).entradaVal);
+  // o valor da aba Fechamentos vence qualquer rascunho local
+  const mAuto=metasDoMes(MT_MES)||{};
+  const auto=!!mAuto.entradaAuto;
+  const entAtual=auto?toNum(mAuto.entradaVal):toNum(rasc?rasc.entradaVal:mAuto.entradaVal);
   $("mtEntrada").value=entAtual||"";
-  $("mtEntrada").disabled=!podeEditar;
+  $("mtEntrada").disabled=!podeEditar||auto;
   const vigEnt=toDate(CFG.vigenciaEntrada);
   const iniMes=new Date(MT_MES+"-01T00:00:00Z");
   const lim=(vigEnt&&iniMes<vigEnt)?(toNum(CFG.premioEntradaMinAnterior)||0):(toNum(CFG.premioEntradaMin)||0);
   $("mtEntradaS").innerHTML="mínimo "+BRL.format(lim)+" — "+
     (entAtual>=lim&&lim>0?'<span style="color:var(--pos)">atingido</span>'
-     :'<span style="color:var(--neg)">não atingido</span>');
+     :'<span style="color:var(--neg)">não atingido</span>')+
+    (auto?'<br><span style="color:var(--tc)">vem da aba '+esc(CFG.shEntrada)+' do arquivo de metas</span>'
+        :(ENTRADAS?'<br>sem lançamento para este mês na aba '+esc(CFG.shEntrada)
+                  :'<br>aba '+esc(CFG.shEntrada)+' não lida — preencha à mão'));
   $("mtPct").value=toNum(CFG.superPct)||10; $("mtPctL").textContent=toNum(CFG.superPct)||10;
   ["mtTC","mtTE","mtPct"].forEach(id=>$(id).disabled=!podeEditar);
   ["mtAdd","mtImport","mtCopiar","mtCalc"].forEach(id=>$(id).style.display=podeEditar?"":"none");
@@ -2515,7 +2533,7 @@ function lerMetas(){
   });
   CFG.metas=CFG.metas||{};
   CFG.metas[MT_MES]={tc:toNum($("mtTC").value),te:toNum($("mtTE").value),vend,
-                     entradaVal:toNum($("mtEntrada").value)};
+                     entradaVal:$("mtEntrada").disabled?0:toNum($("mtEntrada").value)};
   CFG.superPct=toNum($("mtPct").value)||0;
 }
 
@@ -2550,36 +2568,59 @@ function ehAdmin(){
   return !!e&&lista.includes(e);
 }
 /* ---- visão: equipe ou um colaborador ---- */
-let FOCO=null;                       // {nome,tipo} quando há alguém selecionado
+let FOCOS=[];                        // vazio = equipe inteira
+function focoTem(nome,tipo){
+  if(!FOCOS.length)return true;
+  return FOCOS.some(f=>(!tipo||f.tipo!==tipo)&&mesmaPessoa(nome,f.nome));
+}
+function rotuloVisao(){
+  if(!FOCOS.length)return "Visão: equipe";
+  if(FOCOS.length===1)return FOCOS[0].nome;
+  if(FOCOS.length<=2)return FOCOS.map(f=>f.nome.split(" ")[0]).join(" + ");
+  return FOCOS.length+" selecionados";
+}
 function montaVisao(){
-  const sel=$("visao"); if(!sel)return;
-  sel.style.display="";
+  const wrap=$("visaoWrap"), btn=$("visaoBtn"), menu=$("visaoMenu");
+  if(!wrap)return;
+  wrap.style.display="";
   const L=(CFG.pessoas||[]);
-  const assinatura=L.map(x=>x.nome).join("|");
-  if(sel.dataset.assin!==assinatura){
+  const assin=L.map(x=>x.tipo+":"+x.nome).join("|");
+  if(menu.dataset.assin!==assin){
     const gr=(rot,tipo)=>{
       const G=L.filter(x=>x.tipo===tipo);
-      return G.length?'<optgroup label="'+rot+'">'+
-        G.map(x=>'<option value="'+esc(x.nome)+'">'+esc(x.nome)+"</option>").join("")+"</optgroup>":"";
+      return G.length?'<div class="gr">'+rot+"</div>"+G.map(x=>
+        '<label><input type="checkbox" class="vx" data-nome="'+esc(x.nome)+'" data-tipo="'+x.tipo+
+        '"><span>'+esc(x.nome)+"</span></label>").join(""):"";
     };
-    const atual=sel.value;
-    sel.innerHTML='<option value="">Visão: equipe</option>'+
-      gr("Vendedores","vendedor")+gr("Pré-vendas","prevendas");
-    sel.dataset.assin=assinatura;
-    if(atual)sel.value=atual;
+    menu.innerHTML=gr("Vendedores","vendedor")+gr("Pré-vendas","prevendas")+
+      '<div class="rodape"><button id="vTodos">Equipe inteira</button>'+
+      '<button id="vFechar">Fechar</button></div>';
+    menu.dataset.assin=assin;
   }
-  // o handler é reatribuído sempre: barato e à prova de remontagem
-  sel.onchange=()=>{
-    const n=sel.value;
-    FOCO = n ? (L.find(x=>mesmaPessoa(x.nome,n))||{nome:n,tipo:""}) : null;
-    render();
-  };
-  // foco inicial na própria pessoa, assim que o usuário é conhecido
+  const marcados=new Set(FOCOS.map(f=>norm(f.nome)));
+  menu.querySelectorAll(".vx").forEach(c=>{
+    c.checked=marcados.has(norm(c.dataset.nome));
+    c.onchange=()=>{
+      const nome=c.dataset.nome, tipo=c.dataset.tipo;
+      FOCOS = c.checked ? FOCOS.concat([{nome,tipo}])
+                        : FOCOS.filter(f=>norm(f.nome)!==norm(nome));
+      btn.textContent=rotuloVisao();
+      render();
+    };
+  });
+  const bt=menu.querySelector("#vTodos"), bf=menu.querySelector("#vFechar");
+  if(bt)bt.onclick=()=>{ FOCOS=[]; montaVisao(); btn.textContent=rotuloVisao(); render(); };
+  if(bf)bf.onclick=()=>menu.classList.remove("aberto");
+  btn.onclick=e=>{ e.stopPropagation(); menu.classList.toggle("aberto"); };
+  document.addEventListener("click",ev=>{
+    if(!wrap.contains(ev.target))menu.classList.remove("aberto");
+  },{once:true});
+  // vendedor e pré-vendas abrem focados em si
   const eu=euSou();
-  if(eu&&eu.tipo!=="lideranca"&&sel.dataset.autofoco!=="1"){
-    sel.dataset.autofoco="1";
-    sel.value=eu.nome; FOCO=eu;
+  if(eu&&eu.tipo!=="lideranca"&&menu.dataset.autofoco!=="1"){
+    menu.dataset.autofoco="1"; FOCOS=[{nome:eu.nome,tipo:eu.tipo}]; montaVisao();
   }
+  btn.textContent=rotuloVisao();
 }
 
 function atualizaAdmin(){
@@ -3063,8 +3104,7 @@ function renderFunil(F,EV){
 
   const linhas=(m,ord)=>[...m.entries()].sort((a,b)=>ord(b[1])-ord(a[1]));
   const tb=$("fnResp"); tb.innerHTML="";
-  const fPre = FOCO && FOCO.tipo!=="vendedor" ? FOCO.nome : null;
-  for(const [k,x] of linhas(F.resp,x=>x.tot).filter(([k])=>!fPre||mesmaPessoa(k,fPre))){
+  for(const [k,x] of linhas(F.resp,x=>x.tot).filter(([k])=>focoTem(k,"vendedor"))){
     const ap=pct(x.ganho||0,x.tot);
     tb.insertAdjacentHTML("beforeend",'<tr><td class="l name">'+esc(k)+'</td>'+
       '<td class="sep v-money num">'+INT.format(x.tot)+'</td><td class="v-sub num">'+fpct(pct(x.tot,F.tot))+'</td>'+
