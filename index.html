@@ -794,7 +794,16 @@ Não é subconjunto dos leads acima: inclui remarcações, retornos e quem agend
   </div><div class="msg warn" style="margin-top:4px">Se estas regras entrarem no bloco nativo e o repositório for público, elas ficam visíveis na internet. Em repositório público, mantenha aqui e distribua pelo link de instalação.</div>
 </div>
 <div class="cfgG" data-g="pes" style="display:none">
-<div class="f"><label>Equipe de pré-vendas</label><input id="cEquipe" value="Beatriz,Fabiana,Amanda">
+<div class="f"><label>Pessoas — vendedores, pré-vendas e lideranças</label>
+    <div class="h">O nome deve bater com o que aparece nos dados. Use "Alinhar pelos nomes oficiais" depois da unificação abaixo.</div>
+    <div id="peList" style="margin-top:8px"></div>
+    <div style="display:flex;gap:9px;margin-top:8px;flex-wrap:wrap">
+      <button id="peAdd">+ Adicionar pessoa</button>
+      <button id="peAlinhar">Alinhar pelos nomes oficiais</button>
+    </div>
+  </div>
+  <hr>
+  <div class="f"><label>Equipe de pré-vendas</label><input id="cEquipe" value="Beatriz,Fabiana,Amanda">
     <div class="h">Primeiro nome basta. Quem não estiver aqui entra como agendamento esporádico — soma no total, fora do resultado do setor.</div></div><div class="f"><label>Quem vê quais painéis</label>
     <div id="acList"></div>
     <button id="acAdd">+ Adicionar pessoa</button>
@@ -2686,7 +2695,10 @@ function pessoasUnificadas(){
     if(!out.some(x=>norm(x.e)===norm(l.e)))out.push({e:l.e||"",nome:l.nome||"",tipo:"lideranca"});
   return out;
 }
-
+function gravaPessoas(L){
+  CFG.pessoas=L.filter(x=>x.tipo!=="lideranca"&&(x.nome||x.e)).map(x=>({e:x.e,nome:x.nome,tipo:x.tipo}));
+  CFG.liderancas=L.filter(x=>x.tipo==="lideranca"&&(x.nome||x.e)).map(x=>({e:x.e,nome:x.nome}));
+}
 function editorPessoas(){
   const cx=$("peList"); if(!cx)return;
   const L=pessoasUnificadas();
@@ -2702,14 +2714,6 @@ function editorPessoas(){
     lerPessoas(); const L2=pessoasUnificadas(); L2.splice(+b.dataset.i,1); gravaPessoas(L2); editorPessoas();
   });
 }
-
-function gravaPessoas(L){
-  CFG.pessoas=L.filter(x=>x.tipo!=="lideranca"&&(x.nome||x.e))
-               .map(x=>({e:x.e,nome:x.nome,tipo:x.tipo}));
-  CFG.liderancas=L.filter(x=>x.tipo==="lideranca"&&(x.nome||x.e))
-                  .map(x=>({e:x.e,nome:x.nome}));
-}
-
 function lerPessoas(){
   const cx=$("peList"); if(!cx)return;
   const linhas=[...cx.querySelectorAll(".per")];
@@ -3849,8 +3853,7 @@ $("peAlinhar").onclick=()=>{
     return x;
   });
   gravaPessoas(L); editorPessoas();
-  $("cfgNotes").textContent=n?n+" nome(s) alinhado(s) ao que aparece nos dados. Confira e salve."
-                             :"Todos os nomes já batem com os dados.";
+  $("cfgNotes").textContent=n?n+" nome(s) alinhado(s) ao que aparece nos dados. Confira e salve.":"Todos os nomes já batem com os dados.";
 };
 $("apSugerir").onclick=()=>{
   lerApelidos();
