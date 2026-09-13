@@ -755,143 +755,52 @@ Não é subconjunto dos leads acima: inclui remarcações, retornos e quem agend
 <aside class="drawer" id="drawer">
   <h3>Configuração</h3>
   <p class="hint">Conexão direta ao arquivo no SharePoint via Microsoft Graph, autenticando no navegador (OAuth 2.0 + PKCE). Nenhum dado sai do M365.</p>
-
-  <div class="f"><label>Tenant ID (ou "organizations")</label><input id="cTenant" placeholder="00000000-0000-0000-0000-000000000000"></div>
-  <div class="f"><label>Client ID (App Registration — plataforma SPA)</label><input id="cClient" placeholder="00000000-0000-0000-0000-000000000000">
-    <div class="h">Redirect URI a cadastrar no Azure: <span class="num" id="cRedirect"></span></div></div>
-  <div class="f"><label>URL do arquivo no SharePoint</label><input id="cFile" placeholder="https://contoso.sharepoint.com/sites/.../VENDAS_E_CAMPANHA.xlsx">
-    <div class="h">Cole o endereço do arquivo (barra do navegador ou link de compartilhamento).</div></div>
-
-  <hr>
-  <div class="row2">
+<div id="cfgTabs"><button type="button" data-g="con" class="on">Conexão</button><button type="button" data-g="arq">Arquivos</button><button type="button" data-g="pes">Pessoas</button><button type="button" data-g="met">Metas e comissões</button><button type="button" data-g="cir">Cirurgias</button><button type="button" data-g="pre">Pré-vendas</button><button type="button" data-g="pub">Publicação</button></div>
+<div class="cfgG" data-g="con">
+<div class="f"><label>Tenant ID (ou "organizations")</label><input id="cTenant" placeholder="00000000-0000-0000-0000-000000000000"></div><div class="f"><label>Client ID (App Registration — plataforma SPA)</label><input id="cClient" placeholder="00000000-0000-0000-0000-000000000000">
+    <div class="h">Redirect URI a cadastrar no Azure: <span class="num" id="cRedirect"></span></div></div><div class="f"><label>URL do arquivo no SharePoint</label><input id="cFile" placeholder="https://contoso.sharepoint.com/sites/.../VENDAS_E_CAMPANHA.xlsx">
+    <div class="h">Cole o endereço do arquivo (barra do navegador ou link de compartilhamento).</div></div><div class="row2">
     <div class="f"><label>Aba de vendas</label><input id="cShVendas" value="Vendas"></div>
     <div class="f"><label>Aba de marcações</label><input id="cShMarc" value="Marcações"></div>
-  </div>
-  <div class="row2">
+  </div><div class="row2">
     <div class="f"><label>Aba de metas</label><input id="cShMetas" value="Metas"></div>
     <div class="f"><label>Atualizar a cada (min)</label><input id="cRefresh" type="number" min="0" value="10"></div>
-  </div>
-
-  <hr>
-  <div class="f"><label>Rateio da meta quando a aba Metas não traz a divisão</label>
-    <div class="row2"><input id="cSplitTC" type="number" step="1" min="0" max="100" value="90"><input id="cSplitTE" type="number" step="1" min="0" max="100" value="10"></div>
-    <div class="h">% transplante / % terapia. Se a aba Metas tiver 3ª e 4ª colunas (meta TC e meta TEC), elas prevalecem.</div>
-  </div>
-  <div class="f"><label>Serviços contados como Transplante</label><input id="cMapTC" value="TC,TB,TS,BH">
-    <div class="h">Códigos da coluna "Serviço", separados por vírgula.</div></div>
-  <div class="f"><label>Serviços contados como Terapia</label><input id="cMapTE" value="TEC"></div>
-  <div class="f"><label>Etapas contadas como venda</label><input id="cEtapas" value="FECHAMENTO,FINALIZADO,REVISAO DE PENDENCIAS">
-    <div class="h">Valores da coluna "Etapa", separados por vírgula. Acentos são ignorados.</div></div>
-  <div class="f"><label>Valor de "Data Cirurgia foi marcada?" que significa agendada</label><input id="cAgendada" value="Data Agendada">
-    <div class="h">O campo manda: data preenchida com status diferente disso conta como sem agendamento.</div></div>
-  <hr>
-  <div class="row2">
-    <div class="f"><label>Status: realizada</label><input id="cStRe" value="Atendido"></div>
-    <div class="f"><label>Status: no-show</label><input id="cStNs" value="Não compareceu"></div>
-  </div>
-  <div class="f"><label>Status: remarcada</label><input id="cStRm" value="Remarcado">
-    <div class="h">Usados na aba Pré-vendas. Qualquer outro status entra em "Outras".</div></div>
-  <div class="f"><label>Status: ainda por acontecer</label><input id="cStFu" value="Marcado">
-    <div class="h">Casamento por trecho — "Marcado" cobre confirmado e não confirmado.</div></div>
-  <div class="f"><label>Status: cancelado</label><input id="cStCa" value="Desmarcado pelo paciente,Cancelado pelo profissional">
-    <div class="h">Se o mesmo paciente tiver outro agendamento no período, o cancelamento é reclassificado como remarcação.</div></div>
-  <div class="f"><label>Equipe de pré-vendas</label><input id="cEquipe" value="Beatriz,Fabiana,Amanda">
-    <div class="h">Primeiro nome basta. Quem não estiver aqui entra como agendamento esporádico — soma no total, fora do resultado do setor.</div></div>
-  <hr>
-  <div class="f"><label>Arquivo das metas no SharePoint</label><input id="cArqMet" placeholder="https://...&#47;Metas.xlsx">
-    <div class="h" id="cArqMetH">Colunas: Mês | Item | Meta | Serviço. Item pode ser "Transplante", "Terapia", "Supermeta %" ou o nome do vendedor.</div></div>
-  <div class="row2">
+  </div><div class="row2">
+    <div class="f"><label>Aba do funil de pré-vendas</label><input id="cShPv" value="Prevendas"></div>
+    <div class="f"><label>Janela de duplicidade (min)</label><input id="cDedup" type="number" min="0" value="5"></div>
+  </div><label class="chk"><input type="checkbox" id="cAutoEntrar" checked><span>Entrar automaticamente ao abrir</span></label>
+</div>
+<div class="cfgG" data-g="arq" style="display:none">
+<div class="f"><label>Arquivo das metas no SharePoint</label><input id="cArqMet" placeholder="https://...&#47;Metas.xlsx">
+    <div class="h" id="cArqMetH">Colunas: Mês | Item | Meta | Serviço. Item pode ser "Transplante", "Terapia", "Supermeta %" ou o nome do vendedor.</div></div><div class="row2">
     <div class="f"><label>Aba das metas</label><input id="cShMet" value="Metas"></div>
     <div class="f"><label>Aba da entrada financeira (opcional)</label><input id="cShEnt" placeholder="Entradas">
     </div>
-  </div>
-  <div class="h" style="margin:-4px 0 10px">Se preenchida, o valor recebido vem dessa aba (colunas Mês e Valor) e prevalece sobre o digitado.</div>
-  <hr>
-  <div class="f"><label>Arquivo de cirurgias no SharePoint</label><input id="cArqCir" placeholder="https://...&#47;Cirurgias.xlsx">
-    <div class="h">Colunas: DATA | ID AGENDAMENTO | PROCEDIMENTO | ID FEEGOW | SITUAÇÃO | VALOR.</div></div>
-  <div class="row2">
+  </div><div class="h" style="margin:-4px 0 10px">Se preenchida, o valor recebido vem dessa aba (colunas Mês e Valor) e prevalece sobre o digitado.</div><div class="f"><label>Arquivo de cirurgias no SharePoint</label><input id="cArqCir" placeholder="https://...&#47;Cirurgias.xlsx">
+    <div class="h">Colunas: DATA | ID AGENDAMENTO | PROCEDIMENTO | ID FEEGOW | SITUAÇÃO | VALOR.</div></div><div class="row2">
     <div class="f"><label>Aba das cirurgias</label><input id="cShCir" value="Cirurgias"></div>
     <div class="f"><label>Cirurgias por dia útil</label><input id="cCirDia" type="number" min="1" value="11"></div>
-  </div>
-  <div class="row2">
-    <div class="f"><label>Horizonte do alerta (dias)</label><input id="cHoriz" type="number" min="7" value="45"></div>
-    <div class="f"><label>Alertar com (% de vagas livres) ou mais</label><input id="cAlerta" type="number" min="1" max="100" value="50"></div>
-  </div>
-  <div class="f"><label>Feriados (dd/mm/aaaa, separados por vírgula)</label><input id="cFeriados" placeholder="07/09/2026, 12/10/2026">
-    <div class="h">Descontados do cálculo de dias úteis.</div></div>
-  <div class="row2">
-    <div class="f"><label>Aba do funil de pré-vendas</label><input id="cShPv" value="Prevendas"></div>
-    <div class="f"><label>Janela de duplicidade (min)</label><input id="cDedup" type="number" min="0" value="5"></div>
-  </div>
-  <hr>
-  <div class="f"><label>Arquivo das regras no SharePoint</label><input id="cArqReg" placeholder="https://...&#47;Regras Comissao.xlsx">
-    <div class="h">Aba "Regras", coluna A, uma linha por regra. Em pasta restrita: quem não tem permissão recebe 403 e a aba trava. É o que faz a configuração seguir você em qualquer navegador.</div></div>
-  <div class="f"><label>Aba das regras</label><input id="cShReg" value="Parâmetros Comissões"></div>
-  <div class="row2">
+  </div><div class="f"><label>Arquivo das regras no SharePoint</label><input id="cArqReg" placeholder="https://...&#47;Regras Comissao.xlsx">
+    <div class="h">Aba "Regras", coluna A, uma linha por regra. Em pasta restrita: quem não tem permissão recebe 403 e a aba trava. É o que faz a configuração seguir você em qualquer navegador.</div></div><div class="f"><label>Aba das regras</label><input id="cShReg" value="Parâmetros Comissões"></div><div class="row2">
     <div class="f"><label>Etapas elegíveis antes da vigência</label><input id="cEtAnt" value="FECHAMENTO,FINALIZADO,REVISÃO DE PENDÊNCIAS"></div>
     <div class="f"><label>Vigência das etapas</label><input id="cVigEt" placeholder="01/09/2026"></div>
-  </div>
-  <div class="h" style="margin:-4px 0 10px">Antes dessa data valem as etapas acima; a partir dela, as da planilha de parâmetros.</div>
-  <div class="f"><label>Regras de comissão (usado só se o arquivo acima estiver vazio)</label>
+  </div><div class="h" style="margin:-4px 0 10px">Antes dessa data valem as etapas acima; a partir dela, as da planilha de parâmetros.</div><div class="f"><label>Regras de comissão (usado só se o arquivo acima estiver vazio)</label>
     <textarea id="cRegras" rows="16" style="width:100%;background:var(--panel);color:var(--txt);border:1px solid var(--line);border-radius:var(--r);font-family:'IBM Plex Mono';font-size:12px;padding:9px;resize:vertical"></textarea>
     <div class="h">Uma regra por linha. Linhas com # são comentário. Botão abaixo carrega o modelo.</div>
     <button id="cModelo" style="margin-top:6px">Carregar modelo das regras</button>
-  </div>
-  <div class="msg warn" style="margin-top:4px">Se estas regras entrarem no bloco nativo e o repositório for público, elas ficam visíveis na internet. Em repositório público, mantenha aqui e distribua pelo link de instalação.</div>
-  <hr>
-  <div class="f"><label>Quem vê quais painéis</label>
+  </div><div class="msg warn" style="margin-top:4px">Se estas regras entrarem no bloco nativo e o repositório for público, elas ficam visíveis na internet. Em repositório público, mantenha aqui e distribua pelo link de instalação.</div>
+</div>
+<div class="cfgG" data-g="pes" style="display:none">
+<div class="f"><label>Equipe de pré-vendas</label><input id="cEquipe" value="Beatriz,Fabiana,Amanda">
+    <div class="h">Primeiro nome basta. Quem não estiver aqui entra como agendamento esporádico — soma no total, fora do resultado do setor.</div></div><div class="f"><label>Quem vê quais painéis</label>
     <div id="acList"></div>
     <button id="acAdd">+ Adicionar pessoa</button>
     <div class="h">Administradores sempre veem tudo. A aba Comissões ainda depende da permissão no arquivo de regras.</div>
-  </div>
-  <div class="f"><label>Padrão para quem não está na lista</label>
+  </div><div class="f"><label>Padrão para quem não está na lista</label>
     <div class="tp" id="acPadrao" style="display:flex;gap:14px;flex-wrap:wrap;font-size:13px"></div>
-  </div>
-  <hr>
-  <div class="f"><label>E-mails com acesso à aba Comissões</label><input id="cEmails" placeholder="fabricio@clinicarejuvenesce.com.br, ...">
-    <div class="h">Vazio libera para quem já acessa os parâmetros. Trava de tela, não de dados.</div></div>
-  <hr>
-  <label class="chk"><input type="checkbox" id="cRankSo" checked><span>No ranking, listar apenas os vendedores cadastrados (os demais viram uma linha "Outros")</span></label>
-  <div class="f"><label>Rótulos a excluir do ranking</label><input id="cIgnorar" value="Sem deal comercial,—,JARVYS">
-    <div class="h">Valores da coluna Responsável/Vendedor comercial que não são vendedores.</div></div>
-
-  <hr>
-  <label class="chk"><input type="checkbox" id="cOnlyPrimeira" checked><span>Contar apenas "Primeira Avaliação" (excluir reavaliações)</span></label>
-  <label class="chk"><input type="checkbox" id="cIgnoraZero" checked><span>Excluir negócios com valor zero do ticket médio</span></label>
-  <label class="chk"><input type="checkbox" id="cOrfas"><span>Contar venda sem avaliação registrada como avaliação implícita — <b>enviesa para cima</b>, só enxergamos órfãos que compraram</span></label>
-  <div class="f"><label>Coorte da conversão</label>
-    <select id="cCoorte">
-      <option value="fechamento">Fechamento no período (numerador pela data do fechamento)</option>
-      <option value="avaliacao">Coorte de avaliação (numerador = avaliações do período que fecharam)</option>
-    </select>
-    <div class="h">Denominador é sempre a avaliação realizada no período, atribuída ao vendedor comercial.</div>
-  </div>
-
-  <hr>
-  <hr>
-  <div class="f"><label>Repositório do sync (usuário/repo)</label><input id="cGhRepo" placeholder="rejuvenesce5513/rd-vendas-sync">
-    <div class="h">Habilita o botão "Sincronizar agora", que dispara o job e espera a planilha mudar.</div></div>
-  <div class="row2">
-    <div class="f"><label>Arquivo do workflow</label><input id="cGhWf" value="sync.yml"></div>
-    <div class="f"><label>Token do GitHub (Actions: write)</label><input id="cGhToken" type="password" placeholder="github_pat_..."></div>
-  </div>
-  <div class="msg warn" style="margin-top:4px">O token fica apenas neste navegador e <b>não</b> entra no link de instalação. Use um token restrito a este repositório, só com permissão Actions.</div>
-  <hr>
-  <label class="chk"><input type="checkbox" id="cCeleb" checked><span>Comemorar cada venda nova com um aviso na tela</span></label>
-  <label class="chk"><input type="checkbox" id="cCelebSom" checked><span>Com som de fogos</span></label>
-  <label class="chk"><input type="checkbox" id="cAutoEntrar" checked><span>Entrar automaticamente ao abrir</span></label>
-  <hr>
-  <hr>
-  <div class="f"><label>Publicar direto no GitHub — repositório do painel</label><input id="cGhPRepo" placeholder="usuario/repositorio"></div>
-  <div class="row2">
-    <div class="f"><label>Arquivo</label><input id="cGhPPath" value="index.html"></div>
-    <div class="f"><label>Branch</label><input id="cGhPBr" value="main"></div>
-  </div>
-  <div class="f"><label>Token com Contents: write</label><input id="cGhPTok" type="password" placeholder="github_pat_...">
-    <div class="h">Token separado, restrito a este repositório, só permissão Contents. Fica neste navegador e não entra no bloco nativo.</div></div>
-  <div class="msg err" style="margin-top:4px">Este token permite reescrever o painel. Quem o obtiver pode injetar código na página que outras pessoas abrem. Use apenas na sua máquina.</div>
-  <hr>
-  <div class="f"><label>Unificação de nomes</label>
+  </div><div class="f"><label>E-mails com acesso à aba Comissões</label><input id="cEmails" placeholder="fabricio@clinicarejuvenesce.com.br, ...">
+    <div class="h">Vazio libera para quem já acessa os parâmetros. Trava de tela, não de dados.</div></div><label class="chk"><input type="checkbox" id="cRankSo" checked><span>No ranking, listar apenas os vendedores cadastrados (os demais viram uma linha "Outros")</span></label><div class="f"><label>Rótulos a excluir do ranking</label><input id="cIgnorar" value="Sem deal comercial,—,JARVYS">
+    <div class="h">Valores da coluna Responsável/Vendedor comercial que não são vendedores.</div></div><div class="f"><label>Unificação de nomes</label>
     <div class="h">A mesma pessoa às vezes aparece com grafias diferentes no RD, no Feegow e na planilha.
       Escreva o nome oficial ao lado de cada variação para somar tudo numa linha só.</div>
     <div style="display:flex;gap:9px;margin:8px 0">
@@ -899,11 +808,52 @@ Não é subconjunto dos leads acima: inclui remarcações, retornos e quem agend
       <button id="apLimpar">Limpar vínculos</button>
     </div>
     <div id="apLista" style="max-height:320px;overflow:auto;border:1px solid var(--line);border-radius:var(--r);padding:8px"></div>
-  </div>
-  <hr>
-  <div class="f"><label>Administradores do painel</label><input id="cAdmins" value="fabricio.araujo@clinicarejuvenesce.com.br">
+  </div><div class="f"><label>Administradores do painel</label><input id="cAdmins" value="fabricio.araujo@clinicarejuvenesce.com.br">
     <div class="h">Só estes e-mails enxergam o botão Configurar. Os demais recebem a configuração pronta.</div></div>
-  <div style="display:flex;gap:9px;flex-wrap:wrap"><button class="primary" id="cSave">Salvar e recarregar</button><button id="cNativo">Baixar index.html atualizado</button><button id="cPublicar">Publicar no GitHub</button><button id="cSairAdmin" style="display:none">Sair do modo administrador</button><button id="cLink">Copiar link de instalação</button><button id="cClose">Fechar</button></div>
+</div>
+<div class="cfgG" data-g="met" style="display:none">
+<div class="f"><label>Rateio da meta quando a aba Metas não traz a divisão</label>
+    <div class="row2"><input id="cSplitTC" type="number" step="1" min="0" max="100" value="90"><input id="cSplitTE" type="number" step="1" min="0" max="100" value="10"></div>
+    <div class="h">% transplante / % terapia. Se a aba Metas tiver 3ª e 4ª colunas (meta TC e meta TEC), elas prevalecem.</div>
+  </div><div class="f"><label>Serviços contados como Transplante</label><input id="cMapTC" value="TC,TB,TS,BH">
+    <div class="h">Códigos da coluna "Serviço", separados por vírgula.</div></div><div class="f"><label>Serviços contados como Terapia</label><input id="cMapTE" value="TEC"></div><div class="f"><label>Etapas contadas como venda</label><input id="cEtapas" value="FECHAMENTO,FINALIZADO,REVISAO DE PENDENCIAS">
+    <div class="h">Valores da coluna "Etapa", separados por vírgula. Acentos são ignorados.</div></div>
+</div>
+<div class="cfgG" data-g="cir" style="display:none">
+<div class="row2">
+    <div class="f"><label>Horizonte do alerta (dias)</label><input id="cHoriz" type="number" min="7" value="45"></div>
+    <div class="f"><label>Alertar com (% de vagas livres) ou mais</label><input id="cAlerta" type="number" min="1" max="100" value="50"></div>
+  </div><div class="f"><label>Feriados (dd/mm/aaaa, separados por vírgula)</label><input id="cFeriados" placeholder="07/09/2026, 12/10/2026">
+    <div class="h">Descontados do cálculo de dias úteis.</div></div>
+</div>
+<div class="cfgG" data-g="pre" style="display:none">
+<div class="f"><label>Valor de "Data Cirurgia foi marcada?" que significa agendada</label><input id="cAgendada" value="Data Agendada">
+    <div class="h">O campo manda: data preenchida com status diferente disso conta como sem agendamento.</div></div><div class="row2">
+    <div class="f"><label>Status: realizada</label><input id="cStRe" value="Atendido"></div>
+    <div class="f"><label>Status: no-show</label><input id="cStNs" value="Não compareceu"></div>
+  </div><div class="f"><label>Status: remarcada</label><input id="cStRm" value="Remarcado">
+    <div class="h">Usados na aba Pré-vendas. Qualquer outro status entra em "Outras".</div></div><div class="f"><label>Status: ainda por acontecer</label><input id="cStFu" value="Marcado">
+    <div class="h">Casamento por trecho — "Marcado" cobre confirmado e não confirmado.</div></div><div class="f"><label>Status: cancelado</label><input id="cStCa" value="Desmarcado pelo paciente,Cancelado pelo profissional">
+    <div class="h">Se o mesmo paciente tiver outro agendamento no período, o cancelamento é reclassificado como remarcação.</div></div><label class="chk"><input type="checkbox" id="cOnlyPrimeira" checked><span>Contar apenas "Primeira Avaliação" (excluir reavaliações)</span></label><label class="chk"><input type="checkbox" id="cIgnoraZero" checked><span>Excluir negócios com valor zero do ticket médio</span></label><label class="chk"><input type="checkbox" id="cOrfas"><span>Contar venda sem avaliação registrada como avaliação implícita — <b>enviesa para cima</b>, só enxergamos órfãos que compraram</span></label><div class="f"><label>Coorte da conversão</label>
+    <select id="cCoorte">
+      <option value="fechamento">Fechamento no período (numerador pela data do fechamento)</option>
+      <option value="avaliacao">Coorte de avaliação (numerador = avaliações do período que fecharam)</option>
+    </select>
+    <div class="h">Denominador é sempre a avaliação realizada no período, atribuída ao vendedor comercial.</div>
+  </div>
+</div>
+<div class="cfgG" data-g="pub" style="display:none">
+<div class="f"><label>Repositório do sync (usuário/repo)</label><input id="cGhRepo" placeholder="rejuvenesce5513/rd-vendas-sync">
+    <div class="h">Habilita o botão "Sincronizar agora", que dispara o job e espera a planilha mudar.</div></div><div class="row2">
+    <div class="f"><label>Arquivo do workflow</label><input id="cGhWf" value="sync.yml"></div>
+    <div class="f"><label>Token do GitHub (Actions: write)</label><input id="cGhToken" type="password" placeholder="github_pat_..."></div>
+  </div><div class="msg warn" style="margin-top:4px">O token fica apenas neste navegador e <b>não</b> entra no link de instalação. Use um token restrito a este repositório, só com permissão Actions.</div><label class="chk"><input type="checkbox" id="cCeleb" checked><span>Comemorar cada venda nova com um aviso na tela</span></label><label class="chk"><input type="checkbox" id="cCelebSom" checked><span>Com som de fogos</span></label><div class="f"><label>Publicar direto no GitHub — repositório do painel</label><input id="cGhPRepo" placeholder="usuario/repositorio"></div><div class="row2">
+    <div class="f"><label>Arquivo</label><input id="cGhPPath" value="index.html"></div>
+    <div class="f"><label>Branch</label><input id="cGhPBr" value="main"></div>
+  </div><div class="f"><label>Token com Contents: write</label><input id="cGhPTok" type="password" placeholder="github_pat_...">
+    <div class="h">Token separado, restrito a este repositório, só permissão Contents. Fica neste navegador e não entra no bloco nativo.</div></div><div class="msg err" style="margin-top:4px">Este token permite reescrever o painel. Quem o obtiver pode injetar código na página que outras pessoas abrem. Use apenas na sua máquina.</div>
+</div>
+<div style="display:flex;gap:9px;flex-wrap:wrap"><button class="primary" id="cSave">Salvar e recarregar</button><button id="cNativo">Baixar index.html atualizado</button><button id="cPublicar">Publicar no GitHub</button><button id="cSairAdmin" style="display:none">Sair do modo administrador</button><button id="cLink">Copiar link de instalação</button><button id="cClose">Fechar</button></div>
   <div class="notes" id="cfgNotes"></div>
 </aside>
 
@@ -2643,56 +2593,10 @@ function nomesDeTodasAsFontes(){
   return [...vis.values()].sort((a,b)=>b.n-a.n);
 }
 
-/* O Configurar virou longo demais: agrupa os campos em subabas pelo id de cada um. */
-const CFG_GRUPOS=[
-  {id:"con", rot:"Conexão",  ids:["cTenant","cClient","cRedirect","cFile","cShVendas","cShMarc",
-      "cShMetas","cShPv","cRefresh","cAutoEntrar"]},
-  {id:"arq", rot:"Arquivos", ids:["cArqMet","cShMet","cShEnt","cArqCir","cShCir","cArqReg","cShReg",
-      "cRegras","cModelo","cEtAnt","cVigEt"]},
-  {id:"pes", rot:"Pessoas",  ids:["acList","acAdd","acPadrao","cAdmins","cEmails","cEquipe",
-      "apLista","apSugerir","apLimpar","cRankSo","cIgnorar"]},
-  {id:"met", rot:"Metas e comissões", ids:["cSplitTC","cSplitTE","cMapTC","cMapTE","cEtapas"]},
-  {id:"cir", rot:"Cirurgias", ids:["cCirDia","cHoriz","cAlerta","cFeriados"]},
-  {id:"pre", rot:"Pré-vendas", ids:["cAgendada","cStRe","cStNs","cStRm","cStFu","cStCa","cDedup",
-      "cOnlyPrimeira","cIgnoraZero","cOrfas","cCoorte"]},
-  {id:"pub", rot:"Publicação", ids:["cGhRepo","cGhWf","cGhToken","cGhPRepo","cGhPPath","cGhPBr",
-      "cGhPTok","cCeleb","cCelebSom"]}
-];
-let CFG_ABA="con";
-
-function montaCfgTabs(){
-  const dr=$("drawer"); if(!dr||dr.dataset.tabs==="1")return;
-  const dono=new Map();
-  CFG_GRUPOS.forEach(g=>g.ids.forEach(i=>dono.set(i,g.id)));
-  const filhos=[...dr.children];
-  const rodape=filhos[filhos.length-1];                 // botões e notas ficam sempre visíveis
-  let atual="con";
-  for(const el of filhos){
-    if(el.id==="cfgTabs"||el===rodape||el.id==="cfgNotes")continue;
-    if(el.contains&&el.querySelector){
-      const achado=[...el.querySelectorAll("[id]")].map(x=>dono.get(x.id)).find(Boolean)
-                 ||(dono.get(el.id)||null);
-      if(achado)atual=achado;
-    }
-    el.dataset.grupo=atual;
-  }
-  const barra=document.createElement("div");
-  barra.id="cfgTabs";
-  barra.innerHTML=CFG_GRUPOS.map(g=>'<button data-g="'+g.id+'">'+esc(g.rot)+"</button>").join("");
-  dr.insertBefore(barra,dr.firstChild);
-  barra.querySelectorAll("button").forEach(b=>b.onclick=()=>{ CFG_ABA=b.dataset.g; aplicaCfgTabs(); });
-  dr.dataset.tabs="1";
-  aplicaCfgTabs();
-}
-
-function aplicaCfgTabs(){
+function aplicaCfgTabs(g){
   const dr=$("drawer"); if(!dr)return;
-  for(const el of dr.children){
-    if(el.id==="cfgTabs")continue;
-    if(el.dataset&&el.dataset.grupo)el.style.display=el.dataset.grupo===CFG_ABA?"":"none";
-  }
-  const b=$("cfgTabs");
-  if(b)b.querySelectorAll("button").forEach(x=>x.className=x.dataset.g===CFG_ABA?"on":"");
+  dr.querySelectorAll(".cfgG").forEach(x=>x.style.display=x.dataset.g===g?"":"none");
+  dr.querySelectorAll("#cfgTabs button").forEach(b=>b.className=b.dataset.g===g?"on":"");
 }
 
 function editorApelidos(){
@@ -3810,6 +3714,7 @@ async function publicarGitHub(){
 }
 $("cPublicar").onclick=publicarGitHub;
 $("cSairAdmin").onclick=()=>{store.del("rjv.destrava");$("drawer").classList.remove("open");atualizaAdmin();};
+document.querySelectorAll("#cfgTabs button").forEach(b=>b.onclick=()=>aplicaCfgTabs(b.dataset.g));
 $("apSugerir").onclick=()=>{
   lerApelidos();
   const L=nomesDeTodasAsFontes(); const m=Object.assign({},CFG.apelidos||{});
