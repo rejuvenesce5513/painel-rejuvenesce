@@ -1292,10 +1292,11 @@ function computar(){
     const contaTicket=!(CFG.ignoraZero&&val===0); if(!contaTicket)zero.n++;
     const g=grupoServico(codServico(r,iSrv,iProdV));
     add(agg[g],val,contaTicket); add(agg.tot,val,contaTicket);
-    const key=norm(iResp>=0?r[iResp]:"")||"—";
+    const bruto=titled(iResp>=0?r[iResp]:"")||"—";
+    const key=chaveUnica(vend,bruto);
     if(!vend.has(key))vend.set(key,{tc:novo(),te:novo(),outro:novo(),tot:novo(),fech:0,aval:0});
     const s=vend.get(key); add(s[g],val,contaTicket); add(s.tot,val,contaTicket);
-    nomes.set(key,titled(iResp>=0?r[iResp]:"")||"—");
+    nomes.set(key,nomeMaisCompleto(nomes.get(key),bruto));
   }
   out.agg=agg; out.zero=zero.n;
 
@@ -1522,10 +1523,11 @@ function computar(){
     if(dia===hojeK)soma(pre.hoje);
     if(!pre.dias.has(dia))pre.dias.set(dia,zera());
     soma(pre.dias.get(dia));
-    const k=norm(iQa>=0?r[iQa]:"")||"—";
+    const brutoQ=titled(iQa>=0?r[iQa]:"")||"—";
+    const k=chaveUnica(pre.pessoas,brutoQ);
     if(!pre.pessoas.has(k))pre.pessoas.set(k,zera());
     soma(pre.pessoas.get(k));
-    if(!pre.nomes.has(k))pre.nomes.set(k,titled(iQa>=0?r[iQa]:"")||"—");
+    pre.nomes.set(k,nomeMaisCompleto(pre.nomes.get(k),brutoQ));
   }
   const ignPre=new Set(CFG.ignorar.split(",").map(norm).filter(Boolean).concat(["BUSCANDO…","BUSCANDO..."]));
   const termos=CFG.equipePre.split(",").map(norm).filter(Boolean);
@@ -1717,8 +1719,10 @@ function comissoes(V,cv,p){
     if(!eleg.has(norm(iEt>=0?r[iEt]:"")))continue;
     const d=toDate(r[iDt]); if(!d||d<p.a||d>p.b)continue;
     const g=grupo(r), val=toNum(r[iVal]);
-    const k=norm(iResp>=0?r[iResp]:"")||"—";
-    if(!V2.has(k))V2.set(k,{nome:titled(iResp>=0?r[iResp]:"")||"—",tot:0,tc:0,te:0});
+    const brutoV=titled(iResp>=0?r[iResp]:"")||"—";
+    const k=chaveUnica(V2,brutoV);
+    if(!V2.has(k))V2.set(k,{nome:brutoV,tot:0,tc:0,te:0});
+    V2.get(k).nome=nomeMaisCompleto(V2.get(k).nome,brutoV);
     const o=V2.get(k); o.tot+=val; if(g==="tc")o.tc+=val; if(g==="te")o.te+=val;
     fatTot+=val; if(g==="tc"){fatTC+=val;vendasTC.push({v:val,cir:iCir>=0?toDate(r[iCir]):null,
       marc:iMarc>=0?norm(r[iMarc]):""});} if(g==="te")fatTE+=val;
@@ -1839,6 +1843,8 @@ function funilPrevendas(p,MC){
            tPri:[],tGanho:[],tPerda:[],
            resp:new Map(),fonte:new Map(),meio:new Map(),avaliador:new Map(),motivos:new Map()};
   const bump=(m,k,f)=>{ if(!m.has(k))m.set(k,{tot:0,ganho:0,perda:0,and:0,aval:0}); f(m.get(k)); };
+  const bumpP=(m,nome,f)=>{ const k=chaveUnica(m,nome); bump(m,k,f);
+    const o=m.get(k); o.rot=nomeMaisCompleto(o.rot,nome); };
   const grafias=new Map();
   for(const r of manter){
     const e=est(r), a=avaliou(r);
@@ -1849,7 +1855,7 @@ function funilPrevendas(p,MC){
     if(dc&&df&&df>=dc){ if(tipo==="ganho")o.tGanho.push((df-dc)/3600000);
                         else if(tipo==="perda")o.tPerda.push((df-dc)/3600000); }
     const rp=titled(i.resp>=0?r[i.resp]:"")||"—";
-    bump(o.resp,rp,x=>{x.tot++;x[tipo]=(x[tipo]||0)+1;if(a)x.aval++;});
+    bumpP(o.resp,rp,x=>{x.tot++;x[tipo]=(x[tipo]||0)+1;if(a)x.aval++;});
     const foBruta=(String((i.fonte>=0?r[i.fonte]:"")??"").trim())||"(sem fonte)";
     const foK=norm(foBruta);
     grafias.set(foK,(grafias.get(foK)||new Map()));
@@ -2747,6 +2753,20 @@ function atualizaAdmin(){
 
 /* Nomes do RD, do Feegow e da lista divergem em grafia e sobrenome.
    São a mesma pessoa quando as palavras de um cabem nas do outro. */
+/* Ricardo Melo e Ricardo Melo Lopes são a mesma pessoa: devolve a chave já
+   existente no mapa quando os nomes casam, para não criar duas linhas. */
+function chaveUnica(mapa,bruto){
+  const k=norm(bruto)||"—";
+  if(mapa.has(k))return k;
+  for(const kk of mapa.keys())if(kk!=="—"&&mesmaPessoa(kk,k))return kk;
+  return k;
+}
+/* entre duas grafias da mesma pessoa, guarda a mais completa */
+function nomeMaisCompleto(a,b){
+  if(!a)return b; if(!b)return a;
+  return String(b).trim().length>String(a).trim().length?b:a;
+}
+
 function mesmaPessoa(a,b){
   const A=norm(a).split(/\s+/).filter(Boolean), B=norm(b).split(/\s+/).filter(Boolean);
   if(!A.length||!B.length)return false;
@@ -3219,7 +3239,7 @@ function renderFunil(F,EV){
   const tb=$("fnResp"); tb.innerHTML="";
   for(const [k,x] of linhas(F.resp,x=>x.tot).filter(([k])=>focoTem(k,"vendedor"))){
     const ap=pct(x.ganho||0,x.tot);
-    tb.insertAdjacentHTML("beforeend",'<tr><td class="l name">'+esc(k)+'</td>'+
+    tb.insertAdjacentHTML("beforeend",'<tr><td class="l name">'+esc(x.rot||k)+'</td>'+
       '<td class="sep v-money num">'+INT.format(x.tot)+'</td><td class="v-sub num">'+fpct(pct(x.tot,F.tot))+'</td>'+
       '<td class="v-sub num" style="color:var(--pos)">'+INT.format(x.ganho||0)+'</td>'+
       '<td class="v-sub num" style="color:var(--neg)">'+INT.format(x.perda||0)+'</td>'+
