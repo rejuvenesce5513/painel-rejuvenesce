@@ -173,8 +173,12 @@ tfoot td{padding:12px 10px;text-align:right;border-top:1px solid var(--line);fon
 #cfgTabs button{font-size:12px;padding:6px 11px;border-radius:99px;background:var(--panel2);
   border:1px solid var(--line);color:var(--muted)}
 #cfgTabs button.on{background:var(--tc);border-color:var(--tc);color:var(--onTc);font-weight:600}
-.per{display:grid;grid-template-columns:1.1fr 1.4fr auto auto;gap:7px;align-items:center;margin-bottom:6px}
-.per input,.per select{width:100%}
+.per{display:grid;grid-template-columns:1.1fr 1.4fr 130px 28px;gap:7px;align-items:center;
+  margin-bottom:9px;padding-bottom:9px;border-bottom:1px solid var(--line)}
+.per input[type=text],.per select{width:100%}
+.pep{grid-column:1/-1;display:flex;gap:12px;flex-wrap:wrap;padding-left:2px}
+.pep label{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--muted);cursor:pointer}
+.pep input{width:auto;margin:0}
 @media(max-width:760px){.per{grid-template-columns:1fr 1fr}}
 .apr{display:grid;grid-template-columns:1fr 18px 1fr;gap:8px;align-items:center;margin-bottom:6px;font-size:13px}
 .apr .de{color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -795,7 +799,7 @@ Não é subconjunto dos leads acima: inclui remarcações, retornos e quem agend
 </div>
 <div class="cfgG" data-g="pes" style="display:none">
 <div class="f"><label>Pessoas — vendedores, pré-vendas e lideranças</label>
-    <div class="h">O nome deve bater com o que aparece nos dados. Use "Alinhar pelos nomes oficiais" depois da unificação abaixo.</div>
+    <div class="h">Nome, e-mail, função e a quais painéis cada um tem acesso. O nome deve bater com o que aparece nos dados — use "Alinhar pelos nomes oficiais" depois da unificação abaixo.</div>
     <div id="peList" style="margin-top:8px"></div>
     <div style="display:flex;gap:9px;margin-top:8px;flex-wrap:wrap">
       <button id="peAdd">+ Adicionar pessoa</button>
@@ -2687,17 +2691,36 @@ function aplicaCfgTabs(g){
   dr.querySelectorAll("#cfgTabs button").forEach(b=>b.className=b.dataset.g===g?"on":"");
 }
 
-const TIPOS_PESSOA=[["vendedor","Vendedor"],["prevendas","Pré-vendas"],["lideranca","Liderança"]];
+const TIPOS_PESSOA=[["vendedor","Vendedor"],["prevendas","Pré-vendas"],
+                    ["lideranca","Liderança"],["outro","Outro"]];
+const PAINEIS=[["com","Comercial"],["pre","Pré-vendas"],["cir","Cirurgias"],
+               ["cms","Comissões"],["mts","Metas"]];
 
+/* Uma linha por pessoa reunindo o que estava em três listas separadas:
+   quem é (pessoas), quem é liderança e a quais painéis tem acesso. */
 function pessoasUnificadas(){
-  const out=(CFG.pessoas||[]).map(x=>({e:x.e||"",nome:x.nome||"",tipo:x.tipo||"vendedor"}));
-  for(const l of (CFG.liderancas||[]))
-    if(!out.some(x=>norm(x.e)===norm(l.e)))out.push({e:l.e||"",nome:l.nome||"",tipo:"lideranca"});
+  const ac=new Map((CFG.acessos||[]).map(a=>[norm(a.e),(a.t||[]).slice()]));
+  const out=[];
+  const põe=(e,nome,tipo)=>{
+    const k=norm(e);
+    if(k&&out.some(x=>norm(x.e)===k))return;
+    out.push({e:e||"",nome:nome||"",tipo,paineis:ac.get(k)||[]});
+    ac.delete(k);
+  };
+  for(const x of (CFG.pessoas||[]))põe(x.e,x.nome,x.tipo||"vendedor");
+  for(const l of (CFG.liderancas||[]))põe(l.e,l.nome,"lideranca");
+  for(const [k,t] of ac){
+    const orig=(CFG.acessos||[]).find(a=>norm(a.e)===k);
+    out.push({e:orig?orig.e:k,nome:"",tipo:"outro",paineis:t});
+  }
   return out;
 }
 function gravaPessoas(L){
-  CFG.pessoas=L.filter(x=>x.tipo!=="lideranca"&&(x.nome||x.e)).map(x=>({e:x.e,nome:x.nome,tipo:x.tipo}));
-  CFG.liderancas=L.filter(x=>x.tipo==="lideranca"&&(x.nome||x.e)).map(x=>({e:x.e,nome:x.nome}));
+  const val=L.filter(x=>x.nome||x.e);
+  CFG.pessoas=val.filter(x=>x.tipo==="vendedor"||x.tipo==="prevendas")
+                 .map(x=>({e:x.e,nome:x.nome,tipo:x.tipo}));
+  CFG.liderancas=val.filter(x=>x.tipo==="lideranca").map(x=>({e:x.e,nome:x.nome}));
+  CFG.acessos=val.filter(x=>x.e&&(x.paineis||[]).length).map(x=>({e:x.e,t:x.paineis.slice()}));
 }
 function editorPessoas(){
   const cx=$("peList"); if(!cx)return;
@@ -2708,7 +2731,10 @@ function editorPessoas(){
     '<input type="text" class="pee" value="'+esc(x.e)+'" placeholder="email@clinicarejuvenesce.com.br">'+
     '<select class="pet">'+TIPOS_PESSOA.map(([v,r])=>'<option value="'+v+'"'+
       (x.tipo===v?" selected":"")+">"+r+"</option>").join("")+"</select>"+
-    '<button class="acx pex" data-i="'+i+'" title="Remover">&times;</button></div>').join("")
+    '<button class="acx pex" data-i="'+i+'" title="Remover">&times;</button>'+
+    '<div class="pep">'+PAINEIS.map(([v,r])=>'<label><input type="checkbox" class="pec" data-p="'+v+'"'+
+      ((x.paineis||[]).includes(v)?" checked":"")+"><span>"+r+"</span></label>").join("")+"</div>"+
+    "</div>").join("")
     ||'<div style="color:var(--dim);font-size:13px">nenhuma pessoa cadastrada</div>';
   cx.querySelectorAll(".pex").forEach(b=>b.onclick=()=>{
     lerPessoas(); const L2=pessoasUnificadas(); L2.splice(+b.dataset.i,1); gravaPessoas(L2); editorPessoas();
@@ -2721,7 +2747,8 @@ function lerPessoas(){
   gravaPessoas(linhas.map(r=>({
     nome:(r.querySelector(".pen")||{}).value||"",
     e:(r.querySelector(".pee")||{}).value||"",
-    tipo:(r.querySelector(".pet")||{}).value||"vendedor"})));
+    tipo:(r.querySelector(".pet")||{}).value||"vendedor",
+    paineis:[...r.querySelectorAll(".pec")].filter(c=>c.checked).map(c=>c.dataset.p)})));
 }
 
 function editorApelidos(){
@@ -3764,6 +3791,7 @@ async function carregar(){
     }
     try{ USUARIO=await gget("/me?$select=mail,userPrincipalName,displayName",tk); }catch(e){}
     atualizaAdmin(); montaVisao();
+    if($("drawer")&&$("drawer").classList.contains("open")){editorPessoas();editorApelidos();}
     render();
     const atraso=Math.round((Date.now()-new Date(ref.mod).getTime())/60000);
     setStatus(atraso>45?"warn":"ok",
@@ -3786,7 +3814,11 @@ function uiToCfg(){lerEditor();for(const id in F){const el=$(id);if(!el)continue
     CFG[F[id]]=el.type==="checkbox"?el.checked:(el.type==="number"?+el.value:el.value);}
   const dif={}; for(const k in CFG)if(JSON.stringify(CFG[k])!==JSON.stringify(NATIVO[k]))dif[k]=CFG[k];
   store.set("rjv.cfg",JSON.stringify(dif)); Object.assign(SALVO,dif);}
-function openCfg(msg){$("drawer").classList.add("open");$("cfgNotes").textContent=msg||"";}
+function openCfg(msg){
+  $("drawer").classList.add("open");
+  editorPessoas(); editorApelidos();        // os dados já podem ter chegado
+  $("cfgNotes").textContent=msg||"";
+}
 
 /* ============================ boot ============================ */
 let timer=null;
