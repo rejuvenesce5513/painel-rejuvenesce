@@ -2697,10 +2697,16 @@ let PESSOAS_ED=null;
 function pessoasUnificadas(){
   const ac=new Map((CFG.acessos||[]).map(a=>[norm(a.e),(a.t||[]).slice()]));
   const adm=new Set(String(CFG.admins||"").split(",").map(norm).filter(Boolean));
-  const varPorNome=new Map();
+  // a chave do mapa é o nome normalizado; recupera a grafia real vista nos dados
+  const reais=new Map();
+  for(const t of nomesDeTodasAsFontes())if(!reais.has(norm(t.nome)))reais.set(norm(t.nome),t.nome);
+  const varPorNome=new Map(), oficialPorChave=new Map();
   for(const v in (CFG.apelidos||{})){
-    const of=CFG.apelidos[v];
-    const L=varPorNome.get(norm(of))||[]; L.push(v); varPorNome.set(norm(of),L);
+    const of=CFG.apelidos[v]; if(!of)continue;
+    const k=norm(of);
+    oficialPorChave.set(k,of);
+    const L=varPorNome.get(k)||[]; L.push(reais.get(norm(v))||v);
+    varPorNome.set(k,L);
   }
   const out=[];
   const põe=(e,nome,tipo)=>{
@@ -2717,11 +2723,17 @@ function pessoasUnificadas(){
     const orig=(CFG.acessos||[]).find(a=>norm(a.e)===k);
     out.push({e:orig?orig.e:k,nome:"",tipo:"outro",paineis:t,admin:adm.has(k),vars:[]});
   }
-  // quem só existe na unificação, sem e-mail
+  // quem só existe na unificação, sem e-mail — e nunca duplicando quem já está
   for(const [kn,vs] of varPorNome){
-    if(out.some(x=>norm(x.nome)===kn))continue;
-    const of=CFG.apelidos[vs[0]];
+    const of=oficialPorChave.get(kn);
+    if(!of)continue;
+    const ja=out.find(x=>x.nome&&(norm(x.nome)===kn||mesmaPessoa(x.nome,of)));
+    if(ja){ for(const v of vs)if(!ja.vars.some(y=>norm(y)===norm(v)))ja.vars.push(v); continue; }
     out.push({e:"",nome:of,tipo:"outro",paineis:[],admin:false,vars:vs});
+  }
+  // o nome oficial de cada um também é grafia dele
+  for(const x of out){
+    if(x.nome&&!x.vars.some(v=>norm(v)===norm(x.nome)))x.vars.push(x.nome);
   }
   return out;
 }
@@ -2738,7 +2750,7 @@ function gravaPessoas(L){
   const ap={};
   for(const x of val){
     if(!x.nome)continue;
-    for(const v of (x.vars||[]))if(norm(v)!==norm(x.nome))ap[norm(v)]=x.nome;
+    for(const v of (x.vars||[]))if(String(v)!==String(x.nome))ap[norm(v)]=x.nome;
   }
   CFG.apelidos=ap;
 }
@@ -2755,7 +2767,8 @@ function editorPessoas(recarregar){
   const donoDe=new Map();
   L.forEach((x,i)=>{ for(const v of (x.vars||[]))donoDe.set(norm(v),i); });
   cx.innerHTML=L.map((x,i)=>{
-    const marcado=t=>(x.vars||[]).some(v=>norm(v)===norm(t.nome));
+    const ehOficial=t=>!!x.nome&&norm(t.nome)===norm(x.nome);
+    const marcado=t=>ehOficial(t)||(x.vars||[]).some(v=>norm(v)===norm(t.nome));
     const meus=todos.filter(marcado);
     const parecidos=todos.filter(t=>!marcado(t)&&x.nome&&mesmaPessoa(t.nome,x.nome));
     const verTudo=!!x.verTudo;
@@ -2763,10 +2776,12 @@ function editorPessoas(recarregar){
     const cxs=meus.concat(parecidos,outros).map(t=>{
       const d=donoDe.get(norm(t.nome));
       const ocupado=d!=null&&d!==i;
-      return '<label'+(ocupado?' class="ja" title="já vinculado a outra pessoa"':'')+
+      const of=ehOficial(t);
+      return '<label'+(of?' title="é o nome oficial desta pessoa"':
+                      (ocupado?' class="ja" title="já vinculado a outra pessoa"':''))+
         '><input type="checkbox" class="pevc" value="'+esc(t.nome)+'"'+
-        (marcado(t)?" checked":"")+(ocupado?" disabled":"")+"><span>"+esc(t.nome)+
-        ' <span class="q">'+t.n+"</span></span></label>";
+        (marcado(t)?" checked":"")+((ocupado&&!of)?" disabled":"")+"><span>"+esc(t.nome)+
+        ' <span class="q">'+t.n+(of?" · oficial":"")+"</span></span></label>";
     }).join("")||'<span style="color:var(--dim);font-size:12.5px">nenhuma grafia parecida</span>';
     return '<div class="per">'+
       '<input type="text" class="pen" value="'+esc(x.nome)+'" placeholder="nome oficial">'+
@@ -2983,8 +2998,15 @@ function chaveUnica(mapa,bruto){
   return k;
 }
 /* entre duas grafias da mesma pessoa, guarda a mais completa */
+/* Com o nome oficial definido em Configurar, ele manda. Só quando não há
+   vínculo nenhum é que vale a grafia mais completa encontrada nos dados. */
 function nomeMaisCompleto(a,b){
   if(!a)return b; if(!b)return a;
+  const m=CFG.apelidos||{};
+  const ofA=Object.values(m).some(v=>String(v)===String(a));
+  const ofB=Object.values(m).some(v=>String(v)===String(b));
+  if(ofA&&!ofB)return a;
+  if(ofB&&!ofA)return b;
   return String(b).trim().length>String(a).trim().length?b:a;
 }
 
@@ -3852,7 +3874,7 @@ const F={cTenant:"tenant",cClient:"client",cFile:"file",cShVendas:"shVendas",cSh
   cOnlyPrimeira:"onlyPrimeira",cIgnoraZero:"ignoraZero",cCoorte:"coorte",cAutoEntrar:"autoEntrar",cGhRepo:"ghRepo",cGhWf:"ghWf",cGhToken:"ghToken"};
 function cfgToUI(){editorAcessos();for(const id in F){const el=$(id);if(el.type==="checkbox")el.checked=!!CFG[F[id]];else el.value=CFG[F[id]];}
   $("cRedirect").textContent=REDIRECT;}
-function uiToCfg(){lerEditor();for(const id in F){const el=$(id);if(!el)continue;
+function uiToCfg(){lerMetas();lerPessoas();for(const id in F){const el=$(id);if(!el)continue;
     CFG[F[id]]=el.type==="checkbox"?el.checked:(el.type==="number"?+el.value:el.value);}
   const dif={}; for(const k in CFG)if(JSON.stringify(CFG[k])!==JSON.stringify(NATIVO[k]))dif[k]=CFG[k];
   store.set("rjv.cfg",JSON.stringify(dif)); Object.assign(SALVO,dif);}
