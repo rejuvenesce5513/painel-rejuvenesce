@@ -176,7 +176,9 @@ tfoot td{padding:12px 10px;text-align:right;border-top:1px solid var(--line);fon
 .per{display:grid;grid-template-columns:1.1fr 1.4fr 130px 28px;gap:7px;align-items:center;
   margin-bottom:9px;padding-bottom:9px;border-bottom:1px solid var(--line)}
 .per input[type=text],.per select{width:100%}
-.pep{grid-column:1/-1;display:flex;gap:12px;flex-wrap:wrap;padding-left:2px}
+.pep{grid-column:1/-1;display:flex;gap:12px;flex-wrap:wrap;padding-left:2px;align-items:center}
+.pev{grid-column:1/-1}
+.pev select{width:100%;min-height:58px;font-size:12px;padding:4px}
 .pep label{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--muted);cursor:pointer}
 .pep input{width:auto;margin:0}
 @media(max-width:760px){.per{grid-template-columns:1fr 1fr}}
@@ -803,26 +805,13 @@ Não é subconjunto dos leads acima: inclui remarcações, retornos e quem agend
     <div id="peList" style="margin-top:8px"></div>
     <div style="display:flex;gap:9px;margin-top:8px;flex-wrap:wrap">
       <button id="peAdd">+ Adicionar pessoa</button>
-      <button id="peAlinhar">Alinhar pelos nomes oficiais</button>
+      <button id="peSugerir">Sugerir variações</button>
     </div>
+    <div class="h" id="peResumo" style="margin-top:6px"></div>
   </div>
   <hr>
-  <div class="f"><label>Equipe de pré-vendas</label><input id="cEquipe" value="Beatriz,Fabiana,Amanda">
-    <div class="h">Primeiro nome basta. Quem não estiver aqui entra como agendamento esporádico — soma no total, fora do resultado do setor.</div></div><div class="f"><label>Padrão para quem não está na lista</label>
-    <div class="tp" id="acPadrao" style="display:flex;gap:14px;flex-wrap:wrap;font-size:13px"></div>
-  </div><div class="f"><label>E-mails com acesso à aba Comissões</label><input id="cEmails" placeholder="fabricio@clinicarejuvenesce.com.br, ...">
-    <div class="h">Vazio libera para quem já acessa os parâmetros. Trava de tela, não de dados.</div></div><label class="chk"><input type="checkbox" id="cRankSo" checked><span>No ranking, listar apenas os vendedores cadastrados (os demais viram uma linha "Outros")</span></label><div class="f"><label>Rótulos a excluir do ranking</label><input id="cIgnorar" value="Sem deal comercial,—,JARVYS">
-    <div class="h">Valores da coluna Responsável/Vendedor comercial que não são vendedores.</div></div><div class="f"><label>Unificação de nomes</label>
-    <div class="h">A mesma pessoa às vezes aparece com grafias diferentes no RD, no Feegow e na planilha.
-      Escreva o nome oficial ao lado de cada variação para somar tudo numa linha só.</div>
-    <div style="display:flex;gap:9px;margin:8px 0;flex-wrap:wrap;align-items:center">
-      <button id="apSugerir">Sugerir automaticamente</button>
-      <button id="apLimpar">Limpar vínculos</button>
-      <label class="chk" style="margin:0"><input type="checkbox" id="apTodos"><span>mostrar todos os nomes</span></label>
-    </div>
-    <div class="h" id="apResumo" style="margin-bottom:6px"></div>
-    <div id="apLista" style="max-height:320px;overflow:auto;border:1px solid var(--line);border-radius:var(--r);padding:8px"></div>
-  </div><div class="f"><label>Administradores do painel</label><input id="cAdmins" value="fabricio.araujo@clinicarejuvenesce.com.br">
+  <label class="chk"><input type="checkbox" id="cRankSo" checked><span>No ranking, listar apenas os vendedores cadastrados (os demais viram uma linha "Outros")</span></label><div class="f"><label>Rótulos a excluir do ranking</label><input id="cIgnorar" value="Sem deal comercial,—,JARVYS">
+    <div class="h">Valores da coluna Responsável/Vendedor comercial que não são vendedores.</div></div><div class="f"><label>Administradores do painel</label><input id="cAdmins" value="fabricio.araujo@clinicarejuvenesce.com.br">
     <div class="h">Só estes e-mails enxergam o botão Configurar. Os demais recebem a configuração pronta.</div></div>
 </div>
 <div class="cfgG" data-g="met" style="display:none">
@@ -2694,100 +2683,116 @@ const TIPOS_PESSOA=[["vendedor","Vendedor"],["prevendas","Pré-vendas"],
 const PAINEIS=[["com","Comercial"],["pre","Pré-vendas"],["cir","Cirurgias"],
                ["cms","Comissões"],["mts","Metas"]];
 
-/* Uma linha por pessoa reunindo o que estava em três listas separadas:
-   quem é (pessoas), quem é liderança e a quais painéis tem acesso. */
+/* Uma linha por pessoa: nome oficial, e-mail, função, as grafias que ela tem
+   nos dados e o que enxerga. É a única fonte — metas, ranking e filtros usam daqui. */
+let PESSOAS_ED=null;
+
 function pessoasUnificadas(){
   const ac=new Map((CFG.acessos||[]).map(a=>[norm(a.e),(a.t||[]).slice()]));
+  const adm=new Set(String(CFG.admins||"").split(",").map(norm).filter(Boolean));
+  const varPorNome=new Map();
+  for(const v in (CFG.apelidos||{})){
+    const of=CFG.apelidos[v];
+    const L=varPorNome.get(norm(of))||[]; L.push(v); varPorNome.set(norm(of),L);
+  }
   const out=[];
   const põe=(e,nome,tipo)=>{
     const k=norm(e);
     if(k&&out.some(x=>norm(x.e)===k))return;
-    out.push({e:e||"",nome:nome||"",tipo,paineis:ac.get(k)||[]});
+    out.push({e:e||"",nome:nome||"",tipo,
+              paineis:ac.get(k)||[], admin:adm.has(k),
+              vars:varPorNome.get(norm(nome))||[]});
     ac.delete(k);
   };
   for(const x of (CFG.pessoas||[]))põe(x.e,x.nome,x.tipo||"vendedor");
   for(const l of (CFG.liderancas||[]))põe(l.e,l.nome,"lideranca");
   for(const [k,t] of ac){
     const orig=(CFG.acessos||[]).find(a=>norm(a.e)===k);
-    out.push({e:orig?orig.e:k,nome:"",tipo:"outro",paineis:t});
+    out.push({e:orig?orig.e:k,nome:"",tipo:"outro",paineis:t,admin:adm.has(k),vars:[]});
+  }
+  // quem só existe na unificação, sem e-mail
+  for(const [kn,vs] of varPorNome){
+    if(out.some(x=>norm(x.nome)===kn))continue;
+    const of=CFG.apelidos[vs[0]];
+    out.push({e:"",nome:of,tipo:"outro",paineis:[],admin:false,vars:vs});
   }
   return out;
 }
+
 function gravaPessoas(L){
   const val=L.filter(x=>x.nome||x.e);
   CFG.pessoas=val.filter(x=>x.tipo==="vendedor"||x.tipo==="prevendas")
                  .map(x=>({e:x.e,nome:x.nome,tipo:x.tipo}));
   CFG.liderancas=val.filter(x=>x.tipo==="lideranca").map(x=>({e:x.e,nome:x.nome}));
   CFG.acessos=val.filter(x=>x.e&&(x.paineis||[]).length).map(x=>({e:x.e,t:x.paineis.slice()}));
+  CFG.admins=val.filter(x=>x.admin&&x.e).map(x=>x.e).join(", ");
+  CFG.emailsComissao=val.filter(x=>x.e&&(x.paineis||[]).includes("cms")).map(x=>x.e).join(", ");
+  CFG.equipePre=val.filter(x=>x.tipo==="prevendas"&&x.nome).map(x=>x.nome).join(",");
+  const ap={};
+  for(const x of val){
+    if(!x.nome)continue;
+    for(const v of (x.vars||[]))if(norm(v)!==norm(x.nome))ap[norm(v)]=x.nome;
+  }
+  CFG.apelidos=ap;
 }
-let PESSOAS_ED=null;
+
 function editorPessoas(recarregar){
   const cx=$("peList"); if(!cx)return;
   if(recarregar||!PESSOAS_ED)PESSOAS_ED=pessoasUnificadas();
   const L=PESSOAS_ED;
-  cx.innerHTML=L.map((x,i)=>
-    '<div class="per">'+
-    '<input type="text" class="pen" value="'+esc(x.nome)+'" placeholder="nome como aparece nos dados">'+
-    '<input type="text" class="pee" value="'+esc(x.e)+'" placeholder="email@clinicarejuvenesce.com.br">'+
-    '<select class="pet">'+TIPOS_PESSOA.map(([v,r])=>'<option value="'+v+'"'+
-      (x.tipo===v?" selected":"")+">"+r+"</option>").join("")+"</select>"+
-    '<button class="acx pex" data-i="'+i+'" title="Remover">&times;</button>'+
-    '<div class="pep">'+PAINEIS.map(([v,r])=>'<label><input type="checkbox" class="pec" data-p="'+v+'"'+
-      ((x.paineis||[]).includes(v)?" checked":"")+"><span>"+r+"</span></label>").join("")+"</div>"+
-    "</div>").join("")
-    ||'<div style="color:var(--dim);font-size:13px">nenhuma pessoa cadastrada</div>';
+  const todos=nomesDeTodasAsFontes();
+  const usados=new Set();
+  for(const x of L){ for(const v of (x.vars||[]))usados.add(norm(v));
+                     if(x.nome)usados.add(norm(x.nome)); }
+  cx.innerHTML=L.map((x,i)=>{
+    const opts=todos.map(t=>{
+      const sel=(x.vars||[]).some(v=>norm(v)===norm(t.nome))||norm(t.nome)===norm(x.nome);
+      const livre=!usados.has(norm(t.nome));
+      return '<option value="'+esc(t.nome)+'"'+(sel?" selected":"")+
+        (livre?'':(sel?'':' style="color:var(--dim)"'))+'>'+esc(t.nome)+" ("+t.n+")</option>";
+    }).join("");
+    return '<div class="per">'+
+      '<input type="text" class="pen" value="'+esc(x.nome)+'" placeholder="nome oficial">'+
+      '<input type="text" class="pee" value="'+esc(x.e)+'" placeholder="email (opcional)">'+
+      '<select class="pet">'+TIPOS_PESSOA.map(([v,r])=>'<option value="'+v+'"'+
+        (x.tipo===v?" selected":"")+">"+r+"</option>").join("")+"</select>"+
+      '<button class="acx pex" data-i="'+i+'" title="Remover">&times;</button>'+
+      '<div class="pev"><select multiple class="pevs" size="3">'+opts+'</select>'+
+        '<div class="h">grafias desta pessoa nos dados — segure Ctrl para marcar várias</div></div>'+
+      '<div class="pep">'+PAINEIS.map(([v,r])=>'<label><input type="checkbox" class="pec" data-p="'+v+'"'+
+        ((x.paineis||[]).includes(v)?" checked":"")+"><span>"+r+"</span></label>").join("")+
+        '<label style="border-left:1px solid var(--line);padding-left:12px"><input type="checkbox" class="pea"'+
+        (x.admin?" checked":"")+'><span>Administrador</span></label>'+
+        '<label><input type="checkbox" class="pesa"'+((x.paineis||[]).length?"":" checked")+
+        '><span>Sem acesso a painéis</span></label></div>'+
+      "</div>";
+  }).join("")||'<div style="color:var(--dim);font-size:13px">nenhuma pessoa cadastrada</div>';
   cx.querySelectorAll(".pex").forEach(b=>b.onclick=()=>{
     lerPessoas(); PESSOAS_ED.splice(+b.dataset.i,1); editorPessoas();
   });
+  const r=$("peResumo");
+  if(r){
+    const soltos=todos.filter(t=>!usados.has(norm(t.nome)));
+    r.innerHTML="<b>"+L.length+"</b> pessoa(s) · <b"+(soltos.length?' style="color:var(--neg)"':"")+
+      ">"+soltos.length+"</b> nome(s) nos dados ainda sem dono";
+  }
 }
+
 function lerPessoas(){
   const cx=$("peList"); if(!cx)return;
   const linhas=[...cx.querySelectorAll(".per")];
   if(!linhas.length)return;
-  PESSOAS_ED=linhas.map(r=>({
-    nome:(r.querySelector(".pen")||{}).value||"",
-    e:(r.querySelector(".pee")||{}).value||"",
-    tipo:(r.querySelector(".pet")||{}).value||"vendedor",
-    paineis:[...r.querySelectorAll(".pec")].filter(c=>c.checked).map(c=>c.dataset.p)}));
-  gravaPessoas(linhas.map(r=>({
-    nome:(r.querySelector(".pen")||{}).value||"",
-    e:(r.querySelector(".pee")||{}).value||"",
-    tipo:(r.querySelector(".pet")||{}).value||"vendedor",
-    paineis:[...r.querySelectorAll(".pec")].filter(c=>c.checked).map(c=>c.dataset.p)})));
-}
-
-function editorApelidos(){
-  const cx=$("apLista"); if(!cx)return;
-  const Ltodos=nomesDeTodasAsFontes();
-  const mapa=CFG.apelidos||{};
-  const temVinculo=x=>!!mapa[norm(x.nome)];
-  const pareceOutro=x=>Ltodos.some(y=>norm(y.nome)!==norm(x.nome)&&mesmaPessoa(y.nome,x.nome));
-  const precisa=x=>temVinculo(x)||pareceOutro(x);
-  const verTodos=$("apTodos")&&$("apTodos").checked;
-  const L=verTodos?Ltodos:Ltodos.filter(precisa);
-  const nVinc=Ltodos.filter(temVinculo).length;
-  const nPend=Ltodos.filter(x=>!temVinculo(x)&&pareceOutro(x)).length;
-  const r=$("apResumo");
-  if(r)r.innerHTML="<b>"+nVinc+"</b> vinculado(s) · <b"+(nPend?' style="color:var(--neg)"':"")+">"+
-    nPend+"</b> parecido(s) sem vínculo · "+(Ltodos.length-nVinc-nPend)+
-    " sem parecido (não precisam de vínculo)";
-  cx.innerHTML=L.map(x=>{
-    const of=mapa[norm(x.nome)]||"";
-    return '<div class="apr'+(of?" lig":"")+'"><span class="de" title="'+esc(x.nome)+'">'+esc(x.nome)+
-      ' <span class="l">'+x.n+"</span></span><span class=\"seta\">→</span>"+
-      '<input class="apv" data-de="'+esc(x.nome)+'" value="'+esc(of)+'" placeholder="nome oficial"></div>';
-  }).join("")||'<div style="color:var(--dim);font-size:13px">'+
-    (Ltodos.length?"nenhum nome precisa de vínculo":"conecte-se para carregar os nomes")+"</div>";
-}
-
-function lerApelidos(){
-  const cx=$("apLista"); if(!cx)return;
-  const m={};
-  cx.querySelectorAll(".apv").forEach(i=>{
-    const de=i.dataset.de, para=i.value.trim();
-    if(para&&norm(para)!==norm(de))m[norm(de)]=para;
+  PESSOAS_ED=linhas.map(r=>{
+    const semAcesso=(r.querySelector(".pesa")||{}).checked;
+    return {
+      nome:(r.querySelector(".pen")||{}).value||"",
+      e:(r.querySelector(".pee")||{}).value||"",
+      tipo:(r.querySelector(".pet")||{}).value||"vendedor",
+      admin:!!(r.querySelector(".pea")||{}).checked,
+      vars:[...r.querySelectorAll(".pevs option")].filter(o=>o.selected).map(o=>o.value),
+      paineis:semAcesso?[]:[...r.querySelectorAll(".pec")].filter(c=>c.checked).map(c=>c.dataset.p)};
   });
-  CFG.apelidos=m;
+  gravaPessoas(PESSOAS_ED);
 }
 
 function editorAcessos(){
@@ -3808,7 +3813,7 @@ async function carregar(){
     }
     try{ USUARIO=await gget("/me?$select=mail,userPrincipalName,displayName",tk); }catch(e){}
     atualizaAdmin(); montaVisao();
-    if($("drawer")&&$("drawer").classList.contains("open")){editorPessoas();editorApelidos();}
+    if($("drawer")&&$("drawer").classList.contains("open"))editorPessoas(true);
     render();
     const atraso=Math.round((Date.now()-new Date(ref.mod).getTime())/60000);
     setStatus(atraso>45?"warn":"ok",
@@ -3823,7 +3828,7 @@ function setStatus(k,t){$("dot").className="dot "+k;$("statusTxt").textContent=t
 
 /* ============================ config UI ============================ */
 const F={cTenant:"tenant",cClient:"client",cFile:"file",cShVendas:"shVendas",cShMarc:"shMarc",cShMetas:"shMetas",
-  cRefresh:"refresh",cSplitTC:"splitTC",cSplitTE:"splitTE",cMapTC:"mapTC",cMapTE:"mapTE",cIgnorar:"ignorar",cAgendada:"marcaAgendada",cStRe:"stRealizada",cStNs:"stNoShow",cStRm:"stRemarcada",cStFu:"stFuturo",cStCa:"stCancelado",cRegras:"regrasComissao",cEtAnt:"etapasAntesVigencia",cVigEt:"vigenciaEtapas",cAdmins:"admins",cArqReg:"arqRegras",cShReg:"shRegras",cGhPRepo:"ghPainelRepo",cGhPPath:"ghPainelPath",cGhPBr:"ghPainelBranch",cGhPTok:"ghTokenPainel",cArqMet:"arqMetas",cShMet:"shMetasCfg",cShEnt:"shEntrada",cArqCir:"arqCirurgias",cShCir:"shCirurgias",cCirDia:"cirPorDia",cCeleb:"celebrar",cCelebSom:"celebrarSom",cHoriz:"cirHorizonte",cAlerta:"cirAlertaLivre",cFeriados:"feriados",cShPv:"shPrevendas",cDedup:"dedupMin",cEmails:"emailsComissao",cEquipe:"equipePre",cRankSo:"rankSoCadastrados",cOrfas:"incluirOrfas",cEtapas:"etapasVenda",
+  cRefresh:"refresh",cSplitTC:"splitTC",cSplitTE:"splitTE",cMapTC:"mapTC",cMapTE:"mapTE",cIgnorar:"ignorar",cAgendada:"marcaAgendada",cStRe:"stRealizada",cStNs:"stNoShow",cStRm:"stRemarcada",cStFu:"stFuturo",cStCa:"stCancelado",cRegras:"regrasComissao",cEtAnt:"etapasAntesVigencia",cVigEt:"vigenciaEtapas",cAdmins:"admins",cArqReg:"arqRegras",cShReg:"shRegras",cGhPRepo:"ghPainelRepo",cGhPPath:"ghPainelPath",cGhPBr:"ghPainelBranch",cGhPTok:"ghTokenPainel",cArqMet:"arqMetas",cShMet:"shMetasCfg",cShEnt:"shEntrada",cArqCir:"arqCirurgias",cShCir:"shCirurgias",cCirDia:"cirPorDia",cCeleb:"celebrar",cCelebSom:"celebrarSom",cHoriz:"cirHorizonte",cAlerta:"cirAlertaLivre",cFeriados:"feriados",cShPv:"shPrevendas",cDedup:"dedupMin",cRankSo:"rankSoCadastrados",cOrfas:"incluirOrfas",cEtapas:"etapasVenda",
   cOnlyPrimeira:"onlyPrimeira",cIgnoraZero:"ignoraZero",cCoorte:"coorte",cAutoEntrar:"autoEntrar",cGhRepo:"ghRepo",cGhWf:"ghWf",cGhToken:"ghToken"};
 function cfgToUI(){editorAcessos();for(const id in F){const el=$(id);if(el.type==="checkbox")el.checked=!!CFG[F[id]];else el.value=CFG[F[id]];}
   $("cRedirect").textContent=REDIRECT;}
@@ -3833,7 +3838,7 @@ function uiToCfg(){lerEditor();for(const id in F){const el=$(id);if(!el)continue
   store.set("rjv.cfg",JSON.stringify(dif)); Object.assign(SALVO,dif);}
 function openCfg(msg){
   $("drawer").classList.add("open");
-  editorPessoas(true); editorApelidos();    // os dados já podem ter chegado
+  editorPessoas(true);   // os dados já podem ter chegado
   $("cfgNotes").textContent=msg||"";
 }
 
@@ -3889,41 +3894,21 @@ async function publicarGitHub(){
 $("cPublicar").onclick=publicarGitHub;
 $("cSairAdmin").onclick=()=>{store.del("rjv.destrava");$("drawer").classList.remove("open");atualizaAdmin();};
 document.querySelectorAll("#cfgTabs button").forEach(b=>b.onclick=()=>aplicaCfgTabs(b.dataset.g));
-$("apTodos").onchange=()=>editorApelidos();
-$("peAdd").onclick=()=>{ lerPessoas();
-  PESSOAS_ED=(PESSOAS_ED||[]).concat([{e:"",nome:"",tipo:"vendedor",paineis:["com"]}]);
-  editorPessoas(); };
-$("peAlinhar").onclick=()=>{
-  lerPessoas(); lerApelidos();
-  const fontes=nomesDeTodasAsFontes().map(x=>canon(x.nome));
+$("peSugerir").onclick=()=>{
+  lerPessoas();
+  const todos=nomesDeTodasAsFontes();
   let n=0;
-  const L=(PESSOAS_ED||pessoasUnificadas()).map(x=>{
-    if(!x.nome)return x;
-    const of=fontes.find(f=>mesmaPessoa(f,x.nome));
-    if(of&&norm(of)!==norm(x.nome)){ n++; return Object.assign({},x,{nome:of}); }
-    return x;
-  });
-  PESSOAS_ED=L; gravaPessoas(L); editorPessoas();
-  $("cfgNotes").textContent=n?n+" nome(s) alinhado(s) ao que aparece nos dados. Confira e salve.":"Todos os nomes já batem com os dados.";
-};
-$("apSugerir").onclick=()=>{
-  lerApelidos();
-  const L=nomesDeTodasAsFontes(); const m=Object.assign({},CFG.apelidos||{});
-  const grupos=[];
-  for(const x of L){
-    const g=grupos.find(gr=>gr.some(y=>mesmaPessoa(y.nome,x.nome)));
-    if(g)g.push(x); else grupos.push([x]);
+  for(const x of PESSOAS_ED){
+    if(!x.nome)continue;
+    for(const t of todos){
+      if(mesmaPessoa(t.nome,x.nome)&&!(x.vars||[]).some(v=>norm(v)===norm(t.nome))){
+        (x.vars=x.vars||[]).push(t.nome); n++;
+      }
+    }
   }
-  let n=0;
-  for(const g of grupos){
-    if(g.length<2)continue;
-    const oficial=g.slice().sort((a,b)=>b.nome.length-a.nome.length)[0].nome;
-    for(const x of g)if(norm(x.nome)!==norm(oficial)){ m[norm(x.nome)]=oficial; n++; }
-  }
-  CFG.apelidos=m; editorApelidos();
-  $("cfgNotes").textContent=n?n+" variação(ões) vinculada(s). Confira antes de salvar.":"Nenhuma variação encontrada.";
+  gravaPessoas(PESSOAS_ED); editorPessoas();
+  $("cfgNotes").textContent=n?n+" variação(ões) vinculada(s). Confira e salve.":"Nada novo para vincular.";
 };
-$("apLimpar").onclick=()=>{ CFG.apelidos={}; editorApelidos(); $("cfgNotes").textContent="Vínculos limpos."; };
 /* o editor de acessos foi absorvido pelo editor de pessoas */
 $("cModelo").onclick=()=>{$("cRegras").value=REGRAS_MODELO;};
 $("cNativo").onclick=async()=>{
