@@ -271,6 +271,7 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
     </select>
     <input type="date" id="dtIni" style="display:none">
     <input type="date" id="dtFim" style="display:none">
+    <select id="visao" style="display:none"><option value="">Visão: equipe</option></select>
     <button id="btnRefresh">Atualizar</button>
     <button id="btnSync" style="display:none">Sincronizar agora</button>
     <button id="btnCfg" style="display:none">Configurar</button>
@@ -1444,7 +1445,7 @@ function computar(){
   }
   const ignPre=new Set(CFG.ignorar.split(",").map(norm).filter(Boolean).concat(["BUSCANDO…","BUSCANDO..."]));
   const termos=CFG.equipePre.split(",").map(norm).filter(Boolean);
-  const daEquipe=k=>termos.some(t=>k.includes(t));
+  const daEquipe=k=>termos.some(t=>k.includes(t));   // primeiro nome basta
   const lista=[...pre.pessoas.entries()].filter(([k])=>!ignPre.has(k))
     .map(([k,o])=>({nome:pre.nomes.get(k)||k,eq:daEquipe(k),...o}));
   lista.sort((a,b)=>(b.eq-a.eq)||(b.re-a.re)||(b.ag-a.ag));
@@ -1994,7 +1995,7 @@ function render(){
   let D; try{ D=computar(); }catch(e){ $("banner").innerHTML='<div class="msg err">'+esc(e.message)+'</div>'; return; }
   const p=D.p, m=D.meta, A=D.agg;
   const fmtP=d=>d.toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit",year:"numeric",timeZone:"UTC"});
-  $("periodLabel").textContent=fmtP(p.a)+" a "+fmtP(p.b)+"  ·  dia "+p.decorridos+" de "+p.totalDias+
+  $("periodLabel").textContent=(FOCO?FOCO.nome+"  ·  ":"")+fmtP(p.a)+" a "+fmtP(p.b)+"  ·  dia "+p.decorridos+" de "+p.totalDias+
     "";
 
   const pctTot=pct(A.tot.v,m.total);
@@ -2053,7 +2054,8 @@ function render(){
 
   const tb=$("rankBody"); tb.innerHTML="";
   const maxConv=Math.max(...D.rank.map(r=>pct(r.fech,r.aval)),1);
-  D.rank.forEach((r,i)=>{
+  const focoCom = FOCO && FOCO.tipo!=="prevendas" ? FOCO.nome : null;
+  D.rank.filter(r=>!focoCom||mesmaPessoa(r.nome,focoCom)).forEach((r,i)=>{
     const cv=pct(r.fech,r.aval);
     const cel=o=>'<td class="v-money sep num">'+BRL.format(o.v)+'</td><td class="v-sub num">'+INT.format(o.q)+
       '</td><td class="v-sub num">'+(o.qTicket?BRL.format(tm(o)):"—")+'</td>';
@@ -2180,7 +2182,8 @@ function render(){
   const pb=$("pvBody"); pb.innerHTML="";
   const maxEx=Math.max(...P.lista.filter(x=>x.eq).map(x=>pct(x.re,x.ag)),1);
   let sepPosto=false;
-  P.lista.forEach((x,i)=>{
+  const focoPre = FOCO && FOCO.tipo!=="vendedor" ? FOCO.nome : null;
+  P.lista.filter(x=>!focoPre||mesmaPessoa(x.nome,focoPre)).forEach((x,i)=>{
     const ex=pct(x.re,x.ag);
     if(!x.eq&&!sepPosto){sepPosto=true;
       pb.insertAdjacentHTML("beforeend",'<tr><td colspan="11" class="l eyebrow" style="padding-top:14px;color:var(--dim)">Agendamentos esporádicos — fora do setor</td></tr>');}
@@ -2467,12 +2470,51 @@ function ehAdmin(){
   const e=norm((USUARIO&&(USUARIO.mail||USUARIO.userPrincipalName))||"");
   return !!e&&lista.includes(e);
 }
+/* ---- visão: equipe ou um colaborador ---- */
+let FOCO=null;                       // {nome,tipo} quando há alguém selecionado
+function montaVisao(){
+  const sel=$("visao"); if(!sel)return;
+  const eu=euSou();
+  sel.style.display="";
+  if(sel.dataset.pronto!=="1"){
+    const gr=(rot,tipo)=>{
+      const L=(CFG.pessoas||[]).filter(x=>x.tipo===tipo);
+      return L.length?'<optgroup label="'+rot+'">'+
+        L.map(x=>'<option value="'+esc(x.nome)+'">'+esc(x.nome)+"</option>").join("")+"</optgroup>":"";
+    };
+    sel.innerHTML='<option value="">Visão: equipe</option>'+
+      gr("Vendedores","vendedor")+gr("Pré-vendas","prevendas");
+    sel.dataset.pronto="1";
+    // quem é vendedor ou pré-vendas abre focado em si; os demais, na equipe
+    if(eu&&eu.tipo!=="lideranca"){ sel.value=eu.nome; FOCO=eu; }
+    sel.onchange=()=>{
+      const n=sel.value;
+      FOCO = n ? ((CFG.pessoas||[]).find(x=>norm(x.nome)===norm(n))||{nome:n,tipo:""}) : null;
+      render();
+    };
+  }
+}
+
 function atualizaAdmin(){
   const destravado = store.get("rjv.destrava")==="1";
   ADMIN = destravado || (!!USUARIO && ehAdmin()) || !CFG.client;
   $("btnCfg").style.display=ADMIN?"":"none";
   $("cSairAdmin").style.display=destravado?"":"none";
+  montaVisao();
   aplicaAcessos();
+}
+
+/* Nomes do RD, do Feegow e da lista divergem em grafia e sobrenome.
+   São a mesma pessoa quando as palavras de um cabem nas do outro. */
+function mesmaPessoa(a,b){
+  const A=norm(a).split(/\s+/).filter(Boolean), B=norm(b).split(/\s+/).filter(Boolean);
+  if(!A.length||!B.length)return false;
+  const ig=new Set(["DE","DA","DO","DAS","DOS","E"]);
+  const sa=new Set(A.filter(x=>!ig.has(x))), sb=new Set(B.filter(x=>!ig.has(x)));
+  if(!sa.size||!sb.size)return false;
+  const [men,mai]=sa.size<=sb.size?[sa,sb]:[sb,sa];
+  for(const w of men)if(!mai.has(w))return false;
+  return true;
 }
 
 function euSou(){
@@ -2553,7 +2595,7 @@ function renderComissoes(D,p){
   const proj=v=>v*fator;
   const mesTxt=d=>d.toLocaleDateString("pt-BR",{month:"long",year:"numeric",timeZone:"UTC"});
 
-  const meu = soEu ? (K.lista.find(x=>norm(x.nome)===norm(eu.nome))||{com:0,tot:0}) : null;
+  const meu = soEu ? (K.lista.find(x=>mesmaPessoa(x.nome,eu.nome))||{com:0,tot:0}) : null;
   for(const id of ["kFat","kSup"])
     $(id).parentElement.style.display=soEu?"none":"";
   const secSup=document.querySelectorAll("#viewCom .aux, #viewCom .rank");
@@ -2570,11 +2612,11 @@ function renderComissoes(D,p){
   par("kTot",soEu?meu.com:total, corrente?"parcial até dia "+p.decorridos+" de "+p.totalDias:"apurado", true);
 
   const tb=$("cvBody"); tb.innerHTML="";
-  const lista = soEu ? K.lista.filter(x=>norm(x.nome)===norm(eu.nome)) : K.lista;
+  const lista = soEu ? K.lista.filter(x=>mesmaPessoa(x.nome,eu.nome)) : K.lista;
   const PR=D.premio;
   const premioDe=nome=>{
     if(!PR)return 0;
-    const ehLider=(CFG.liderancas||[]).some(l=>norm(l.nome)===norm(nome));
+    const ehLider=(CFG.liderancas||[]).some(l=>mesmaPessoa(l.nome,nome));
     return PR.premioColetivaVal+(ehLider?PR.premioSuperLider:PR.premioSuperVend);
   };
   let somaPremio=0;
@@ -2842,7 +2884,8 @@ function renderFunil(F,EV){
 
   const linhas=(m,ord)=>[...m.entries()].sort((a,b)=>ord(b[1])-ord(a[1]));
   const tb=$("fnResp"); tb.innerHTML="";
-  for(const [k,x] of linhas(F.resp,x=>x.tot)){
+  const fPre = FOCO && FOCO.tipo!=="vendedor" ? FOCO.nome : null;
+  for(const [k,x] of linhas(F.resp,x=>x.tot).filter(([k])=>!fPre||mesmaPessoa(k,fPre))){
     const ap=pct(x.ganho||0,x.tot);
     tb.insertAdjacentHTML("beforeend",'<tr><td class="l name">'+esc(k)+'</td>'+
       '<td class="sep v-money num">'+INT.format(x.tot)+'</td><td class="v-sub num">'+fpct(pct(x.tot,F.tot))+'</td>'+
