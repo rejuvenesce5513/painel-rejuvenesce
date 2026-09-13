@@ -841,6 +841,7 @@ Não é subconjunto dos leads acima: inclui remarcações, retornos e quem agend
   <div class="f"><label>E-mails com acesso à aba Comissões</label><input id="cEmails" placeholder="fabricio@clinicarejuvenesce.com.br, ...">
     <div class="h">Vazio libera para quem já acessa os parâmetros. Trava de tela, não de dados.</div></div>
   <hr>
+  <label class="chk"><input type="checkbox" id="cRankSo" checked><span>No ranking, listar apenas os vendedores cadastrados (os demais viram uma linha "Outros")</span></label>
   <div class="f"><label>Rótulos a excluir do ranking</label><input id="cIgnorar" value="Sem deal comercial,—,JARVYS">
     <div class="h">Valores da coluna Responsável/Vendedor comercial que não são vendedores.</div></div>
 
@@ -952,6 +953,7 @@ const NATIVO = {
   "vigenciaEntrada": "01/09/2026",
   "shEntrada": "Fechamentos",
   "premioTecMinimo": 60000,
+  "rankSoCadastrados": true,
   "pesosMeta": "Vendedor Avaliador Sênior=1,40|Vendedor Avaliador=1,20|Vendedor Nível 3 / Sênior=1,10|Vendedor Nível 2=1,00|Vendedor Nível 1=0,80",
   "metas": {},
   "acessoPadrao": [
@@ -1097,7 +1099,7 @@ const store={
   set(k,v){ try{localStorage.setItem(k,v);}catch(e){mem[k]=v;} },
   del(k){ try{localStorage.removeItem(k);}catch(e){delete mem[k];} }
 };
-const DEF={versao:"",admins:"",chaveAdmin:"",metas:{},superPct:10,pesosMeta:"",pessoas:[],liderancas:[],premioComercialPct:0.1,premioSupermetaVend:3500,premioSupermetaLider:7000,premioTecMinimo:60000,premioEntradaMin:750000,premioEntradaMinAnterior:600000,vigenciaEntrada:"",shEntrada:"",arqCirurgias:"",shCirurgias:"Cirurgias",etapasAntesVigencia:"",vigenciaEtapas:"",celebrar:true,celebrarSom:true,celebrarSeg:7,celebrarDias:2,cirPorDia:11,cirHorizonte:45,cirAlertaLivre:50,feriados:"",arqMetas:"",shMetasCfg:"Metas",shPrevendas:"Prevendas",dedupMin:5,ghPainelRepo:"",ghPainelPath:"index.html",ghPainelBranch:"main",ghTokenPainel:"",acessos:[],acessoPadrao:[],arqRegras:"",shRegras:"Parâmetros Comissões",regrasComissao:"",tenant:"89aed341-1dc6-4d0d-b5c7-e8df4293d21d",client:"",file:"",autoEntrar:true,ghRepo:"",ghWf:"sync.yml",ghToken:"",shVendas:"Vendas",shMarc:"Marcações",shMetas:"Metas",
+const DEF={versao:"",admins:"",chaveAdmin:"",metas:{},superPct:10,pesosMeta:"",rankSoCadastrados:true,pessoas:[],liderancas:[],premioComercialPct:0.1,premioSupermetaVend:3500,premioSupermetaLider:7000,premioTecMinimo:60000,premioEntradaMin:750000,premioEntradaMinAnterior:600000,vigenciaEntrada:"",shEntrada:"",arqCirurgias:"",shCirurgias:"Cirurgias",etapasAntesVigencia:"",vigenciaEtapas:"",celebrar:true,celebrarSom:true,celebrarSeg:7,celebrarDias:2,cirPorDia:11,cirHorizonte:45,cirAlertaLivre:50,feriados:"",arqMetas:"",shMetasCfg:"Metas",shPrevendas:"Prevendas",dedupMin:5,ghPainelRepo:"",ghPainelPath:"index.html",ghPainelBranch:"main",ghTokenPainel:"",acessos:[],acessoPadrao:[],arqRegras:"",shRegras:"Parâmetros Comissões",regrasComissao:"",tenant:"89aed341-1dc6-4d0d-b5c7-e8df4293d21d",client:"",file:"",autoEntrar:true,ghRepo:"",ghWf:"sync.yml",ghToken:"",shVendas:"Vendas",shMarc:"Marcações",shMetas:"Metas",
   refresh:10,splitTC:90,splitTE:10,mapTC:"TC,TB,TS,BH",mapTE:"TEC",ignorar:"Sem deal comercial,—,JARVYS",marcaAgendada:"Data Agendada",stRealizada:"Atendido",stNoShow:"Não compareceu",stRemarcada:"Remarcado",stFuturo:"Marcado",stCancelado:"Desmarcado pelo paciente,Cancelado pelo profissional",mesesCheios:true,shParams:"Parâmetros Comissões",arqParams:"",emailsComissao:"",equipePre:"Beatriz,Fabiana,Amanda",incluirOrfas:false,etapasVenda:"FECHAMENTO,FINALIZADO,REVISAO DE PENDENCIAS",onlyPrimeira:true,ignoraZero:true,coorte:"fechamento"};
 // versao nova zera preferencias, mas NUNCA o que e conexao/credencial
 if(store.get("rjv.cfgv")!==NATIVO.versao){
@@ -1249,10 +1251,27 @@ function grupoServico(cod){
   return "outro";
 }
 
+/* Recorta as abas quando há foco em pessoas: o painel inteiro passa a falar
+   só delas, não apenas o ranking. */
+function recorta(tab,coluna,nomes){
+  if(!tab||!tab.rows||!nomes.length)return tab;
+  const c=colmap(tab.headers), i=pick.apply(null,[c].concat(coluna));
+  if(i<0)return tab;
+  return {headers:tab.headers,
+          rows:tab.rows.filter(r=>nomes.some(n=>mesmaPessoa(r[i],n)))};
+}
+
 function computar(){
   const p=periodo(), out={p};
-  const V=RAW[CFG.shVendas]||RAW.Vendas, M=RAW[CFG.shMarc]||RAW["Marcações"], T=RAW[CFG.shMetas]||RAW.Metas;
+  let V=RAW[CFG.shVendas]||RAW.Vendas, M=RAW[CFG.shMarc]||RAW["Marcações"];
+  const T=RAW[CFG.shMetas]||RAW.Metas;
   if(!V||!M)throw new Error("Abas não encontradas: verifique os nomes em Configurar.");
+  const fVend=FOCOS.filter(f=>f.tipo!=="prevendas").map(f=>f.nome);
+  const fPre =FOCOS.filter(f=>f.tipo!=="vendedor").map(f=>f.nome);
+  out.foco={vend:fVend,pre:fPre};
+  V=recorta(V,["Responsável"],fVend);
+  M=recorta(M,["Quem agendou"],fPre);
+  M=recorta(M,["Vendedor comercial","Responsável"],fVend);   // avaliações do vendedor
   if(!T)out.semMetas=true;
 
   /* ---- vendas ---- */
@@ -1316,9 +1335,18 @@ function computar(){
   for(const f of fatiasMes){
     duSel+=f.du; duTot+=f.duMes;
     const m=metasDoMes(f.ym); if(!m||!(m.tc||m.te))continue;
-    temCfg=true;
     const fr = f.duMes ? f.du/f.duMes : 0;
-    mTC+=m.tc*fr; mTE+=m.te*fr;
+    if(fVend.length){
+      // com foco em vendedores, a meta é a soma das metas individuais deles;
+      // sem meta individual cadastrada, rateia a da clínica pelo nº de vendedores
+      let a=0,b=0;
+      for(const nome of fVend){ const v=metaVendedorSep(f.ym,nome); a+=v.tc; b+=v.te; }
+      if(!a&&!b){
+        const nv=Math.max(1,(CFG.pessoas||[]).filter(x=>x.tipo==="vendedor").length);
+        a=m.tc*fVend.length/nv; b=m.te*fVend.length/nv;
+      }
+      temCfg=true; mTC+=a*fr; mTE+=b*fr;
+    }else{ temCfg=true; mTC+=m.tc*fr; mTE+=m.te*fr; }
   }
   const mCfg=temCfg?{tc:mTC,te:mTE}:null;
   const fatorMes=new Map(fatiasMes.map(f=>[f.ym, f.duMes?f.du/f.duMes:0]));
@@ -1740,8 +1768,10 @@ function fmtDur(h){
 const mediaH=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null;
 
 function funilPrevendas(p,MC){
-  const P=RAW&&RAW[CFG.shPrevendas];
+  let P=RAW&&RAW[CFG.shPrevendas];
   if(!P||!P.headers||!P.rows)return null;
+  const fp=FOCOS.filter(f=>f.tipo!=="vendedor").map(f=>f.nome);
+  P=recorta(P,["Responsável"],fp);
   const c=colmap(P.headers);
   const i={nome:pick(c,"Nome"),estado:pick(c,"Estado"),etapa:pick(c,"Etapa"),
     dCri:pick(c,"Data de criação"),hCri:pick(c,"Hora de criação"),
@@ -2131,7 +2161,12 @@ function render(){
 
   const tb=$("rankBody"); tb.innerHTML="";
   const maxConv=Math.max(...D.rank.map(r=>pct(r.fech,r.aval)),1);
-  D.rank.filter(r=>focoTem(r.nome,"prevendas")).forEach((r,i)=>{
+  const cadastrados=(CFG.pessoas||[]).filter(x=>x.tipo==="vendedor").map(x=>x.nome);
+  const soCad=!!CFG.rankSoCadastrados&&cadastrados.length>0;
+  const visiveis=D.rank.filter(r=>focoTem(r.nome,"prevendas"));
+  const daCasa=r=>!soCad||cadastrados.some(n=>mesmaPessoa(r.nome,n));
+  const outros=visiveis.filter(r=>!daCasa(r));
+  visiveis.filter(daCasa).forEach((r,i)=>{
     const cv=pct(r.fech,r.aval);
     const cel=o=>'<td class="v-money sep num">'+BRL.format(o.v)+'</td><td class="v-sub num">'+INT.format(o.q)+
       '</td><td class="v-sub num">'+(o.qTicket?BRL.format(tm(o)):"—")+'</td>';
@@ -2151,6 +2186,19 @@ function render(){
       (r.aval?fpct(cv):"—")+'</span></span>'+
       (r.aval?'<span class="bar-inline"><i style="width:'+(cv/maxConv*100)+'%"></i></span>':"")+'</td></tr>');
   });
+  if(outros.length){
+    const som=outros.reduce((a,x)=>({v:a.v+x.tot.v,q:a.q+x.tot.q,
+      tcv:a.tcv+x.tc.v,tcq:a.tcq+x.tc.q,tev:a.tev+x.te.v,teq:a.teq+x.te.q}),
+      {v:0,q:0,tcv:0,tcq:0,tev:0,teq:0});
+    tb.insertAdjacentHTML("beforeend",
+      '<tr style="opacity:.55"><td class="l name" colspan="2">Outros ('+outros.length+
+      ') <span class="l">fora da lista de vendedores</span></td>'+
+      '<td class="v-money sep num">'+BRL.format(som.tcv)+'</td><td class="v-sub num">'+INT.format(som.tcq)+'</td><td></td>'+
+      '<td class="v-money sep num">'+BRL.format(som.tev)+'</td><td class="v-sub num">'+INT.format(som.teq)+'</td><td></td>'+
+      '<td class="v-money sep num">'+BRL.format(som.v)+'</td><td class="v-sub num">'+INT.format(som.q)+'</td>'+
+      '<td class="v-sub num">—</td><td class="num">—</td>'+
+      '<td class="sep v-sub num">—</td><td class="v-sub num">—</td><td class="sep num">—</td></tr>');
+  }
   const T=D.rank.reduce((a,r)=>{["tc","te","tot"].forEach(k=>{a[k].v+=r[k].v;a[k].q+=r[k].q;a[k].vTicket+=r[k].vTicket;a[k].qTicket+=r[k].qTicket;});
     a.fech+=r.fech;a.aval+=r.aval;return a;},{tc:{v:0,q:0,vTicket:0,qTicket:0},te:{v:0,q:0,vTicket:0,qTicket:0},tot:{v:0,q:0,vTicket:0,qTicket:0},fech:0,aval:0});
   const celf=o=>'<td class="sep num">'+BRL.format(o.v)+'</td><td class="num">'+INT.format(o.q)+'</td><td class="num">'+(o.qTicket?BRL.format(tm(o)):"—")+'</td>';
@@ -3492,7 +3540,7 @@ function setStatus(k,t){$("dot").className="dot "+k;$("statusTxt").textContent=t
 
 /* ============================ config UI ============================ */
 const F={cTenant:"tenant",cClient:"client",cFile:"file",cShVendas:"shVendas",cShMarc:"shMarc",cShMetas:"shMetas",
-  cRefresh:"refresh",cSplitTC:"splitTC",cSplitTE:"splitTE",cMapTC:"mapTC",cMapTE:"mapTE",cIgnorar:"ignorar",cAgendada:"marcaAgendada",cStRe:"stRealizada",cStNs:"stNoShow",cStRm:"stRemarcada",cStFu:"stFuturo",cStCa:"stCancelado",cRegras:"regrasComissao",cEtAnt:"etapasAntesVigencia",cVigEt:"vigenciaEtapas",cAdmins:"admins",cArqReg:"arqRegras",cShReg:"shRegras",cGhPRepo:"ghPainelRepo",cGhPPath:"ghPainelPath",cGhPBr:"ghPainelBranch",cGhPTok:"ghTokenPainel",cArqMet:"arqMetas",cShMet:"shMetasCfg",cShEnt:"shEntrada",cArqCir:"arqCirurgias",cShCir:"shCirurgias",cCirDia:"cirPorDia",cCeleb:"celebrar",cCelebSom:"celebrarSom",cHoriz:"cirHorizonte",cAlerta:"cirAlertaLivre",cFeriados:"feriados",cShPv:"shPrevendas",cDedup:"dedupMin",cEmails:"emailsComissao",cEquipe:"equipePre",cOrfas:"incluirOrfas",cEtapas:"etapasVenda",
+  cRefresh:"refresh",cSplitTC:"splitTC",cSplitTE:"splitTE",cMapTC:"mapTC",cMapTE:"mapTE",cIgnorar:"ignorar",cAgendada:"marcaAgendada",cStRe:"stRealizada",cStNs:"stNoShow",cStRm:"stRemarcada",cStFu:"stFuturo",cStCa:"stCancelado",cRegras:"regrasComissao",cEtAnt:"etapasAntesVigencia",cVigEt:"vigenciaEtapas",cAdmins:"admins",cArqReg:"arqRegras",cShReg:"shRegras",cGhPRepo:"ghPainelRepo",cGhPPath:"ghPainelPath",cGhPBr:"ghPainelBranch",cGhPTok:"ghTokenPainel",cArqMet:"arqMetas",cShMet:"shMetasCfg",cShEnt:"shEntrada",cArqCir:"arqCirurgias",cShCir:"shCirurgias",cCirDia:"cirPorDia",cCeleb:"celebrar",cCelebSom:"celebrarSom",cHoriz:"cirHorizonte",cAlerta:"cirAlertaLivre",cFeriados:"feriados",cShPv:"shPrevendas",cDedup:"dedupMin",cEmails:"emailsComissao",cEquipe:"equipePre",cRankSo:"rankSoCadastrados",cOrfas:"incluirOrfas",cEtapas:"etapasVenda",
   cOnlyPrimeira:"onlyPrimeira",cIgnoraZero:"ignoraZero",cCoorte:"coorte",cAutoEntrar:"autoEntrar",cGhRepo:"ghRepo",cGhWf:"ghWf",cGhToken:"ghToken"};
 function cfgToUI(){editorAcessos();for(const id in F){const el=$(id);if(el.type==="checkbox")el.checked=!!CFG[F[id]];else el.value=CFG[F[id]];}
   $("cRedirect").textContent=REDIRECT;}
