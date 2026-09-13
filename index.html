@@ -168,6 +168,11 @@ tfoot td{padding:12px 10px;text-align:right;border-top:1px solid var(--line);fon
 .f input,.f select{width:100%}
 .f .h{font-size:11.5px;color:var(--dim);margin-top:4px;line-height:1.45}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.apr{display:grid;grid-template-columns:1fr 18px 1fr;gap:8px;align-items:center;margin-bottom:6px;font-size:13px}
+.apr .de{color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.apr .seta{color:var(--dim);text-align:center}
+.apr input{width:100%}
+.apr.lig .de{color:var(--txt)}
 .acr{display:grid;grid-template-columns:1fr auto;gap:6px;align-items:center;margin-bottom:8px;
   padding:8px;border:1px solid var(--line);border-radius:var(--r);background:var(--panel2)}
 .acr input[type=text]{width:100%}
@@ -881,6 +886,16 @@ Não é subconjunto dos leads acima: inclui remarcações, retornos e quem agend
     <div class="h">Token separado, restrito a este repositório, só permissão Contents. Fica neste navegador e não entra no bloco nativo.</div></div>
   <div class="msg err" style="margin-top:4px">Este token permite reescrever o painel. Quem o obtiver pode injetar código na página que outras pessoas abrem. Use apenas na sua máquina.</div>
   <hr>
+  <div class="f"><label>Unificação de nomes</label>
+    <div class="h">A mesma pessoa às vezes aparece com grafias diferentes no RD, no Feegow e na planilha.
+      Escreva o nome oficial ao lado de cada variação para somar tudo numa linha só.</div>
+    <div style="display:flex;gap:9px;margin:8px 0">
+      <button id="apSugerir">Sugerir automaticamente</button>
+      <button id="apLimpar">Limpar vínculos</button>
+    </div>
+    <div id="apLista" style="max-height:320px;overflow:auto;border:1px solid var(--line);border-radius:var(--r);padding:8px"></div>
+  </div>
+  <hr>
   <div class="f"><label>Administradores do painel</label><input id="cAdmins" value="fabricio.araujo@clinicarejuvenesce.com.br">
     <div class="h">Só estes e-mails enxergam o botão Configurar. Os demais recebem a configuração pronta.</div></div>
   <div style="display:flex;gap:9px;flex-wrap:wrap"><button class="primary" id="cSave">Salvar e recarregar</button><button id="cNativo">Baixar index.html atualizado</button><button id="cPublicar">Publicar no GitHub</button><button id="cSairAdmin" style="display:none">Sair do modo administrador</button><button id="cLink">Copiar link de instalação</button><button id="cClose">Fechar</button></div>
@@ -953,6 +968,7 @@ const NATIVO = {
   "vigenciaEntrada": "01/09/2026",
   "shEntrada": "Fechamentos",
   "premioTecMinimo": 60000,
+  "apelidos": {},
   "rankSoCadastrados": true,
   "pesosMeta": "Vendedor Avaliador Sênior=1,40|Vendedor Avaliador=1,20|Vendedor Nível 3 / Sênior=1,10|Vendedor Nível 2=1,00|Vendedor Nível 1=0,80",
   "metas": {},
@@ -1099,7 +1115,7 @@ const store={
   set(k,v){ try{localStorage.setItem(k,v);}catch(e){mem[k]=v;} },
   del(k){ try{localStorage.removeItem(k);}catch(e){delete mem[k];} }
 };
-const DEF={versao:"",admins:"",chaveAdmin:"",metas:{},superPct:10,pesosMeta:"",rankSoCadastrados:true,pessoas:[],liderancas:[],premioComercialPct:0.1,premioSupermetaVend:3500,premioSupermetaLider:7000,premioTecMinimo:60000,premioEntradaMin:750000,premioEntradaMinAnterior:600000,vigenciaEntrada:"",shEntrada:"",arqCirurgias:"",shCirurgias:"Cirurgias",etapasAntesVigencia:"",vigenciaEtapas:"",celebrar:true,celebrarSom:true,celebrarSeg:7,celebrarDias:2,cirPorDia:11,cirHorizonte:45,cirAlertaLivre:50,feriados:"",arqMetas:"",shMetasCfg:"Metas",shPrevendas:"Prevendas",dedupMin:5,ghPainelRepo:"",ghPainelPath:"index.html",ghPainelBranch:"main",ghTokenPainel:"",acessos:[],acessoPadrao:[],arqRegras:"",shRegras:"Parâmetros Comissões",regrasComissao:"",tenant:"89aed341-1dc6-4d0d-b5c7-e8df4293d21d",client:"",file:"",autoEntrar:true,ghRepo:"",ghWf:"sync.yml",ghToken:"",shVendas:"Vendas",shMarc:"Marcações",shMetas:"Metas",
+const DEF={versao:"",admins:"",chaveAdmin:"",metas:{},superPct:10,pesosMeta:"",rankSoCadastrados:true,apelidos:{},pessoas:[],liderancas:[],premioComercialPct:0.1,premioSupermetaVend:3500,premioSupermetaLider:7000,premioTecMinimo:60000,premioEntradaMin:750000,premioEntradaMinAnterior:600000,vigenciaEntrada:"",shEntrada:"",arqCirurgias:"",shCirurgias:"Cirurgias",etapasAntesVigencia:"",vigenciaEtapas:"",celebrar:true,celebrarSom:true,celebrarSeg:7,celebrarDias:2,cirPorDia:11,cirHorizonte:45,cirAlertaLivre:50,feriados:"",arqMetas:"",shMetasCfg:"Metas",shPrevendas:"Prevendas",dedupMin:5,ghPainelRepo:"",ghPainelPath:"index.html",ghPainelBranch:"main",ghTokenPainel:"",acessos:[],acessoPadrao:[],arqRegras:"",shRegras:"Parâmetros Comissões",regrasComissao:"",tenant:"89aed341-1dc6-4d0d-b5c7-e8df4293d21d",client:"",file:"",autoEntrar:true,ghRepo:"",ghWf:"sync.yml",ghToken:"",shVendas:"Vendas",shMarc:"Marcações",shMetas:"Metas",
   refresh:10,splitTC:90,splitTE:10,mapTC:"TC,TB,TS,BH",mapTE:"TEC",ignorar:"Sem deal comercial,—,JARVYS",marcaAgendada:"Data Agendada",stRealizada:"Atendido",stNoShow:"Não compareceu",stRemarcada:"Remarcado",stFuturo:"Marcado",stCancelado:"Desmarcado pelo paciente,Cancelado pelo profissional",mesesCheios:true,shParams:"Parâmetros Comissões",arqParams:"",emailsComissao:"",equipePre:"Beatriz,Fabiana,Amanda",incluirOrfas:false,etapasVenda:"FECHAMENTO,FINALIZADO,REVISAO DE PENDENCIAS",onlyPrimeira:true,ignoraZero:true,coorte:"fechamento"};
 // versao nova zera preferencias, mas NUNCA o que e conexao/credencial
 if(store.get("rjv.cfgv")!==NATIVO.versao){
@@ -1258,7 +1274,7 @@ function recorta(tab,coluna,nomes){
   const c=colmap(tab.headers), i=pick.apply(null,[c].concat(coluna));
   if(i<0)return tab;
   return {headers:tab.headers,
-          rows:tab.rows.filter(r=>nomes.some(n=>mesmaPessoa(r[i],n)))};
+          rows:tab.rows.filter(r=>nomes.some(n=>mesmaPessoa(canon(r[i]),n)))};
 }
 
 function computar(){
@@ -1292,7 +1308,7 @@ function computar(){
     const contaTicket=!(CFG.ignoraZero&&val===0); if(!contaTicket)zero.n++;
     const g=grupoServico(codServico(r,iSrv,iProdV));
     add(agg[g],val,contaTicket); add(agg.tot,val,contaTicket);
-    const bruto=titled(iResp>=0?r[iResp]:"")||"—";
+    const bruto=canon(titled(iResp>=0?r[iResp]:"")||"—");
     const key=chaveUnica(vend,bruto);
     if(!vend.has(key))vend.set(key,{tc:novo(),te:novo(),outro:novo(),tot:novo(),fech:0,aval:0});
     const s=vend.get(key); add(s[g],val,contaTicket); add(s.tot,val,contaTicket);
@@ -1523,7 +1539,7 @@ function computar(){
     if(dia===hojeK)soma(pre.hoje);
     if(!pre.dias.has(dia))pre.dias.set(dia,zera());
     soma(pre.dias.get(dia));
-    const brutoQ=titled(iQa>=0?r[iQa]:"")||"—";
+    const brutoQ=canon(titled(iQa>=0?r[iQa]:"")||"—");
     const k=chaveUnica(pre.pessoas,brutoQ);
     if(!pre.pessoas.has(k))pre.pessoas.set(k,zera());
     soma(pre.pessoas.get(k));
@@ -1719,7 +1735,7 @@ function comissoes(V,cv,p){
     if(!eleg.has(norm(iEt>=0?r[iEt]:"")))continue;
     const d=toDate(r[iDt]); if(!d||d<p.a||d>p.b)continue;
     const g=grupo(r), val=toNum(r[iVal]);
-    const brutoV=titled(iResp>=0?r[iResp]:"")||"—";
+    const brutoV=canon(titled(iResp>=0?r[iResp]:"")||"—");
     const k=chaveUnica(V2,brutoV);
     if(!V2.has(k))V2.set(k,{nome:brutoV,tot:0,tc:0,te:0});
     V2.get(k).nome=nomeMaisCompleto(V2.get(k).nome,brutoV);
@@ -1854,7 +1870,7 @@ function funilPrevendas(p,MC){
     if(dc&&dp&&dp>=dc)o.tPri.push((dp-dc)/3600000);
     if(dc&&df&&df>=dc){ if(tipo==="ganho")o.tGanho.push((df-dc)/3600000);
                         else if(tipo==="perda")o.tPerda.push((df-dc)/3600000); }
-    const rp=titled(i.resp>=0?r[i.resp]:"")||"—";
+    const rp=canon(titled(i.resp>=0?r[i.resp]:"")||"—");
     bumpP(o.resp,rp,x=>{x.tot++;x[tipo]=(x[tipo]||0)+1;if(a)x.aval++;});
     const foBruta=(String((i.fonte>=0?r[i.fonte]:"")??"").trim())||"(sem fonte)";
     const foK=norm(foBruta);
@@ -1897,7 +1913,7 @@ function funilPrevendas(p,MC){
       const comprou=!!((fid&&MC.porFeegow&&MC.porFeegow.has(fid+"|"+ym))
                      ||(MC.compradores&&MC.compradores.has(pk+"|"+ym)));
       bump(o.meio,me,x=>{x.tot++;if(comprou)x.ganho++;});
-      const av=(titled(iProf>=0?r[iProf]:"")||"(sem avaliador)");
+      const av=canon(titled(iProf>=0?r[iProf]:"")||"(sem avaliador)");
       bump(o.avaliador,av,x=>{x.tot++;if(comprou)x.ganho++;});
     }
   }
@@ -2601,6 +2617,49 @@ function lerMetas(){
   CFG.superPct=toNum($("mtPct").value)||0;
 }
 
+function nomesDeTodasAsFontes(){
+  const ign=new Set(String(CFG.ignorar||"").split(",").map(norm).filter(Boolean));
+  const vis=new Map();
+  const junta=(tab,cols)=>{
+    if(!tab||!tab.rows)return;
+    const c=colmap(tab.headers);
+    for(const col of cols){
+      const i=pick(c,col); if(i<0)continue;
+      for(const r of tab.rows){
+        const t=String((r[i]??"")).trim(); if(!t)continue;
+        const k=norm(t); if(!k||ign.has(k))continue;
+        const at=vis.get(k)||{nome:t,n:0}; at.n++; vis.set(k,at);
+      }
+    }
+  };
+  junta(RAW&&(RAW[CFG.shVendas]||RAW.Vendas),["Responsável"]);
+  junta(RAW&&RAW[CFG.shPrevendas],["Responsável","Avaliador"]);
+  junta(RAW&&(RAW[CFG.shMarc]||RAW["Marcações"]),["Quem agendou","Profissional","Vendedor comercial"]);
+  return [...vis.values()].sort((a,b)=>b.n-a.n);
+}
+
+function editorApelidos(){
+  const cx=$("apLista"); if(!cx)return;
+  const L=nomesDeTodasAsFontes();
+  const mapa=CFG.apelidos||{};
+  cx.innerHTML=L.map(x=>{
+    const of=mapa[norm(x.nome)]||"";
+    return '<div class="apr'+(of?" lig":"")+'"><span class="de" title="'+esc(x.nome)+'">'+esc(x.nome)+
+      ' <span class="l">'+x.n+"</span></span><span class=\"seta\">→</span>"+
+      '<input class="apv" data-de="'+esc(x.nome)+'" value="'+esc(of)+'" placeholder="nome oficial"></div>';
+  }).join("")||'<div style="color:var(--dim);font-size:13px">conecte-se para carregar os nomes</div>';
+}
+
+function lerApelidos(){
+  const cx=$("apLista"); if(!cx)return;
+  const m={};
+  cx.querySelectorAll(".apv").forEach(i=>{
+    const de=i.dataset.de, para=i.value.trim();
+    if(para&&norm(para)!==norm(de))m[norm(de)]=para;
+  });
+  CFG.apelidos=m;
+}
+
 function editorAcessos(){
   const cx=$("acList"); if(!cx)return;
   cx.innerHTML="";
@@ -2755,6 +2814,13 @@ function atualizaAdmin(){
    São a mesma pessoa quando as palavras de um cabem nas do outro. */
 /* Ricardo Melo e Ricardo Melo Lopes são a mesma pessoa: devolve a chave já
    existente no mapa quando os nomes casam, para não criar duas linhas. */
+/* Nome oficial: o que o Configurar mapeou vence qualquer grafia da origem. */
+function canon(bruto){
+  const t=String(bruto??"").trim(); if(!t)return t;
+  const m=CFG.apelidos||{};
+  return m[norm(t)]||t;
+}
+
 function chaveUnica(mapa,bruto){
   const k=norm(bruto)||"—";
   if(mapa.has(k))return k;
@@ -3687,6 +3753,24 @@ async function publicarGitHub(){
 }
 $("cPublicar").onclick=publicarGitHub;
 $("cSairAdmin").onclick=()=>{store.del("rjv.destrava");$("drawer").classList.remove("open");atualizaAdmin();};
+$("apSugerir").onclick=()=>{
+  lerApelidos();
+  const L=nomesDeTodasAsFontes(); const m=Object.assign({},CFG.apelidos||{});
+  const grupos=[];
+  for(const x of L){
+    const g=grupos.find(gr=>gr.some(y=>mesmaPessoa(y.nome,x.nome)));
+    if(g)g.push(x); else grupos.push([x]);
+  }
+  let n=0;
+  for(const g of grupos){
+    if(g.length<2)continue;
+    const oficial=g.slice().sort((a,b)=>b.nome.length-a.nome.length)[0].nome;
+    for(const x of g)if(norm(x.nome)!==norm(oficial)){ m[norm(x.nome)]=oficial; n++; }
+  }
+  CFG.apelidos=m; editorApelidos();
+  $("cfgNotes").textContent=n?n+" variação(ões) vinculada(s). Confira antes de salvar.":"Nenhuma variação encontrada.";
+};
+$("apLimpar").onclick=()=>{ CFG.apelidos={}; editorApelidos(); $("cfgNotes").textContent="Vínculos limpos."; };
 $("acAdd").onclick=()=>{lerEditor();(CFG.acessos=CFG.acessos||[]).push({e:"",t:["com"]});editorAcessos();};
 $("cModelo").onclick=()=>{$("cRegras").value=REGRAS_MODELO;};
 $("cNativo").onclick=async()=>{
