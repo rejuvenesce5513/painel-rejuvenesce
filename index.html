@@ -700,8 +700,9 @@ Não é subconjunto dos leads acima: inclui remarcações, retornos e quem agend
     <div class="stat"><div class="l">Meta total</div><div class="v num" id="mtTot">R$ 0</div></div>
     <div class="stat"><div class="l">Supermeta (+<span id="mtPctL">10</span>%)</div><div class="v num" id="mtSuper">R$ 0</div></div>
     <div class="stat"><div class="l">% da supermeta</div><input id="mtPct" type="number" step="1" style="width:90px"></div>
-    <div class="stat"><div class="l">Entrada financeira de R$ 750 mil</div>
-      <label class="chk" style="margin-top:4px"><input type="checkbox" id="mtEntrada"><span>atingida no mês</span></label></div>
+    <div class="stat"><div class="l">Entrada financeira do mês (R$)</div>
+      <input id="mtEntrada" type="number" step="1000" style="width:170px">
+      <div class="l" id="mtEntradaS" style="margin-top:3px"></div></div>
   </div>
 </section>
 
@@ -928,6 +929,9 @@ const NATIVO = {
   "premioComercialPct": 0.1,
   "premioSupermetaVend": 3500,
   "premioSupermetaLider": 7000,
+  "premioEntradaMin": 750000,
+  "premioEntradaMinAnterior": 600000,
+  "vigenciaEntrada": "01/09/2026",
   "premioTecMinimo": 60000,
   "pesosMeta": "Vendedor Avaliador Sênior=1,40|Vendedor Avaliador=1,20|Vendedor Nível 3 / Sênior=1,10|Vendedor Nível 2=1,00|Vendedor Nível 1=0,80",
   "metas": {},
@@ -1074,7 +1078,7 @@ const store={
   set(k,v){ try{localStorage.setItem(k,v);}catch(e){mem[k]=v;} },
   del(k){ try{localStorage.removeItem(k);}catch(e){delete mem[k];} }
 };
-const DEF={versao:"",admins:"",chaveAdmin:"",metas:{},superPct:10,pesosMeta:"",pessoas:[],liderancas:[],premioComercialPct:0.1,premioSupermetaVend:3500,premioSupermetaLider:7000,premioTecMinimo:60000,arqCirurgias:"",shCirurgias:"Cirurgias",etapasAntesVigencia:"",vigenciaEtapas:"",celebrar:true,celebrarSom:true,celebrarSeg:7,celebrarDias:2,cirPorDia:11,cirHorizonte:45,cirAlertaLivre:50,feriados:"",arqMetas:"",shMetasCfg:"Metas",shPrevendas:"Prevendas",dedupMin:5,ghPainelRepo:"",ghPainelPath:"index.html",ghPainelBranch:"main",ghTokenPainel:"",acessos:[],acessoPadrao:[],arqRegras:"",shRegras:"Parâmetros Comissões",regrasComissao:"",tenant:"89aed341-1dc6-4d0d-b5c7-e8df4293d21d",client:"",file:"",autoEntrar:true,ghRepo:"",ghWf:"sync.yml",ghToken:"",shVendas:"Vendas",shMarc:"Marcações",shMetas:"Metas",
+const DEF={versao:"",admins:"",chaveAdmin:"",metas:{},superPct:10,pesosMeta:"",pessoas:[],liderancas:[],premioComercialPct:0.1,premioSupermetaVend:3500,premioSupermetaLider:7000,premioTecMinimo:60000,premioEntradaMin:750000,premioEntradaMinAnterior:600000,vigenciaEntrada:"",arqCirurgias:"",shCirurgias:"Cirurgias",etapasAntesVigencia:"",vigenciaEtapas:"",celebrar:true,celebrarSom:true,celebrarSeg:7,celebrarDias:2,cirPorDia:11,cirHorizonte:45,cirAlertaLivre:50,feriados:"",arqMetas:"",shMetasCfg:"Metas",shPrevendas:"Prevendas",dedupMin:5,ghPainelRepo:"",ghPainelPath:"index.html",ghPainelBranch:"main",ghTokenPainel:"",acessos:[],acessoPadrao:[],arqRegras:"",shRegras:"Parâmetros Comissões",regrasComissao:"",tenant:"89aed341-1dc6-4d0d-b5c7-e8df4293d21d",client:"",file:"",autoEntrar:true,ghRepo:"",ghWf:"sync.yml",ghToken:"",shVendas:"Vendas",shMarc:"Marcações",shMetas:"Metas",
   refresh:10,splitTC:90,splitTE:10,mapTC:"TC,TB,TS,BH",mapTE:"TEC",ignorar:"Sem deal comercial,—,JARVYS",marcaAgendada:"Data Agendada",stRealizada:"Atendido",stNoShow:"Não compareceu",stRemarcada:"Remarcado",stFuturo:"Marcado",stCancelado:"Desmarcado pelo paciente,Cancelado pelo profissional",mesesCheios:true,shParams:"Parâmetros Comissões",arqParams:"",emailsComissao:"",equipePre:"Beatriz,Fabiana,Amanda",incluirOrfas:false,etapasVenda:"FECHAMENTO,FINALIZADO,REVISAO DE PENDENCIAS",onlyPrimeira:true,ignoraZero:true,coorte:"fechamento"};
 // versao nova zera preferencias, mas NUNCA o que e conexao/credencial
 if(store.get("rjv.cfgv")!==NATIVO.versao){
@@ -1987,13 +1991,18 @@ function calcPremio(p,K){
   const metaTC=m?toNum(m.tc):0, metaTE=m?toNum(m.te):0;
   const meta=metaTC+metaTE, superM=meta*superF(p.mesChave);
   const tecMin=toNum(CFG.premioTecMinimo)||0;
-  const entrada=!!(m&&m.entradaOK);
+  const vigEnt=toDate(CFG.vigenciaEntrada);
+  const limEnt=(vigEnt&&p.a<vigEnt)
+    ? (toNum(CFG.premioEntradaMinAnterior)||0)
+    : (toNum(CFG.premioEntradaMin)||0);
+  const entradaVal=m?toNum(m.entradaVal):0;
+  const entrada=entradaVal>=limEnt&&limEnt>0;
   const okTC=metaTC>0&&K.fatTC>=metaTC;
   const okTE=metaTE>0&&K.fatTE>=metaTE&&K.fatTE>=tecMin;
   const coletiva=entrada&&okTC&&okTE;
   const bateSuper=coletiva&&meta>0&&K.fatTot>=superM;
   const pctCom=(toNum(CFG.premioComercialPct)||0)/100;
-  return {entrada,okTC,okTE,coletiva,bateSuper,meta,superM,metaTC,metaTE,tecMin,
+  return {entrada,entradaVal,limEnt,okTC,okTE,coletiva,bateSuper,meta,superM,metaTC,metaTE,tecMin,
           premioColetivaPct:pctCom,
           premioColetivaVal:coletiva?K.fatTot*pctCom:0,
           premioSuperVend:bateSuper?(toNum(CFG.premioSupermetaVend)||0):0,
@@ -2006,7 +2015,7 @@ function metasDoMes(mes){
   if(!cru)return null;
   const vend={}; for(const n in (cru.vend||{}))vend[n]=normVend(cru.vend[n]);
   return {tc:toNum(cru.tc),te:toNum(cru.te),vend,remota:!!r,superPct:cru.superPct,
-          entradaOK:!!cru.entradaOK};
+          entradaOK:!!cru.entradaOK, entradaVal:toNum(cru.entradaVal)||(cru.entradaOK?Infinity:0)};
 }
 function metaVendedorSep(mes,nome){
   const m=metasDoMes(mes); if(!m)return {tc:0,te:0,tot:0};
@@ -2339,7 +2348,7 @@ async function escreverMetas(){
     // junta o que veio do arquivo com o que foi editado neste mês
     const tudo=Object.assign({},METAS_REM||{});
     const loc=(CFG.metas||{})[MT_MES];
-    if(loc)tudo[MT_MES]={tc:toNum(loc.tc),te:toNum(loc.te),vend:loc.vend||{},entradaOK:!!loc.entradaOK,
+    if(loc)tudo[MT_MES]={tc:toNum(loc.tc),te:toNum(loc.te),vend:loc.vend||{},entradaVal:toNum(loc.entradaVal)||0,
                          superPct:(METAS_REM&&METAS_REM[MT_MES]&&METAS_REM[MT_MES].superPct)||toNum(CFG.superPct)};
 
     const linhas=[["Mês","Item","Meta","Serviço"]];
@@ -2348,7 +2357,7 @@ async function escreverMetas(){
       if(m.tc)linhas.push([ser,"Transplante",m.tc,""]);
       if(m.te)linhas.push([ser,"Terapia",m.te,""]);
       if(m.superPct)linhas.push([ser,"Supermeta %",m.superPct,""]);
-      linhas.push([ser,"Entrada 750k atingida",m.entradaOK?1:0,""]);
+      linhas.push([ser,"Entrada financeira",toNum(m.entradaVal)||0,""]);
       for(const n of Object.keys(m.vend||{})){
         const v=normVend(m.vend[n]);
         if(v.tc)linhas.push([ser,n,v.tc,"Transplante"]);
@@ -2396,8 +2405,15 @@ function editorMetas(){
     "<b>Estes valores estão só neste navegador.</b> Ninguém mais os vê. "+
     "Clique em <b>Gravar na planilha de metas</b> para publicá-los para a equipe.";
   $("mtTC").value=m.tc||""; $("mtTE").value=m.te||"";
-  $("mtEntrada").checked=!!(rasc?rasc.entradaOK:(metasDoMes(MT_MES)||{}).entradaOK);
+  const entAtual=toNum(rasc?rasc.entradaVal:(metasDoMes(MT_MES)||{}).entradaVal);
+  $("mtEntrada").value=entAtual||"";
   $("mtEntrada").disabled=!podeEditar;
+  const vigEnt=toDate(CFG.vigenciaEntrada);
+  const iniMes=new Date(MT_MES+"-01T00:00:00Z");
+  const lim=(vigEnt&&iniMes<vigEnt)?(toNum(CFG.premioEntradaMinAnterior)||0):(toNum(CFG.premioEntradaMin)||0);
+  $("mtEntradaS").innerHTML="mínimo "+BRL.format(lim)+" — "+
+    (entAtual>=lim&&lim>0?'<span style="color:var(--pos)">atingido</span>'
+     :'<span style="color:var(--neg)">não atingido</span>');
   $("mtPct").value=toNum(CFG.superPct)||10; $("mtPctL").textContent=toNum(CFG.superPct)||10;
   ["mtTC","mtTE","mtPct"].forEach(id=>$(id).disabled=!podeEditar);
   ["mtAdd","mtImport","mtCopiar","mtCalc"].forEach(id=>$(id).style.display=podeEditar?"":"none");
@@ -2482,7 +2498,7 @@ function lerMetas(){
   });
   CFG.metas=CFG.metas||{};
   CFG.metas[MT_MES]={tc:toNum($("mtTC").value),te:toNum($("mtTE").value),vend,
-                     entradaOK:$("mtEntrada").checked};
+                     entradaVal:toNum($("mtEntrada").value)};
   CFG.superPct=toNum($("mtPct").value)||0;
 }
 
@@ -2686,8 +2702,8 @@ function renderPremio(D,p){
   const lin=(rot,cumpre,det)=>'<div style="display:flex;gap:10px;align-items:baseline;margin-bottom:6px;font-size:13px">'+
     ok(cumpre)+'<span style="flex:1">'+rot+'</span><span class="num" style="color:var(--muted)">'+det+"</span></div>";
   $("cmCriterios").innerHTML=
-    lin("Entrada financeira de R$ 750 mil em pix, débito ou espécie",P.entrada,
-        P.entrada?"confirmada":"marcar na aba Metas")+
+    lin("Entrada financeira em pix, débito ou espécie",P.entrada,
+        (P.entradaVal?BRL.format(P.entradaVal):"não informada")+" de "+BRL.format(P.limEnt))+
     lin("Meta de transplante do mês",P.okTC,BRL.format(D.com.fatTC)+" de "+BRL.format(P.metaTC))+
     lin("Meta de terapia do mês, mínimo de "+BRL.format(P.tecMin),P.okTE,
         BRL.format(D.com.fatTE)+" de "+BRL.format(Math.max(P.metaTE,P.tecMin)))+
@@ -3154,27 +3170,28 @@ async function token(){
 
 /* ============================ Microsoft Graph ============================ */
 const GRAPH="https://graph.microsoft.com/v1.0";
-async function gget(url,tk,tries){
+async function gget(url,tk,tries,hdr){
   tries=tries||0;
-  const r=await fetch(url.startsWith("http")?url:GRAPH+url,{headers:{Authorization:"Bearer "+tk}});
+  const r=await fetch(url.startsWith("http")?url:GRAPH+url,
+    {headers:Object.assign({Authorization:"Bearer "+tk},hdr||{})});
   if(r.status===429||r.status>=500){
     if(tries>3)throw new Error("Graph "+r.status+" após 4 tentativas");
     await new Promise(s=>setTimeout(s,(+(r.headers.get("Retry-After")||0)||Math.pow(2,tries))*1000));
-    return gget(url,tk,tries+1);
+    return gget(url,tk,tries+1,hdr);
   }
   if(!r.ok){let d="";try{d=(await r.json()).error.message;}catch(e){}
     throw new Error("Graph "+r.status+(d?" — "+d:""));}
   return r.json();
 }
-async function gsend(method,url,tk,body,tries){
+async function gsend(method,url,tk,body,tries,hdr){
   tries=tries||0;
   const r=await fetch(url.startsWith("http")?url:GRAPH+url,{method,
-    headers:{Authorization:"Bearer "+tk,"Content-Type":"application/json"},
+    headers:Object.assign({Authorization:"Bearer "+tk,"Content-Type":"application/json"},hdr||{}),
     body:body?JSON.stringify(body):undefined});
   if(r.status===429||r.status>=500||r.status===504){
     if(tries>3)throw new Error("Graph "+r.status+" após 4 tentativas");
     await new Promise(x=>setTimeout(x,(+(r.headers.get("Retry-After")||0)||Math.pow(2,tries)*3)*1000));
-    return gsend(method,url,tk,body,tries+1);
+    return gsend(method,url,tk,body,tries+1,hdr);
   }
   if(!r.ok){let d="";try{d=(await r.json()).error.message;}catch(e){}
     throw new Error("Graph "+r.status+(d?" — "+d:""));}
@@ -3204,6 +3221,7 @@ function lerGradeMetas(rows){
     if(n==="TRANSPLANTE"||n==="TC"||n==="META TC")out[ym].tc=v;
     else if(n==="TERAPIA"||n==="TEC"||n==="META TEC")out[ym].te=v;
     else if(n.startsWith("SUPERMETA"))out[ym].superPct=v;
+    else if(n.startsWith("ENTRADA FINANCEIRA"))out[ym].entradaVal=v;
     else if(n.startsWith("ENTRADA"))out[ym].entradaOK=(v>=1||norm(l[2])==="SIM");
     else {
       const at=out[ym].vend[item]&&typeof out[ym].vend[item]==="object"
@@ -3272,32 +3290,64 @@ async function sincronizar(){
   finally{b.disabled=false;}
 }
 function colLetter(n){let s="";while(n>0){const m=(n-1)%26;s=String.fromCharCode(65+m)+s;n=(n-m-1)/26;}return s;}
-async function readSheet(tk,ref,sheet,cru){
+/* Abre uma sessão do workbook: o Graph mantém a planilha em memória e as
+   leituras seguintes ficam bem mais rápidas. Sem sessão, cada range reabre o arquivo. */
+async function abrirSessao(tk,ref){
+  try{
+    const j=await gsend("POST","/drives/"+ref.drive+"/items/"+ref.item+"/workbook/createSession",
+      tk,{persistChanges:false});
+    return j&&j.id?{"workbook-session-id":j.id}:null;
+  }catch(e){ return null; }
+}
+async function fecharSessao(tk,ref,hdr){
+  if(!hdr)return;
+  try{ await gsend("POST","/drives/"+ref.drive+"/items/"+ref.item+"/workbook/closeSession",tk,null,0,hdr); }catch(e){}
+}
+
+/* executa as promessas em lotes, para não abrir 30 conexões de uma vez */
+async function emLotes(tarefas,largura){
+  const saida=new Array(tarefas.length); let i=0;
+  const trab=async()=>{ while(i<tarefas.length){ const k=i++; saida[k]=await tarefas[k](); } };
+  await Promise.all(Array.from({length:Math.min(largura,tarefas.length)},trab));
+  return saida;
+}
+
+async function readSheet(tk,ref,sheet,cru,hdr){
   const base="/drives/"+ref.drive+"/items/"+ref.item+"/workbook/worksheets('"+encodeURIComponent(sheet.replace(/'/g,"''"))+"')";
-  const ur=await gget(base+"/usedRange(valuesOnly=true)?$select=address,rowCount,columnCount",tk);
+  const ur=await gget(base+"/usedRange(valuesOnly=true)?$select=address,rowCount,columnCount",tk,0,hdr);
   const addr=String(ur.address).split("!").pop();
   const m=addr.match(/([A-Z]+)(\d+):([A-Z]+)(\d+)/);
   const c1=m[1],r1=+m[2],c2=m[3],r2=+m[4];
-  const CH=800; let headers=null; const rows=[];
-  for(let s=r1;s<=r2;s+=CH){
-    const e=Math.min(r2,s+CH-1);
-    const rg=await gget(base+"/range(address='"+c1+s+":"+c2+e+"')?$select=values",tk);
-    let vs=rg.values||[];
-    if(!headers){ if(cru){headers=[];} else {headers=vs[0]||[];vs=vs.slice(1);} }
+  const nCols=Math.max(1,+ur.columnCount||1);
+  // orçamento por bloco em CÉLULAS, não em linhas: planilha larga pede bloco menor
+  const CH=Math.max(400,Math.min(8000,Math.floor(60000/nCols)));
+  const faixas=[];
+  for(let a=r1;a<=r2;a+=CH)faixas.push([a,Math.min(r2,a+CH-1)]);
+  const partes=await emLotes(
+    faixas.map(([a,b])=>()=>gget(base+"/range(address='"+c1+a+":"+c2+b+"')?$select=values",tk,0,hdr)),
+    4);
+  let headers=null; const rows=[];
+  partes.forEach((rg,idx)=>{
+    let vs=(rg&&rg.values)||[];
+    if(idx===0){ if(cru){headers=[];} else {headers=vs[0]||[];vs=vs.slice(1);} }
     for(const v of vs)rows.push(v);
-  }
+  });
   return {headers:headers||[],rows};
 }
 async function carregar(){
   const tk=await token();
   if(!tk){setStatus("warn","Não autenticado — exibindo dados de demonstração");return;}
   if(!CFG.file){openCfg("Informe a URL do arquivo no SharePoint.");return;}
-  setStatus("load","Lendo planilha…");
+  setStatus("load","Lendo dados…");
   try{
     const ref=await resolveItem(tk);
-    const [V,M,T]=await Promise.all([readSheet(tk,ref,CFG.shVendas),readSheet(tk,ref,CFG.shMarc),readSheet(tk,ref,CFG.shMetas)]);
-    RAW={}; RAW[CFG.shVendas]=V; RAW[CFG.shMarc]=M; RAW[CFG.shMetas]=T;
-    if(CFG.shPrevendas){ try{ RAW[CFG.shPrevendas]=await readSheet(tk,ref,CFG.shPrevendas); }catch(e){ RAW[CFG.shPrevendas]=null; } }
+    const ses=await abrirSessao(tk,ref);
+    const abas=[CFG.shVendas,CFG.shMarc,CFG.shMetas].concat(CFG.shPrevendas?[CFG.shPrevendas]:[]);
+    const lidas=await Promise.all(abas.map(a=>readSheet(tk,ref,a,false,ses).catch(()=>null)));
+    RAW={}; abas.forEach((a,i)=>RAW[a]=lidas[i]);
+    fecharSessao(tk,ref,ses);
+    const V=RAW[CFG.shVendas],M=RAW[CFG.shMarc],T=RAW[CFG.shMetas];
+    if(!V||!M)throw new Error("Não consegui ler as abas principais.");
     PARAMS=null; PARAMS_ERRO=null;
     try{
       const refP = CFG.arqParams ? await resolveItem2(tk,CFG.arqParams) : ref;
