@@ -545,6 +545,12 @@ Não é subconjunto dos leads acima: inclui remarcações, retornos e quem agend
   <div class="ev d"><div class="l">Total do mês</div><div class="v disp num" id="kTot">R$ 0</div><div class="s" id="kTotS">—</div></div>
 </section>
 
+<section class="card" id="cmPremio" style="margin-top:14px">
+  <div class="card-head"><h2>Prêmio por desempenho</h2><span class="eyebrow" id="cmPremioSub"></span></div>
+  <div id="cmCriterios" style="margin-bottom:12px"></div>
+  <div class="stats" id="cmPremioVal"></div>
+</section>
+
 <section class="rank" style="margin-top:14px">
   <div class="rank-head"><h2>Comissão por vendedor</h2><span class="eyebrow" id="cvSub"></span></div>
   <div style="overflow-x:auto">
@@ -672,6 +678,8 @@ Não é subconjunto dos leads acima: inclui remarcações, retornos e quem agend
     <div class="stat"><div class="l">Meta total</div><div class="v num" id="mtTot">R$ 0</div></div>
     <div class="stat"><div class="l">Supermeta (+<span id="mtPctL">10</span>%)</div><div class="v num" id="mtSuper">R$ 0</div></div>
     <div class="stat"><div class="l">% da supermeta</div><input id="mtPct" type="number" step="1" style="width:90px"></div>
+    <div class="stat"><div class="l">Entrada financeira de R$ 750 mil</div>
+      <label class="chk" style="margin-top:4px"><input type="checkbox" id="mtEntrada"><span>atingida no mês</span></label></div>
   </div>
 </section>
 
@@ -679,7 +687,7 @@ Não é subconjunto dos leads acima: inclui remarcações, retornos e quem agend
   <div class="rank-head"><h2>Meta individual por vendedor</h2><span class="eyebrow" id="mtSub"></span></div>
   <div style="overflow-x:auto">
   <table>
-    <thead><tr><th class="l">Vendedor</th><th class="sep">Meta transplante</th><th>Meta terapia</th>
+    <thead><tr><th class="l">Vendedor</th><th>Categoria</th><th class="sep">Meta transplante</th><th>Meta terapia</th>
       <th>Meta total</th><th>Supermeta</th><th>% da clínica</th><th>Realizado</th><th class="sep">Atingido</th><th></th></tr></thead>
     <tbody id="mtBodyT"></tbody><tfoot id="mtFoot"></tfoot>
   </table>
@@ -688,6 +696,7 @@ Não é subconjunto dos leads acima: inclui remarcações, retornos e quem agend
     <button id="mtAdd">+ Adicionar vendedor</button>
     <button id="mtImport">Puxar vendedores do mês</button>
     <button id="mtCopiar">Copiar metas do mês anterior</button>
+    <button id="mtCalc">Calcular pelos pesos</button>
     <button class="primary" id="mtSalvar">Salvar metas do mês</button>
     <button class="primary" id="mtGravar">Gravar na planilha de metas</button>
     <button id="mtAbrir">Abrir planilha de metas</button>
@@ -872,6 +881,21 @@ const NATIVO = {
   "autoEntrar": true,
   "emailsComissao": "fabricio.araujo@clinicarejuvenesce.com.br, samuel.nascimento@clinicarejuvenesce.com.br, francis@clinicarejuvenesce.com.br, raissa.fortini@clinicarejuvenesce.com.br",
   "superPct": 10,
+  "pessoas": [
+    { "e": "fernando.delazari@clinicarejuvenesce.com.br", "nome": "Fernando Delazari", "tipo": "vendedor" },
+    { "e": "guilherme.conti@clinicarejuvenesce.com.br", "nome": "Guilherme Conti", "tipo": "vendedor" },
+    { "e": "ricardo.melo@clinicarejuvenesce.com.br", "nome": "Ricardo Melo", "tipo": "vendedor" },
+    { "e": "alexandre.fritz@clinicarejuvenesce.com.br", "nome": "Alexandre Fritz", "tipo": "vendedor" },
+    { "e": "larissa.souza@clinicarejuvenesce.com.br", "nome": "Larissa Mendes de Souza", "tipo": "vendedor" },
+    { "e": "beatriz.olinda@clinicarejuvenesce.com.br", "nome": "Beatriz Olinda Santiago", "tipo": "prevendas" },
+    { "e": "fabiana.vieira@clinicarejuvenesce.com.br", "nome": "Fabiana da costa vieira", "tipo": "prevendas" },
+    { "e": "amanda.silva@clinicarejuvenesce.com.br", "nome": "amanda", "tipo": "prevendas" }
+  ],
+  "premioComercialPct": 0.1,
+  "premioSupermetaVend": 3500,
+  "premioSupermetaLider": 7000,
+  "premioTecMinimo": 60000,
+  "pesosMeta": "Vendedor Avaliador Sênior=1,40|Vendedor Avaliador=1,20|Vendedor Nível 3 / Sênior=1,10|Vendedor Nível 2=1,00|Vendedor Nível 1=0,80",
   "metas": {},
   "acessoPadrao": [
     "com",
@@ -1010,7 +1034,7 @@ const store={
   set(k,v){ try{localStorage.setItem(k,v);}catch(e){mem[k]=v;} },
   del(k){ try{localStorage.removeItem(k);}catch(e){delete mem[k];} }
 };
-const DEF={versao:"",admins:"",chaveAdmin:"",metas:{},superPct:10,arqCirurgias:"",shCirurgias:"Cirurgias",cirPorDia:11,cirHorizonte:45,cirAlertaLivre:50,feriados:"",arqMetas:"",shMetasCfg:"Metas",shPrevendas:"Prevendas",dedupMin:5,ghPainelRepo:"",ghPainelPath:"index.html",ghPainelBranch:"main",ghTokenPainel:"",acessos:[],acessoPadrao:[],arqRegras:"",shRegras:"Parâmetros Comissões",regrasComissao:"",tenant:"89aed341-1dc6-4d0d-b5c7-e8df4293d21d",client:"",file:"",autoEntrar:true,ghRepo:"",ghWf:"sync.yml",ghToken:"",shVendas:"Vendas",shMarc:"Marcações",shMetas:"Metas",
+const DEF={versao:"",admins:"",chaveAdmin:"",metas:{},superPct:10,pesosMeta:"",pessoas:[],premioComercialPct:0.1,premioSupermetaVend:3500,premioSupermetaLider:7000,premioTecMinimo:60000,arqCirurgias:"",shCirurgias:"Cirurgias",cirPorDia:11,cirHorizonte:45,cirAlertaLivre:50,feriados:"",arqMetas:"",shMetasCfg:"Metas",shPrevendas:"Prevendas",dedupMin:5,ghPainelRepo:"",ghPainelPath:"index.html",ghPainelBranch:"main",ghTokenPainel:"",acessos:[],acessoPadrao:[],arqRegras:"",shRegras:"Parâmetros Comissões",regrasComissao:"",tenant:"89aed341-1dc6-4d0d-b5c7-e8df4293d21d",client:"",file:"",autoEntrar:true,ghRepo:"",ghWf:"sync.yml",ghToken:"",shVendas:"Vendas",shMarc:"Marcações",shMetas:"Metas",
   refresh:10,splitTC:90,splitTE:10,mapTC:"TC,TB,TS,BH",mapTE:"TEC",ignorar:"Sem deal comercial,—,JARVYS",marcaAgendada:"Data Agendada",stRealizada:"Atendido",stNoShow:"Não compareceu",stRemarcada:"Remarcado",stFuturo:"Marcado",stCancelado:"Desmarcado pelo paciente,Cancelado pelo profissional",mesesCheios:true,shParams:"Parâmetros Comissões",arqParams:"",emailsComissao:"",equipePre:"Beatriz,Fabiana,Amanda",incluirOrfas:false,etapasVenda:"FECHAMENTO,FINALIZADO,REVISAO DE PENDENCIAS",onlyPrimeira:true,ignoraZero:true,coorte:"fechamento"};
 // versao nova zera preferencias, mas NUNCA o que e conexao/credencial
 if(store.get("rjv.cfgv")!==NATIVO.versao){
@@ -1423,6 +1447,7 @@ function computar(){
   out.pre={...pre,lista,equipe:soma(x=>x.eq),geral:soma(()=>true),reclass};
 
   out.com=comissoes(V,cv,p);
+  out.premio=calcPremio(p,out.com);
 
   out.cir2=calcCirurgias(p);
   out.funil=funilPrevendas(p,{M,cm,iDc,iTipo,iSt,iPac,iIdPac,compradores,porFeegow});
@@ -1767,9 +1792,20 @@ function funilPrevendas(p,MC){
   return o;
 }
 
-function normVend(v){                       // aceita número antigo ou {tc,te}
-  if(v&&typeof v==="object")return {tc:toNum(v.tc),te:toNum(v.te)};
-  const n=toNum(v); return {tc:n,te:0,semSplit:n>0};
+function normVend(v){                       // aceita número antigo ou {tc,te,peso}
+  if(v&&typeof v==="object")return {tc:toNum(v.tc),te:toNum(v.te),peso:toNum(v.peso)||0};
+  const n=toNum(v); return {tc:n,te:0,peso:0,semSplit:n>0};
+}
+/* categorias e pesos da política de comissões */
+function tabelaPesos(){
+  const out=[];
+  for(const par of String(CFG.pesosMeta||"").split("|")){
+    const i=par.lastIndexOf("=");
+    if(i<0)continue;
+    const nome=par.slice(0,i).trim(), peso=toNum(par.slice(i+1));
+    if(nome&&peso)out.push({nome,peso});
+  }
+  return out;
 }
 function feriadosSet(){
   const out=new Set();
@@ -1892,12 +1928,32 @@ function calcCirurgias(p){
   return o;
 }
 
+function calcPremio(p,K){
+  if(!K)return null;
+  const m=metasDoMes(p.mesChave);
+  const metaTC=m?toNum(m.tc):0, metaTE=m?toNum(m.te):0;
+  const meta=metaTC+metaTE, superM=meta*superF(p.mesChave);
+  const tecMin=toNum(CFG.premioTecMinimo)||0;
+  const entrada=!!(m&&m.entradaOK);
+  const okTC=metaTC>0&&K.fatTC>=metaTC;
+  const okTE=metaTE>0&&K.fatTE>=metaTE&&K.fatTE>=tecMin;
+  const coletiva=entrada&&okTC&&okTE;
+  const bateSuper=coletiva&&meta>0&&K.fatTot>=superM;
+  const pctCom=(toNum(CFG.premioComercialPct)||0)/100;
+  return {entrada,okTC,okTE,coletiva,bateSuper,meta,superM,metaTC,metaTE,tecMin,
+          premioColetivaPct:pctCom,
+          premioColetivaVal:coletiva?K.fatTot*pctCom:0,
+          premioSuperVend:bateSuper?(toNum(CFG.premioSupermetaVend)||0):0,
+          premioSuperLider:bateSuper?(toNum(CFG.premioSupermetaLider)||0):0};
+}
+
 function metasDoMes(mes){
   const r=METAS_REM&&METAS_REM[mes];
   const cru=r||((CFG.metas||{})[mes]);
   if(!cru)return null;
   const vend={}; for(const n in (cru.vend||{}))vend[n]=normVend(cru.vend[n]);
-  return {tc:toNum(cru.tc),te:toNum(cru.te),vend,remota:!!r,superPct:cru.superPct};
+  return {tc:toNum(cru.tc),te:toNum(cru.te),vend,remota:!!r,superPct:cru.superPct,
+          entradaOK:!!cru.entradaOK};
 }
 function metaVendedorSep(mes,nome){
   const m=metasDoMes(mes); if(!m)return {tc:0,te:0,tot:0};
@@ -2164,6 +2220,7 @@ function render(){
   }
 
   renderComissoes(D,p);
+  renderPremio(D,p);
 
   renderFunil(D.funil,D.ev);
   renderCirurgias(D.cir2,p);
@@ -2227,7 +2284,7 @@ async function escreverMetas(){
     // junta o que veio do arquivo com o que foi editado neste mês
     const tudo=Object.assign({},METAS_REM||{});
     const loc=(CFG.metas||{})[MT_MES];
-    if(loc)tudo[MT_MES]={tc:toNum(loc.tc),te:toNum(loc.te),vend:loc.vend||{},
+    if(loc)tudo[MT_MES]={tc:toNum(loc.tc),te:toNum(loc.te),vend:loc.vend||{},entradaOK:!!loc.entradaOK,
                          superPct:(METAS_REM&&METAS_REM[MT_MES]&&METAS_REM[MT_MES].superPct)||toNum(CFG.superPct)};
 
     const linhas=[["Mês","Item","Meta","Serviço"]];
@@ -2236,11 +2293,13 @@ async function escreverMetas(){
       if(m.tc)linhas.push([ser,"Transplante",m.tc,""]);
       if(m.te)linhas.push([ser,"Terapia",m.te,""]);
       if(m.superPct)linhas.push([ser,"Supermeta %",m.superPct,""]);
+      linhas.push([ser,"Entrada 750k atingida",m.entradaOK?1:0,""]);
       for(const n of Object.keys(m.vend||{})){
         const v=normVend(m.vend[n]);
         if(v.tc)linhas.push([ser,n,v.tc,"Transplante"]);
         if(v.te)linhas.push([ser,n,v.te,"Terapia"]);
         if(!v.tc&&!v.te)linhas.push([ser,n,0,"Transplante"]);
+        if(v.peso)linhas.push([ser,n,v.peso,"Peso"]);
       }
     }
     nota("Gravando "+(linhas.length-1)+" linha(s) na planilha…");
@@ -2282,9 +2341,11 @@ function editorMetas(){
     "<b>Estes valores estão só neste navegador.</b> Ninguém mais os vê. "+
     "Clique em <b>Gravar na planilha de metas</b> para publicá-los para a equipe.";
   $("mtTC").value=m.tc||""; $("mtTE").value=m.te||"";
+  $("mtEntrada").checked=!!(rasc?rasc.entradaOK:(metasDoMes(MT_MES)||{}).entradaOK);
+  $("mtEntrada").disabled=!podeEditar;
   $("mtPct").value=toNum(CFG.superPct)||10; $("mtPctL").textContent=toNum(CFG.superPct)||10;
   ["mtTC","mtTE","mtPct"].forEach(id=>$(id).disabled=!podeEditar);
-  ["mtAdd","mtImport","mtCopiar"].forEach(id=>$(id).style.display=podeEditar?"":"none");
+  ["mtAdd","mtImport","mtCopiar","mtCalc"].forEach(id=>$(id).style.display=podeEditar?"":"none");
   $("mtSalvar").style.display=(podeEditar&&!remoto)?"":"none";
   $("mtGravar").style.display=(podeEditar&&remoto)?"":"none";
   $("mtGravar").textContent=soLocal?"Gravar na planilha de metas ⚠":"Gravar na planilha de metas";
@@ -2310,6 +2371,11 @@ function editorMetas(){
       '" style="width:120px;text-align:right"'+(podeEditar?"":" disabled")+'>';
     tb.insertAdjacentHTML("beforeend",
       '<tr><td class="l"><input type="text" class="mtn" value="'+esc(n)+'" style="width:100%"'+(podeEditar?"":" disabled")+'></td>'+
+      '<td><select class="mtp" style="width:100%"'+(podeEditar?"":" disabled")+'>'+
+        '<option value="0">—</option>'+
+        tabelaPesos().map(c=>'<option value="'+c.peso+'"'+(Math.abs(c.peso-v.peso)<1e-9?" selected":"")+
+          '>'+esc(c.nome)+" ("+c.peso.toFixed(2).replace(".",",")+")</option>").join("")+
+      '</select></td>'+
       '<td class="sep">'+inp("mtc",v.tc)+'</td>'+
       '<td>'+inp("mte",v.te)+'</td>'+
       '<td class="v-money num">'+(mv?BRL.format(mv):"—")+'</td>'+
@@ -2321,10 +2387,12 @@ function editorMetas(){
         (at==null?"—":fpct(at))+'</td>'+
       '<td>'+(podeEditar?'<button class="acx mtx" data-i="'+i+'">&times;</button>':"")+'</td></tr>');
   });
-  if(!nomes.length)tb.innerHTML='<tr><td class="l" colspan="9" style="color:var(--dim)">nenhum vendedor cadastrado neste mês — use "Puxar vendedores do mês"</td></tr>';
+  if(!nomes.length)tb.innerHTML='<tr><td class="l" colspan="10" style="color:var(--dim)">nenhum vendedor cadastrado neste mês — use "Puxar vendedores do mês"</td></tr>';
   const dif=(soma,alvo)=>soma&&alvo&&Math.abs(soma-alvo)>alvo*0.001
     ?' <span style="color:var(--neg)">('+(soma>alvo?"+":"")+fpct(pct(soma,alvo)-100)+')</span>':"";
+  const somaPesos=nomes.reduce((a,n)=>a+normVend(m.vend[n]).peso,0);
   $("mtFoot").innerHTML=nomes.length?'<tr><td class="l">Total</td>'+
+    '<td class="num">'+(somaPesos?somaPesos.toFixed(2).replace(".",","):"—")+'</td>'+
     '<td class="sep num">'+BRL.format(somaTC)+dif(somaTC,toNum($("mtTC").value))+'</td>'+
     '<td class="num">'+BRL.format(somaTE)+dif(somaTE,toNum($("mtTE").value))+'</td>'+
     '<td class="num">'+BRL.format(somaMetas)+'</td>'+
@@ -2352,11 +2420,14 @@ function lerMetas(){
      && !String($("mtTE").value||"").trim())return;
   const vend={};
   rs.forEach(r=>{
-    const n=r.querySelector(".mtn"), a=r.querySelector(".mtc"), b=r.querySelector(".mte");
-    if(n&&n.value.trim())vend[n.value.trim()]={tc:toNum(a?a.value:0),te:toNum(b?b.value:0)};
+    const n=r.querySelector(".mtn"), a=r.querySelector(".mtc"),
+          b=r.querySelector(".mte"), pz=r.querySelector(".mtp");
+    if(n&&n.value.trim())vend[n.value.trim()]=
+      {tc:toNum(a?a.value:0),te:toNum(b?b.value:0),peso:toNum(pz?pz.value:0)};
   });
   CFG.metas=CFG.metas||{};
-  CFG.metas[MT_MES]={tc:toNum($("mtTC").value),te:toNum($("mtTE").value),vend};
+  CFG.metas[MT_MES]={tc:toNum($("mtTC").value),te:toNum($("mtTE").value),vend,
+                     entradaOK:$("mtEntrada").checked};
   CFG.superPct=toNum($("mtPct").value)||0;
 }
 
@@ -2398,11 +2469,42 @@ function atualizaAdmin(){
   aplicaAcessos();
 }
 
+function euSou(){
+  const e=emailAtual(); if(!e)return null;
+  return (CFG.pessoas||[]).find(x=>norm(x.e)===e)||null;
+}
+
 function emailOk(){
   const lista=(CFG.emailsComissao||"").split(",").map(x=>norm(x)).filter(Boolean);
   if(!lista.length)return true;
   const e=norm((USUARIO&&(USUARIO.mail||USUARIO.userPrincipalName))||"");
   return !!e&&lista.includes(e);
+}
+
+function renderPremio(D,p){
+  const P=D.premio, box=$("cmPremio"); if(!box)return;
+  if(!P||!D.com){ box.style.display="none"; return; }
+  box.style.display="";
+  const ok=x=>x?'<span style="color:var(--pos)">✓</span>':'<span style="color:var(--neg)">✗</span>';
+  const lin=(rot,cumpre,det)=>'<div style="display:flex;gap:10px;align-items:baseline;margin-bottom:6px;font-size:13px">'+
+    ok(cumpre)+'<span style="flex:1">'+rot+'</span><span class="num" style="color:var(--muted)">'+det+"</span></div>";
+  $("cmCriterios").innerHTML=
+    lin("Entrada financeira de R$ 750 mil em pix, débito ou espécie",P.entrada,
+        P.entrada?"confirmada":"marcar na aba Metas")+
+    lin("Meta de transplante do mês",P.okTC,BRL.format(D.com.fatTC)+" de "+BRL.format(P.metaTC))+
+    lin("Meta de terapia do mês, mínimo de "+BRL.format(P.tecMin),P.okTE,
+        BRL.format(D.com.fatTE)+" de "+BRL.format(Math.max(P.metaTE,P.tecMin)))+
+    lin("Supermeta do mês",P.bateSuper,BRL.format(D.com.fatTot)+" de "+BRL.format(P.superM));
+  const st=(r,v,c,sub)=>'<div class="stat"><div class="l">'+r+'</div><div class="v num" style="color:'+
+    (c||"var(--txt)")+'">'+v+'</div>'+(sub?'<div class="l" style="margin-top:3px">'+sub+'</div>':"")+'</div>';
+  $("cmPremioVal").innerHTML=
+    st("Prêmio de meta coletiva",BRL2.format(P.premioColetivaVal),
+       P.coletiva?"var(--pos)":"var(--dim)",fpct(toNum(CFG.premioComercialPct))+" do faturado elegível")+
+    st("Supermeta — vendedor",BRL2.format(P.premioSuperVend),P.bateSuper?"var(--pos)":"var(--dim)")+
+    st("Supermeta — liderança",BRL2.format(P.premioSuperLider),P.bateSuper?"var(--pos)":"var(--dim)");
+  $("cmPremioSub").textContent=P.coletiva
+    ? (P.bateSuper?"meta coletiva e supermeta atingidas":"meta coletiva atingida")
+    : "critérios não cumpridos — prêmio não devido";
 }
 
 function renderComissoes(D,p){
@@ -2416,11 +2518,13 @@ function renderComissoes(D,p){
         (ADMIN?"Aponte o arquivo das regras no Configurar, ou carregue o modelo.":"Peça a quem administra o painel."));
     return;
   }
-  if(!emailOk()){
+  const eu=euSou();
+  if(!emailOk()&&!eu){
     mostraLock("<b>Aba restrita.</b><br>"+esc((USUARIO&&(USUARIO.mail||USUARIO.userPrincipalName))||"seu usuário")+
       " não está na lista de acesso às comissões.");
     return;
   }
+  const soEu = !!eu && !emailOk() && !ADMIN;      // vê apenas a própria comissão
   if(!K){ mostraLock("Não foi possível calcular as comissões."); return; }
   lock.style.display="none"; body.style.display="";
 
@@ -2431,20 +2535,25 @@ function renderComissoes(D,p){
   const proj=v=>v*fator;
   const mesTxt=d=>d.toLocaleDateString("pt-BR",{month:"long",year:"numeric",timeZone:"UTC"});
 
+  const meu = soEu ? (K.lista.find(x=>norm(x.nome)===norm(eu.nome))||{com:0,tot:0}) : null;
+  for(const id of ["kFat","kSup"])
+    $(id).parentElement.style.display=soEu?"none":"";
+  const secSup=document.querySelectorAll("#viewCom .aux, #viewCom .rank");
   const total=K.totVend+K.honTC+K.honTE;
   const par=(id,v,sub,cent)=>{$(id).textContent=(cent?BRL2:BRL).format(v);$(id+"S").textContent=sub;};
   par("kFat",K.fatTot, corrente?"projeção "+BRL.format(proj(K.fatTot)):"mês encerrado");
-  par("kVend",K.totVend, corrente?"projeção "+BRL2.format(K.lista.reduce((a,x)=>a+K.prog(proj(x.tot)),0)):
+  par("kVend",soEu?meu.com:K.totVend, corrente?"projeção "+BRL2.format(K.lista.reduce((a,x)=>a+K.prog(proj(x.tot)),0)):
       K.novaRegra?"regra progressiva":"regra anterior a mai/2026", true);
   const projSup=(base,linha,faixas)=>{const bp=proj(base);
     return K.supAtivo?Math.max(0,bp-linha)*faixaPct(bp,faixas):0;};
   const supProj=projSup(K.fatTC,K.P.baseTC,K.P.fxTC)+projSup(K.fatTE,K.P.baseTE,K.P.fxTE);
   par("kSup",K.honTC+K.honTE, !K.supAtivo?"vigência a partir de "+(K.P.vigSup?mesTxt(K.P.vigSup):"—")
       : corrente?"projeção "+BRL2.format(supProj):"TC "+BRL2.format(K.honTC)+" · TEC "+BRL2.format(K.honTE), true);
-  par("kTot",total, corrente?"parcial até dia "+p.decorridos+" de "+p.totalDias:"apurado", true);
+  par("kTot",soEu?meu.com:total, corrente?"parcial até dia "+p.decorridos+" de "+p.totalDias:"apurado", true);
 
   const tb=$("cvBody"); tb.innerHTML="";
-  for(const x of K.lista){
+  const lista = soEu ? K.lista.filter(x=>norm(x.nome)===norm(eu.nome)) : K.lista;
+  for(const x of lista){
     tb.insertAdjacentHTML("beforeend",
       '<tr><td class="l name">'+esc(x.nome)+'</td>'+
       '<td class="sep v-money num">'+BRL.format(x.tot)+'</td>'+
@@ -2455,13 +2564,15 @@ function renderComissoes(D,p){
       '<td class="v-money num" style="color:var(--pos)">'+BRL2.format(x.com)+'</td>'+
       '<td class="v-sub num">'+(corrente?BRL2.format(K.prog(proj(x.tot))):"—")+'</td></tr>');
   }
-  if(!K.lista.length)tb.innerHTML='<tr><td class="l" colspan="8" style="color:var(--dim)">sem vendas elegíveis no período</td></tr>';
-  $("cvFoot").innerHTML=K.lista.length?'<tr><td class="l">Total</td>'+
+  if(!lista.length)tb.innerHTML='<tr><td class="l" colspan="8" style="color:var(--dim)">'+
+    (soEu?"sem vendas elegíveis suas no período":"sem vendas elegíveis no período")+'</td></tr>';
+  $("cvFoot").innerHTML=(!soEu&&K.lista.length)?'<tr><td class="l">Total</td>'+
     '<td class="sep num">'+BRL.format(K.fatTot)+'</td><td class="num">'+BRL.format(K.fatTC)+
     '</td><td class="num">'+BRL.format(K.fatTE)+'</td><td class="sep"></td><td></td>'+
     '<td class="num">'+BRL2.format(K.totVend)+'</td>'+
     '<td class="num">'+(corrente?BRL2.format(K.lista.reduce((a,x)=>a+K.prog(proj(x.tot)),0)):"—")+'</td></tr>':"";
-  $("cvSub").textContent=(K.novaRegra?"faixas progressivas sobre o faturamento próprio":"regra anterior a mai/2026")+
+  $("cvSub").textContent=(soEu?"sua comissão · ":"")+
+    (K.novaRegra?"faixas progressivas sobre o faturamento próprio":"regra anterior a mai/2026")+
     (corrente?" · projeção linear pelos dias decorridos":"");
   $("thProj").textContent=corrente?"Projeção do mês":"—";
 
@@ -2873,10 +2984,12 @@ function lerGradeMetas(rows){
     if(n==="TRANSPLANTE"||n==="TC"||n==="META TC")out[ym].tc=v;
     else if(n==="TERAPIA"||n==="TEC"||n==="META TEC")out[ym].te=v;
     else if(n.startsWith("SUPERMETA"))out[ym].superPct=v;
+    else if(n.startsWith("ENTRADA"))out[ym].entradaOK=(v>=1||norm(l[2])==="SIM");
     else {
       const at=out[ym].vend[item]&&typeof out[ym].vend[item]==="object"
                ?out[ym].vend[item]:{tc:0,te:0};
-      if(srv==="TERAPIA"||srv==="TEC")at.te=v;
+      if(srv==="PESO")at.peso=v;
+      else if(srv==="TERAPIA"||srv==="TEC")at.te=v;
       else if(srv==="TRANSPLANTE"||srv==="TC")at.tc=v;
       else { at.tc=v; at.te=0; }                 // sem coluna D: valor unico
       out[ym].vend[item]=at;
@@ -3130,7 +3243,7 @@ $("tabPre").onclick=()=>aba("pre");
 $("tabCom2").onclick=()=>aba("cms");
 $("tabCir").onclick=()=>aba("cir");
 $("tabMts").onclick=()=>aba("mts");
-["mtTC","mtTE","mtPct"].forEach(id=>$(id).onchange=()=>{lerMetas();editorMetas();});
+["mtTC","mtTE","mtPct","mtEntrada"].forEach(id=>$(id).onchange=()=>{lerMetas();editorMetas();});
 $("mtGravar").onclick=escreverMetas;
 $("mtAbrir").onclick=()=>{if(CFG.arqMetas)window.open(CFG.arqMetas,"_blank");};
 $("mtAdd").onclick=()=>{lerMetas();const m=metasDoMes(MT_MES)||{tc:0,te:0,vend:{}};
@@ -3138,6 +3251,21 @@ $("mtAdd").onclick=()=>{lerMetas();const m=metasDoMes(MT_MES)||{tc:0,te:0,vend:{
 $("mtImport").onclick=()=>{lerMetas();const m=metasDoMes(MT_MES)||{tc:0,te:0,vend:{}};
   try{ for(const r of computar().rank)if(r.tot.q&&!(r.nome in m.vend))m.vend[r.nome]={tc:0,te:0}; }catch(e){}
   CFG.metas[MT_MES]=m;editorMetas();};
+$("mtCalc").onclick=()=>{
+  lerMetas();
+  const m=metasDoMes(MT_MES)||{tc:0,te:0,vend:{}};
+  const nomes=Object.keys(m.vend||{});
+  const soma=nomes.reduce((a,n)=>a+normVend(m.vend[n]).peso,0);
+  if(!soma){ $("mtSub").textContent="Defina a categoria de cada vendedor antes de calcular."; return; }
+  const mTC=toNum($("mtTC").value), mTE=toNum($("mtTE").value);
+  for(const n of nomes){
+    const v=normVend(m.vend[n]); if(!v.peso)continue;
+    m.vend[n]={tc:Math.round(mTC/soma*v.peso), te:Math.round(mTE/soma*v.peso), peso:v.peso};
+  }
+  CFG.metas[MT_MES]=m; editorMetas();
+  $("mtSub").textContent="Calculado pela política: meta do mês ÷ "+soma.toFixed(2).replace(".",",")+
+    " (soma dos pesos) × peso individual. Os valores continuam editáveis.";
+};
 $("mtCopiar").onclick=()=>{lerMetas();
   const [a,b]=MT_MES.split("-"); const ant=new Date(Date.UTC(+a,+b-2,1)).toISOString().slice(0,7);
   const src=metasDoMes(ant);
