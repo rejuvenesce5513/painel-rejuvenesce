@@ -557,7 +557,8 @@ Não é subconjunto dos leads acima: inclui remarcações, retornos e quem agend
   <table>
     <thead><tr><th class="l">Vendedor</th>
       <th class="sep">Base elegível</th><th>Transplante</th><th>Terapia</th>
-      <th class="sep">Regra</th><th>Taxa efetiva</th><th>Comissão</th><th id="thProj">Projeção do mês</th></tr></thead>
+      <th class="sep">Regra</th><th>Taxa efetiva</th><th>Comissão</th><th>Prêmio</th>
+      <th class="sep">Total a receber</th><th id="thProj">Projeção do mês</th></tr></thead>
     <tbody id="cvBody"></tbody><tfoot id="cvFoot"></tfoot>
   </table>
   </div>
@@ -891,6 +892,11 @@ const NATIVO = {
     { "e": "fabiana.vieira@clinicarejuvenesce.com.br", "nome": "Fabiana da costa vieira", "tipo": "prevendas" },
     { "e": "amanda.silva@clinicarejuvenesce.com.br", "nome": "amanda", "tipo": "prevendas" }
   ],
+  "liderancas": [
+    { "e": "camila.espinula@clinicarejuvenesce.com.br", "nome": "Camila Thais Espinula" },
+    { "e": "fabricio.araujo@clinicarejuvenesce.com.br", "nome": "Fabrício de Araújo Paula" },
+    { "e": "raissa.fortini@clinicarejuvenesce.com.br", "nome": "Raissa Fortini Andrade" }
+  ],
   "premioComercialPct": 0.1,
   "premioSupermetaVend": 3500,
   "premioSupermetaLider": 7000,
@@ -1034,7 +1040,7 @@ const store={
   set(k,v){ try{localStorage.setItem(k,v);}catch(e){mem[k]=v;} },
   del(k){ try{localStorage.removeItem(k);}catch(e){delete mem[k];} }
 };
-const DEF={versao:"",admins:"",chaveAdmin:"",metas:{},superPct:10,pesosMeta:"",pessoas:[],premioComercialPct:0.1,premioSupermetaVend:3500,premioSupermetaLider:7000,premioTecMinimo:60000,arqCirurgias:"",shCirurgias:"Cirurgias",cirPorDia:11,cirHorizonte:45,cirAlertaLivre:50,feriados:"",arqMetas:"",shMetasCfg:"Metas",shPrevendas:"Prevendas",dedupMin:5,ghPainelRepo:"",ghPainelPath:"index.html",ghPainelBranch:"main",ghTokenPainel:"",acessos:[],acessoPadrao:[],arqRegras:"",shRegras:"Parâmetros Comissões",regrasComissao:"",tenant:"89aed341-1dc6-4d0d-b5c7-e8df4293d21d",client:"",file:"",autoEntrar:true,ghRepo:"",ghWf:"sync.yml",ghToken:"",shVendas:"Vendas",shMarc:"Marcações",shMetas:"Metas",
+const DEF={versao:"",admins:"",chaveAdmin:"",metas:{},superPct:10,pesosMeta:"",pessoas:[],liderancas:[],premioComercialPct:0.1,premioSupermetaVend:3500,premioSupermetaLider:7000,premioTecMinimo:60000,arqCirurgias:"",shCirurgias:"Cirurgias",cirPorDia:11,cirHorizonte:45,cirAlertaLivre:50,feriados:"",arqMetas:"",shMetasCfg:"Metas",shPrevendas:"Prevendas",dedupMin:5,ghPainelRepo:"",ghPainelPath:"index.html",ghPainelBranch:"main",ghTokenPainel:"",acessos:[],acessoPadrao:[],arqRegras:"",shRegras:"Parâmetros Comissões",regrasComissao:"",tenant:"89aed341-1dc6-4d0d-b5c7-e8df4293d21d",client:"",file:"",autoEntrar:true,ghRepo:"",ghWf:"sync.yml",ghToken:"",shVendas:"Vendas",shMarc:"Marcações",shMetas:"Metas",
   refresh:10,splitTC:90,splitTE:10,mapTC:"TC,TB,TS,BH",mapTE:"TEC",ignorar:"Sem deal comercial,—,JARVYS",marcaAgendada:"Data Agendada",stRealizada:"Atendido",stNoShow:"Não compareceu",stRemarcada:"Remarcado",stFuturo:"Marcado",stCancelado:"Desmarcado pelo paciente,Cancelado pelo profissional",mesesCheios:true,shParams:"Parâmetros Comissões",arqParams:"",emailsComissao:"",equipePre:"Beatriz,Fabiana,Amanda",incluirOrfas:false,etapasVenda:"FECHAMENTO,FINALIZADO,REVISAO DE PENDENCIAS",onlyPrimeira:true,ignoraZero:true,coorte:"fechamento"};
 // versao nova zera preferencias, mas NUNCA o que e conexao/credencial
 if(store.get("rjv.cfgv")!==NATIVO.versao){
@@ -2471,7 +2477,10 @@ function atualizaAdmin(){
 
 function euSou(){
   const e=emailAtual(); if(!e)return null;
-  return (CFG.pessoas||[]).find(x=>norm(x.e)===e)||null;
+  const p=(CFG.pessoas||[]).find(x=>norm(x.e)===e);
+  if(p)return p;
+  const l=(CFG.liderancas||[]).find(x=>norm(x.e)===e);
+  return l?{e:l.e,nome:l.nome,tipo:"lideranca"}:null;
 }
 
 function emailOk(){
@@ -2497,11 +2506,20 @@ function renderPremio(D,p){
     lin("Supermeta do mês",P.bateSuper,BRL.format(D.com.fatTot)+" de "+BRL.format(P.superM));
   const st=(r,v,c,sub)=>'<div class="stat"><div class="l">'+r+'</div><div class="v num" style="color:'+
     (c||"var(--txt)")+'">'+v+'</div>'+(sub?'<div class="l" style="margin-top:3px">'+sub+'</div>':"")+'</div>';
+  const cVend=P.premioColetivaVal+P.premioSuperVend;
+  const cLider=P.premioColetivaVal+P.premioSuperLider;
+  const nV=(CFG.pessoas||[]).filter(x=>x.tipo==="vendedor").length;
+  const nL=(CFG.liderancas||[]).length;
   $("cmPremioVal").innerHTML=
-    st("Prêmio de meta coletiva",BRL2.format(P.premioColetivaVal),
-       P.coletiva?"var(--pos)":"var(--dim)",fpct(toNum(CFG.premioComercialPct))+" do faturado elegível")+
-    st("Supermeta — vendedor",BRL2.format(P.premioSuperVend),P.bateSuper?"var(--pos)":"var(--dim)")+
-    st("Supermeta — liderança",BRL2.format(P.premioSuperLider),P.bateSuper?"var(--pos)":"var(--dim)");
+    st("Meta coletiva, por pessoa",BRL2.format(P.premioColetivaVal),
+       P.coletiva?"var(--pos)":"var(--dim)",
+       fpct(toNum(CFG.premioComercialPct))+" de "+BRL.format(D.com.fatTot))+
+    st("Total por vendedor",BRL2.format(cVend),cVend?"var(--pos)":"var(--dim)",
+       P.bateSuper?"coletiva + supermeta":"só meta coletiva")+
+    st("Total por liderança",BRL2.format(cLider),cLider?"var(--pos)":"var(--dim)",
+       nL+" elegível(eis)")+
+    st("Desembolso do prêmio",BRL2.format(cVend*nV+cLider*nL),
+       (cVend||cLider)?"var(--tec)":"var(--dim)",nV+" vendedor(es) + "+nL+" liderança(s)");
   $("cmPremioSub").textContent=P.coletiva
     ? (P.bateSuper?"meta coletiva e supermeta atingidas":"meta coletiva atingida")
     : "critérios não cumpridos — prêmio não devido";
@@ -2553,7 +2571,15 @@ function renderComissoes(D,p){
 
   const tb=$("cvBody"); tb.innerHTML="";
   const lista = soEu ? K.lista.filter(x=>norm(x.nome)===norm(eu.nome)) : K.lista;
+  const PR=D.premio;
+  const premioDe=nome=>{
+    if(!PR)return 0;
+    const ehLider=(CFG.liderancas||[]).some(l=>norm(l.nome)===norm(nome));
+    return PR.premioColetivaVal+(ehLider?PR.premioSuperLider:PR.premioSuperVend);
+  };
+  let somaPremio=0;
   for(const x of lista){
+    const premioPessoa=premioDe(x.nome); somaPremio+=premioPessoa;
     tb.insertAdjacentHTML("beforeend",
       '<tr><td class="l name">'+esc(x.nome)+'</td>'+
       '<td class="sep v-money num">'+BRL.format(x.tot)+'</td>'+
@@ -2562,14 +2588,19 @@ function renderComissoes(D,p){
       '<td class="sep v-sub">'+esc(x.regra)+'</td>'+
       '<td class="v-sub num">'+(x.taxa*100).toFixed(3).replace(".",",")+'%</td>'+
       '<td class="v-money num" style="color:var(--pos)">'+BRL2.format(x.com)+'</td>'+
+      '<td class="v-sub num" style="color:'+(premioPessoa?"var(--tec)":"var(--dim)")+'">'+
+        BRL2.format(premioPessoa)+'</td>'+
+      '<td class="sep v-money num">'+BRL2.format(x.com+premioPessoa)+'</td>'+
       '<td class="v-sub num">'+(corrente?BRL2.format(K.prog(proj(x.tot))):"—")+'</td></tr>');
   }
-  if(!lista.length)tb.innerHTML='<tr><td class="l" colspan="8" style="color:var(--dim)">'+
+  if(!lista.length)tb.innerHTML='<tr><td class="l" colspan="10" style="color:var(--dim)">'+
     (soEu?"sem vendas elegíveis suas no período":"sem vendas elegíveis no período")+'</td></tr>';
   $("cvFoot").innerHTML=(!soEu&&K.lista.length)?'<tr><td class="l">Total</td>'+
     '<td class="sep num">'+BRL.format(K.fatTot)+'</td><td class="num">'+BRL.format(K.fatTC)+
     '</td><td class="num">'+BRL.format(K.fatTE)+'</td><td class="sep"></td><td></td>'+
     '<td class="num">'+BRL2.format(K.totVend)+'</td>'+
+    '<td class="num">'+BRL2.format(somaPremio)+'</td>'+
+    '<td class="sep num">'+BRL2.format(K.totVend+somaPremio)+'</td>'+
     '<td class="num">'+(corrente?BRL2.format(K.lista.reduce((a,x)=>a+K.prog(proj(x.tot)),0)):"—")+'</td></tr>':"";
   $("cvSub").textContent=(soEu?"sua comissão · ":"")+
     (K.novaRegra?"faixas progressivas sobre o faturamento próprio":"regra anterior a mai/2026")+
