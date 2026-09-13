@@ -1496,6 +1496,8 @@ function parseRegras(txt){
       case "PARCELA TERAPIA": P.pTE=pc(v); break;
       case "DEFASAGEM MESES": P.defas=Math.round(toNum(v)); break;
       case "ETAPAS ELEGIVEIS": P.etapas=v.split(",").map(x=>x.trim()).filter(Boolean); break;
+      case "ETAPAS ELEGIVEIS ANTERIORES": P.etapasAnt=v.split(",").map(x=>x.trim()).filter(Boolean); break;
+      case "VIGENCIA ETAPAS": P.vigEtapas=toDate(v); break;
       case "REGRA ANTERIOR TC": P.legTC=pc(v); break;
       case "REGRA ANTERIOR TEC": P.legTE=pc(v); break;
       case "GATILHO TC": P.gatilho=toNum(v); break;
@@ -1553,7 +1555,10 @@ parcela terapia: 100%
 defasagem meses: 1
 
 # ─── ELEGIBILIDADE ───
-etapas elegiveis: FECHAMENTO,FINALIZADO`;
+etapas elegiveis: FECHAMENTO,FINALIZADO
+# até a véspera da vigência abaixo, vale a lista "anteriores"
+vigencia etapas: 01/09/2026
+etapas elegiveis anteriores: FECHAMENTO,FINALIZADO,REVISÃO DE PENDÊNCIAS`;
 
 function celP(ref){
   if(!PARAMS)return null;
@@ -1588,7 +1593,7 @@ function parseGrade(rows){
     fxTC:[18,19,20,21,22,23,24].map(r=>faixa("A"+r,"B"+r,"C"+r)),
     fxTE:[31,32,33,34,35,36].map(r=>faixa("A"+r,"B"+r,"C"+r)),
     pIni:n("B40"), pComp:n("B41"), pTE:n("B42"), defas:Math.round(n("B43"))||1,
-    etapas:[t("B49"),t("C49")].filter(Boolean),
+    etapas:[t("B49"),t("C49")].filter(Boolean), etapasAnt:null, vigEtapas:null,
     legTC:n("B52"), gatilho:n("B53"), legTE:n("B54"),
     excNome:t("B55"), excTE:n("B56"), excTC:n("B57")
   };
@@ -1604,7 +1609,11 @@ function comissoes(V,cv,p){
         iSrv=pick(cv,"Serviço"), iProd=pick(cv,"Produtos"),
         iCir=pick(cv,"Data Prevista de Cirurgia"), iMarc=pick(cv,"Data Cirurgia foi marcada?");
   const gTC=new Set(P.grpTC.split(",").map(norm)), gTE=new Set(P.grpTE.split(",").map(norm));
-  const eleg=new Set(P.etapas.map(norm));
+  // antes da vigência, Revisão de Pendências também conta: a venda existe,
+  // falta só acerto documental
+  const usaAnt = P.vigEtapas && P.etapasAnt && P.etapasAnt.length && p.a < P.vigEtapas;
+  const listaEtapas = usaAnt ? P.etapasAnt : P.etapas;
+  const eleg=new Set(listaEtapas.map(norm));
   const grupo=r=>{
     let c=norm(iSrv>=0?r[iSrv]:"");
     if(!c){ const h=norm(iProd>=0?r[iProd]:"");
@@ -1651,7 +1660,7 @@ function comissoes(V,cv,p){
     const k=ymUTC(m); prov.set(k,(prov.get(k)||0)+v);
   }
   const mesPag=new Date(Date.UTC(p.a.getUTCFullYear(),p.a.getUTCMonth()+P.defas,1));
-  return {P,lista,fatTC,fatTE,fatTot,pcTC,pcTE,honTC,honTE,supAtivo,novaRegra,
+  return {P,lista,fatTC,fatTE,fatTot,pcTC,pcTE,honTC,honTE,supAtivo,novaRegra,listaEtapas,
           aPagar:honTC*P.pIni+honTE*P.pTE, mesPag, prov:[...prov.entries()].sort(), semData,
           totVend:lista.reduce((a,x)=>a+x.com,0), prog};
 }
@@ -2474,24 +2483,32 @@ function ehAdmin(){
 let FOCO=null;                       // {nome,tipo} quando há alguém selecionado
 function montaVisao(){
   const sel=$("visao"); if(!sel)return;
-  const eu=euSou();
   sel.style.display="";
-  if(sel.dataset.pronto!=="1"){
+  const L=(CFG.pessoas||[]);
+  const assinatura=L.map(x=>x.nome).join("|");
+  if(sel.dataset.assin!==assinatura){
     const gr=(rot,tipo)=>{
-      const L=(CFG.pessoas||[]).filter(x=>x.tipo===tipo);
-      return L.length?'<optgroup label="'+rot+'">'+
-        L.map(x=>'<option value="'+esc(x.nome)+'">'+esc(x.nome)+"</option>").join("")+"</optgroup>":"";
+      const G=L.filter(x=>x.tipo===tipo);
+      return G.length?'<optgroup label="'+rot+'">'+
+        G.map(x=>'<option value="'+esc(x.nome)+'">'+esc(x.nome)+"</option>").join("")+"</optgroup>":"";
     };
+    const atual=sel.value;
     sel.innerHTML='<option value="">Visão: equipe</option>'+
       gr("Vendedores","vendedor")+gr("Pré-vendas","prevendas");
-    sel.dataset.pronto="1";
-    // quem é vendedor ou pré-vendas abre focado em si; os demais, na equipe
-    if(eu&&eu.tipo!=="lideranca"){ sel.value=eu.nome; FOCO=eu; }
-    sel.onchange=()=>{
-      const n=sel.value;
-      FOCO = n ? ((CFG.pessoas||[]).find(x=>norm(x.nome)===norm(n))||{nome:n,tipo:""}) : null;
-      render();
-    };
+    sel.dataset.assin=assinatura;
+    if(atual)sel.value=atual;
+  }
+  // o handler é reatribuído sempre: barato e à prova de remontagem
+  sel.onchange=()=>{
+    const n=sel.value;
+    FOCO = n ? (L.find(x=>mesmaPessoa(x.nome,n))||{nome:n,tipo:""}) : null;
+    render();
+  };
+  // foco inicial na própria pessoa, assim que o usuário é conhecido
+  const eu=euSou();
+  if(eu&&eu.tipo!=="lideranca"&&sel.dataset.autofoco!=="1"){
+    sel.dataset.autofoco="1";
+    sel.value=eu.nome; FOCO=eu;
   }
 }
 
