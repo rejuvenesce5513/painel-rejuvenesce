@@ -2627,20 +2627,57 @@ function rotuloVisao(){
   if(FOCOS.length<=2)return FOCOS.map(f=>f.nome.split(" ")[0]).join(" + ");
   return FOCOS.length+" selecionados";
 }
+/* Nomes que aparecem nos dados, para o filtro acompanhar entradas e saídas
+   sem depender de cadastro. Ordenados por volume, com um teto para não virar lista infinita. */
+function pessoasDosDados(){
+  const ign=new Set(String(CFG.ignorar||"").split(",").map(norm).filter(Boolean));
+  const conta=(tab,cols,min)=>{
+    const m=new Map();
+    if(!tab||!tab.rows)return m;
+    const c=colmap(tab.headers);
+    const i=cols.map(x=>pick(c,x)).find(x=>x>=0);
+    if(i==null||i<0)return m;
+    for(const r of tab.rows){
+      const bruto=String((r[i]??"")).trim(); if(!bruto)continue;
+      const k=norm(bruto); if(!k||ign.has(k))continue;
+      const at=m.get(k)||{nome:bruto,n:0}; at.n++; m.set(k,at);
+    }
+    return new Map([...m].filter(([,v])=>v.n>=(min||1)).sort((a,b)=>b[1].n-a[1].n));
+  };
+  const V=RAW&&(RAW[CFG.shVendas]||RAW.Vendas);
+  const P=RAW&&RAW[CFG.shPrevendas];
+  const M=RAW&&(RAW[CFG.shMarc]||RAW["Marcações"]);
+  const pre=new Map([...conta(P,["Responsável"],3)]);
+  for(const [k,v] of conta(M,["Quem agendou"],3))if(!pre.has(k))pre.set(k,v);
+  return {vend:[...conta(V,["Responsável"],1).values()].slice(0,40),
+          pre:[...pre.values()].slice(0,40)};
+}
+
+function listaVisao(){
+  const cad=(CFG.pessoas||[]);
+  const achados=pessoasDosDados();
+  const monta=(tipo,arr)=>{
+    const base=cad.filter(x=>x.tipo===tipo).map(x=>({nome:x.nome,tipo,cad:true}));
+    for(const a of arr)
+      if(!base.some(b=>mesmaPessoa(b.nome,a.nome)))base.push({nome:a.nome,tipo,cad:false});
+    return base;
+  };
+  return {vend:monta("vendedor",achados.vend), pre:monta("prevendas",achados.pre)};
+}
+
 function montaVisao(){
   const wrap=$("visaoWrap"), btn=$("visaoBtn"), menu=$("visaoMenu");
   if(!wrap)return;
   wrap.style.display="";
-  const L=(CFG.pessoas||[]);
+  const LV=listaVisao();
+  const L=LV.vend.concat(LV.pre);
   const assin=L.map(x=>x.tipo+":"+x.nome).join("|");
   if(menu.dataset.assin!==assin){
-    const gr=(rot,tipo)=>{
-      const G=L.filter(x=>x.tipo===tipo);
-      return G.length?'<div class="gr">'+rot+"</div>"+G.map(x=>
+    const gr=(rot,arr)=>arr.length?'<div class="gr">'+rot+"</div>"+arr.map(x=>
         '<label><input type="checkbox" class="vx" data-nome="'+esc(x.nome)+'" data-tipo="'+x.tipo+
-        '"><span>'+esc(x.nome)+"</span></label>").join(""):"";
-    };
-    menu.innerHTML=gr("Vendedores","vendedor")+gr("Pré-vendas","prevendas")+
+        '"><span'+(x.cad?"":' style="color:var(--muted)"')+'>'+esc(x.nome)+
+        (x.cad?"":' <span class="l">não cadastrado</span>')+"</span></label>").join(""):"";
+    menu.innerHTML=gr("Vendedores",LV.vend)+gr("Pré-vendas",LV.pre)+
       '<div class="rodape"><button id="vTodos">Equipe inteira</button>'+
       '<button id="vFechar">Fechar</button></div>';
     menu.dataset.assin=assin;
@@ -2657,7 +2694,7 @@ function montaVisao(){
     };
   });
   const bt=menu.querySelector("#vTodos"), bf=menu.querySelector("#vFechar");
-  if(bt)bt.onclick=()=>{ FOCOS=[]; montaVisao(); btn.textContent=rotuloVisao(); render(); };
+  if(bt)bt.onclick=()=>{ FOCOS=[]; menu.dataset.assin=""; montaVisao(); btn.textContent=rotuloVisao(); render(); };
   if(bf)bf.onclick=()=>menu.classList.remove("aberto");
   btn.onclick=e=>{ e.stopPropagation(); menu.classList.toggle("aberto"); };
   document.addEventListener("click",ev=>{
@@ -3525,7 +3562,7 @@ async function carregar(){
       }catch(e){ REGRAS_ERRO=String(e.message||e); }
     }
     try{ USUARIO=await gget("/me?$select=mail,userPrincipalName,displayName",tk); }catch(e){}
-    atualizaAdmin();
+    atualizaAdmin(); montaVisao();
     render();
     const atraso=Math.round((Date.now()-new Date(ref.mod).getTime())/60000);
     setStatus(atraso>45?"warn":"ok",
