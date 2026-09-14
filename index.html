@@ -755,7 +755,7 @@ Não é subconjunto dos leads acima: inclui remarcações, retornos e quem agend
   <div class="rank-head"><h2>Meta individual por vendedor</h2><span class="eyebrow" id="mtSub"></span></div>
   <div style="overflow-x:auto">
   <table>
-    <thead><tr><th class="l">Vendedor</th><th>No ranking</th><th>No prêmio</th><th>Categoria</th><th class="sep">Meta transplante</th><th>Meta terapia</th>
+    <thead><tr><th class="l">Vendedor</th><th>No ranking</th><th>Paga prêmio</th><th>Categoria</th><th class="sep">Meta transplante</th><th>Meta terapia</th>
       <th>Meta total</th><th>Supermeta</th><th>% da clínica</th><th>Realizado</th><th class="sep">Atingido</th><th></th></tr></thead>
     <tbody id="mtBodyT"></tbody><tfoot id="mtFoot"></tfoot>
   </table>
@@ -765,6 +765,7 @@ Não é subconjunto dos leads acima: inclui remarcações, retornos e quem agend
     <button id="mtImport">Puxar vendedores do mês</button>
     <button id="mtCopiar">Copiar metas do mês anterior</button>
     <button id="mtCalc">Calcular pelos pesos</button>
+    <button id="mtPremioMeta">Marcar prêmio pela meta</button>
     <button class="primary" id="mtSalvar">Salvar metas do mês</button>
     <button class="primary" id="mtGravar">Gravar metas</button>
     <button id="mtAbrir">Abrir banco de metas</button>
@@ -2675,7 +2676,7 @@ function editorMetas(){
                   :'<br>aba '+esc(CFG.shEntrada)+' não lida — preencha à mão'));
   $("mtPct").value=toNum(CFG.superPct)||10; $("mtPctL").textContent=toNum(CFG.superPct)||10;
   ["mtTC","mtTE","mtPct"].forEach(id=>$(id).disabled=!podeEditar);
-  ["mtAdd","mtImport","mtCopiar","mtCalc"].forEach(id=>$(id).style.display=podeEditar?"":"none");
+  ["mtAdd","mtImport","mtCopiar","mtCalc","mtPremioMeta"].forEach(id=>$(id).style.display=podeEditar?"":"none");
   $("mtSalvar").style.display=(podeEditar&&!remoto)?"":"none";
   $("mtGravar").style.display=(podeEditar&&remoto)?"":"none";
   $("mtGravar").textContent=soLocal?"Gravar metas ⚠":"Gravar metas";
@@ -3337,7 +3338,7 @@ function renderPremio(D,p){
   const mMes2=metasDoMes(p.mesChave);
   const elegiveis=(D.com&&D.com.lista?D.com.lista:[]).filter(x=>{
     const reg=mMes2&&Object.keys(mMes2.vend||{}).find(k=>mesmaPessoa(k,x.nome));
-    if(reg&&normVend(mMes2.vend[reg]).premio===false)return false;
+    if(reg)return normVend(mMes2.vend[reg]).premio!==false;
     const mv=metaVendedorPeriodo(D.meta.fatorMes,x.nome).tot;
     return !(P.exigeMeta&&mv>0&&x.tot<mv);
   }).filter(x=>(CFG.pessoas||[]).some(p2=>p2.tipo==="vendedor"&&mesmaPessoa(p2.nome,x.nome)));
@@ -3357,9 +3358,9 @@ function renderPremio(D,p){
     st("Desembolso do prêmio",BRL2.format(cVend*nV+cLider*nL+P.premioDemais*nC),
        (cVend||cLider||P.premioDemais)?"var(--tec)":"var(--dim)",
        nV+" vendedor(es) + "+nL+" liderança(s) + "+nC+" colaborador(es)");
-  if(P.exigeMeta)$("cmCriterios").insertAdjacentHTML("beforeend",
-    '<div class="h" style="margin-top:8px">Vendedor só recebe se atingir 100% da própria meta. '+
-    'Lideranças e demais colaboradores não têm essa condição.</div>');
+  $("cmCriterios").insertAdjacentHTML("beforeend",
+    '<div class="h" style="margin-top:8px">Quem paga prêmio é definido na aba Metas, coluna '+
+    '<b>Paga prêmio</b>. Use <b>Marcar pela meta</b> lá para preencher pelo atingimento.</div>');
   $("cmPremioSub").textContent=P.coletiva
     ? (P.bateSuper?"meta coletiva e supermeta atingidas":"meta coletiva atingida")
     : "critérios não cumpridos — prêmio não devido";
@@ -3420,10 +3421,14 @@ function renderComissoes(D,p){
     const mv=ehLider?0:metaVendedorPeriodo(D.meta.fatorMes,nome).tot;
     const mm=metasDoMes(p.mesChave);
     const reg=mm&&Object.keys(mm.vend||{}).find(k=>mesmaPessoa(k,nome));
-    const foraDoPremio=!ehLider&&reg&&normVend(mm.vend[reg]).premio===false;
-    if(foraDoPremio)return {v:0,bloqueado:true,motivo:"fora do prêmio",meta:mv};
-    const bloqueado=!ehLider&&PR.exigeMeta&&mv>0&&fat<mv;
-    if(bloqueado)return {v:0,bloqueado:true,motivo:"meta não atingida",meta:mv};
+    /* A caixa "Paga prêmio" da aba Metas é a palavra final. A regra de meta só
+       decide quem não tem linha de meta no mês. */
+    if(!ehLider&&reg){
+      if(normVend(mm.vend[reg]).premio===false)
+        return {v:0,bloqueado:true,motivo:"não marcado para o prêmio",meta:mv};
+    }else if(!ehLider&&PR.exigeMeta&&mv>0&&fat<mv){
+      return {v:0,bloqueado:true,motivo:"meta não atingida",meta:mv};
+    }
     return {v:PR.premioColetivaVal+(ehLider?PR.premioSuperLider:PR.premioSuperVend),
             bloqueado:false,meta:mv};
   };
@@ -4300,6 +4305,24 @@ $("mtImport").onclick=()=>{
     ? fora.length+" vendedor(es) com venda no mês não estão cadastrados e foram ignorados: "+
       fora.slice(0,4).join(", ")+(fora.length>4?"…":"")+". Cadastre em Configurar › Pessoas."
     : "Vendedores do mês trazidos da lista cadastrada.";
+};
+$("mtPremioMeta").onclick=()=>{
+  lerMetas();
+  const m=metasDoMes(MT_MES)||{vend:{}};
+  const D=computar();
+  let sim=0,nao=0;
+  for(const n of Object.keys(m.vend||{})){
+    const v=normVend(m.vend[n]);
+    const real=(D.com&&D.com.lista||[]).find(x=>mesmaPessoa(x.nome,n));
+    const fat=real?real.tot:0;
+    const meta=v.tc+v.te;
+    const ok=meta>0?fat>=meta:true;
+    m.vend[n]=Object.assign({},v,{premio:ok});
+    ok?sim++:nao++;
+  }
+  CFG.metas[MT_MES]=m; editorMetas();
+  $("mtSub").textContent="Marcados pelo atingimento: "+sim+" recebem, "+nao+" não. "+
+    "Ajuste manualmente o que for exceção e grave.";
 };
 $("mtCalc").onclick=()=>{
   lerMetas();
