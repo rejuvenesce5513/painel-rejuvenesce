@@ -2097,24 +2097,27 @@ function calcCirurgias(p){
   const anoFim=new Date(Date.UTC(hoje.getUTCFullYear(),11,31));
   const fer=feriadosSet(), porDia=toNum(CFG.cirPorDia)||11;
 
+  // desmarcado pelo paciente / desmarcado (ou cancelado) pelo profissional / nao compareceu
+  const ehPerdida=s=>s.includes("NAO COMPARECEU")||s.includes("CANCEL")||s.includes("DESMARC");
+
   const porMesReal=new Map(), porMesTot=new Map(), todosDias=new Map();
-  const o={hojeAtend:0,hojeAguard:0,hojeMarc:0,hojeTot:0,
+  const o={hojeAtend:0,hojeAguard:0,hojeMarc:0,hojeCanc:0,hojeTot:0,
            anoReal:0,perReal:0,perAgend:0,perValor:0,perPorVir:0,perPerdida:0,
            porSit:new Map(),porDiaMapa:new Map()};
   for(const r of C.rows){
     const d=toDate(iD>=0?r[iD]:null); if(!d)continue;
     const st=norm(iS>=0?r[iS]:"");
     const real=st===stOk||aguard.some(x=>st.includes(x));   // na sala já conta
+    const perdida=ehPerdida(st);
     if(+d===+hoje){
       if(real)o.hojeAtend++;
-      else if(!(st.includes("NAO COMPARECEU")||st.includes("CANCEL")||st.includes("DESMARC")))
-        o.hojeMarc++;                       // "Marcado - confirmado / nao confirmado"
+      else if(perdida)o.hojeCanc++;         // saiu da agenda: cancelada/remarcada
+      else o.hojeMarc++;                    // "Marcado - confirmado / nao confirmado"
     }
-    if(!(st.includes("NAO COMPARECEU")||st.includes("CANCEL")||st.includes("DESMARC")))
+    if(!perdida)
       todosDias.set(ymdUTC(d),(todosDias.get(ymdUTC(d))||0)+1);
     if(d>=anoIni&&d<=anoFim){
       const mm=d.getUTCMonth();
-      const perdida=st.includes("NAO COMPARECEU")||st.includes("CANCEL")||st.includes("DESMARC");
       if(real){ o.anoReal++; porMesReal.set(mm,(porMesReal.get(mm)||0)+1); }
       if(real||!perdida)porMesTot.set(mm,(porMesTot.get(mm)||0)+1);
     }
@@ -2127,7 +2130,7 @@ function calcCirurgias(p){
         o.perReal++;
         o.perValor+=toNum(iV>=0?r[iV]:0);
         cel.feitas++;
-      }else if(st.includes("NAO COMPARECEU")||st.includes("CANCEL")||st.includes("DESMARC")){
+      }else if(perdida){
         o.perPerdida++;
       }else{
         o.perPorVir++; cel.prev++;           // marcado, com ou sem confirmação
@@ -3555,11 +3558,14 @@ function renderCirurgias(K,p){
   for(let i=K.metaHoje;i<K.hojeTot;i++)vagas+='<div class="slot feita"></div>';   // acima da capacidade
   $("cirSlots").innerHTML=vagas;
   $("cirSlotsLeg").textContent=K.hojeAtend+" concluída(s), "+K.hojeMarc+
-    " prevista(s), "+Math.max(0,K.metaHoje-K.hojeTot)+" vaga(s) livre(s) de "+K.metaHoje;
+    " prevista(s), "+Math.max(0,K.metaHoje-K.hojeTot)+" vaga(s) livre(s) de "+K.metaHoje+
+    (K.hojeCanc?" · "+K.hojeCanc+" cancelada(s)/remarcada(s)":"");
   $("cirHoje").innerHTML=
     st("Na agenda",INT.format(K.hojeTot))+
     st("Concluídas",INT.format(K.hojeAtend),"var(--pos)")+
     st("Previstas",INT.format(K.hojeMarc),"var(--tec)")+
+    st("Canceladas",INT.format(K.hojeCanc),K.hojeCanc?"var(--neg)":"var(--muted)",
+       "desmarcadas / não compareceu")+
     st("Ocupação do dia",fpct(ocHoje),cor(ocHoje));
   $("cirHojeSub").textContent=new Date().toLocaleDateString("pt-BR",{weekday:"long",day:"2-digit",month:"long"});
 
