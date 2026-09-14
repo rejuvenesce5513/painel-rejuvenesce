@@ -857,7 +857,7 @@ Não é subconjunto dos leads acima: inclui remarcações, retornos e quem agend
     <div class="h">Habilita o botão "Sincronizar agora", que dispara o job e espera a planilha mudar.</div></div><div class="row2">
     <div class="f"><label>Arquivo do workflow</label><input id="cGhWf" value="sync.yml"></div>
     <div class="f"><label>Token do GitHub (Actions: write)</label><input id="cGhToken" type="password" placeholder="github_pat_..."></div>
-  </div><div class="msg warn" style="margin-top:4px">O token fica apenas neste navegador e <b>não</b> entra no link de instalação. Use um token restrito a este repositório, só com permissão Actions.</div><label class="chk"><input type="checkbox" id="cCeleb" checked><span>Comemorar cada venda nova com um aviso na tela</span></label><label class="chk"><input type="checkbox" id="cCelebSom" checked><span>Com som de fogos</span></label><div class="f"><label>Publicar direto no GitHub — repositório do painel</label><input id="cGhPRepo" placeholder="usuario/repositorio"></div><div class="row2">
+  </div><div class="msg warn" style="margin-top:4px">O token fica apenas neste navegador e <b>não</b> entra no link de instalação. Use um token restrito a este repositório, só com permissão Actions.</div><label class="chk"><input type="checkbox" id="cCeleb" checked><span>Comemorar cada venda nova com um aviso na tela</span></label><label class="chk"><input type="checkbox" id="cCelebSom" checked><span>Com som de fogos</span></label><div class="row2"><div class="f"><label>Duração do aviso (segundos)</label><input id="cCelebSeg" type="number" min="2" max="30" value="10"></div><div class="f"><label>&nbsp;</label><button id="cTestaSom">Testar som e aviso</button></div></div><div class="f"><label>Publicar direto no GitHub — repositório do painel</label><input id="cGhPRepo" placeholder="usuario/repositorio"></div><div class="row2">
     <div class="f"><label>Arquivo</label><input id="cGhPPath" value="index.html"></div>
     <div class="f"><label>Branch</label><input id="cGhPBr" value="main"></div>
   </div><div class="f"><label>Token com Contents: write</label><input id="cGhPTok" type="password" placeholder="github_pat_...">
@@ -1132,7 +1132,7 @@ const NATIVO = {
   "vigenciaEtapas": "01/09/2026",
   "celebrar": true,
   "celebrarSom": true,
-  "celebrarSeg": 7,
+  "celebrarSeg": 10,
   "celebrarDias": 2,
   "cirPorDia": 11,
   "cirHorizonte": 45,
@@ -1154,7 +1154,7 @@ const store={
   set(k,v){ try{localStorage.setItem(k,v);}catch(e){mem[k]=v;} },
   del(k){ try{localStorage.removeItem(k);}catch(e){delete mem[k];} }
 };
-const DEF={versao:"",admins:"",chaveAdmin:"",metas:{},superPct:10,pesosMeta:"",rankSoCadastrados:true,apelidos:{},pessoas:[],liderancas:[],premioComercialPct:0.1,premioSupermetaVend:3500,premioSupermetaLider:7000,premioTecMinimo:60000,premioEntradaMin:750000,premioEntradaMinAnterior:600000,vigenciaEntrada:"",shEntrada:"",arqCirurgias:"",shCirurgias:"Cirurgias",etapasAntesVigencia:"",vigenciaEtapas:"",celebrar:true,celebrarSom:true,celebrarSeg:7,celebrarDias:2,cirPorDia:11,cirHorizonte:45,cirAlertaLivre:50,feriados:"",arqMetas:"",shMetasCfg:"Metas",shPrevendas:"Prevendas",dedupMin:5,ghPainelRepo:"",ghPainelPath:"index.html",ghPainelBranch:"main",ghTokenPainel:"",acessos:[],acessoPadrao:[],arqRegras:"",shRegras:"Parâmetros Comissões",regrasComissao:"",tenant:"89aed341-1dc6-4d0d-b5c7-e8df4293d21d",client:"",file:"",autoEntrar:true,ghRepo:"",ghWf:"sync.yml",ghToken:"",shVendas:"Vendas",shMarc:"Marcações",shMetas:"Metas",
+const DEF={versao:"",admins:"",chaveAdmin:"",metas:{},superPct:10,pesosMeta:"",rankSoCadastrados:true,apelidos:{},pessoas:[],liderancas:[],premioComercialPct:0.1,premioSupermetaVend:3500,premioSupermetaLider:7000,premioTecMinimo:60000,premioEntradaMin:750000,premioEntradaMinAnterior:600000,vigenciaEntrada:"",shEntrada:"",arqCirurgias:"",shCirurgias:"Cirurgias",etapasAntesVigencia:"",vigenciaEtapas:"",celebrar:true,celebrarSom:true,celebrarSeg:10,celebrarDias:2,cirPorDia:11,cirHorizonte:45,cirAlertaLivre:50,feriados:"",arqMetas:"",shMetasCfg:"Metas",shPrevendas:"Prevendas",dedupMin:5,ghPainelRepo:"",ghPainelPath:"index.html",ghPainelBranch:"main",ghTokenPainel:"",acessos:[],acessoPadrao:[],arqRegras:"",shRegras:"Parâmetros Comissões",regrasComissao:"",tenant:"89aed341-1dc6-4d0d-b5c7-e8df4293d21d",client:"",file:"",autoEntrar:true,ghRepo:"",ghWf:"sync.yml",ghToken:"",shVendas:"Vendas",shMarc:"Marcações",shMetas:"Metas",
   refresh:10,splitTC:90,splitTE:10,mapTC:"TC,TB,TS,BH",mapTE:"TEC",ignorar:"Sem deal comercial,—,JARVYS",marcaAgendada:"Data Agendada",stRealizada:"Atendido",stNoShow:"Não compareceu",stRemarcada:"Remarcado",stFuturo:"Marcado",stCancelado:"Desmarcado pelo paciente,Cancelado pelo profissional",mesesCheios:true,shParams:"Parâmetros Comissões",arqParams:"",emailsComissao:"",equipePre:"Beatriz,Fabiana,Amanda",incluirOrfas:false,etapasVenda:"FECHAMENTO,FINALIZADO,REVISAO DE PENDENCIAS",onlyPrimeira:true,ignoraZero:true,coorte:"fechamento"};
 // versao nova zera preferencias, mas NUNCA o que e conexao/credencial
 if(store.get("rjv.cfgv")!==NATIVO.versao){
@@ -3039,19 +3039,36 @@ function emailOk(){
 /* ====================== comemoração de venda nova ====================== */
 let VENDAS_VISTAS=null, FILA_FESTA=[], FESTA_ATIVA=false, AUDIO=null;
 
-function somDeFogos(n){
+/* O navegador só libera áudio depois de uma interação. Criamos o contexto no
+   primeiro clique e o mantemos vivo, senão a primeira comemoração sai muda. */
+function destravaAudio(){
+  if(AUDIO)return AUDIO;
+  try{
+    AUDIO=new (window.AudioContext||window.webkitAudioContext)();
+    const b=AUDIO.createBuffer(1,1,22050);
+    const src=AUDIO.createBufferSource(); src.buffer=b;
+    src.connect(AUDIO.destination); src.start(0);
+  }catch(e){ AUDIO=null; }
+  return AUDIO;
+}
+["click","keydown","touchstart"].forEach(ev=>
+  document.addEventListener(ev,()=>{ const a=destravaAudio(); if(a&&a.state==="suspended")a.resume(); },
+    {once:false,passive:true}));
+
+async function somDeFogos(n){
   if(!CFG.celebrarSom)return;
   try{
-    AUDIO=AUDIO||new (window.AudioContext||window.webkitAudioContext)();
-    if(AUDIO.state==="suspended")AUDIO.resume();
-    const ctx=AUDIO, t0=ctx.currentTime;
+    const ctx=destravaAudio(); if(!ctx)return;
+    if(ctx.state==="suspended"){ try{ await ctx.resume(); }catch(e){} }
+    if(ctx.state!=="running")return;
+    const t0=ctx.currentTime+0.06;
     for(let k=0;k<Math.min(3,n+1);k++){
       const t=t0+k*0.55+Math.random()*0.15;
       // subida do foguete
       const o=ctx.createOscillator(), g=ctx.createGain();
       o.type="sawtooth";
       o.frequency.setValueAtTime(180,t); o.frequency.exponentialRampToValueAtTime(950,t+0.42);
-      g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(0.05,t+0.3);
+      g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(0.09,t+0.3);
       g.gain.exponentialRampToValueAtTime(0.0001,t+0.45);
       o.connect(g).connect(ctx.destination); o.start(t); o.stop(t+0.5);
       // estouro
@@ -3062,7 +3079,7 @@ function somDeFogos(n){
       }
       const src=ctx.createBufferSource(); src.buffer=buf;
       const bp=ctx.createBiquadFilter(); bp.type="bandpass"; bp.frequency.value=1100; bp.Q.value=0.8;
-      const gb=ctx.createGain(); gb.gain.setValueAtTime(0.28,t+0.45);
+      const gb=ctx.createGain(); gb.gain.setValueAtTime(0.42,t+0.45);
       gb.gain.exponentialRampToValueAtTime(0.0001,t+0.45+dur);
       src.connect(bp).connect(gb).connect(ctx.destination); src.start(t+0.45);
     }
@@ -3870,9 +3887,9 @@ function setStatus(k,t){$("dot").className="dot "+k;$("statusTxt").textContent=t
 
 /* ============================ config UI ============================ */
 const F={cTenant:"tenant",cClient:"client",cFile:"file",cShVendas:"shVendas",cShMarc:"shMarc",cShMetas:"shMetas",
-  cRefresh:"refresh",cSplitTC:"splitTC",cSplitTE:"splitTE",cMapTC:"mapTC",cMapTE:"mapTE",cIgnorar:"ignorar",cAgendada:"marcaAgendada",cStRe:"stRealizada",cStNs:"stNoShow",cStRm:"stRemarcada",cStFu:"stFuturo",cStCa:"stCancelado",cRegras:"regrasComissao",cEtAnt:"etapasAntesVigencia",cVigEt:"vigenciaEtapas",cAdmins:"admins",cArqReg:"arqRegras",cShReg:"shRegras",cGhPRepo:"ghPainelRepo",cGhPPath:"ghPainelPath",cGhPBr:"ghPainelBranch",cGhPTok:"ghTokenPainel",cArqMet:"arqMetas",cShMet:"shMetasCfg",cShEnt:"shEntrada",cArqCir:"arqCirurgias",cShCir:"shCirurgias",cCirDia:"cirPorDia",cCeleb:"celebrar",cCelebSom:"celebrarSom",cHoriz:"cirHorizonte",cAlerta:"cirAlertaLivre",cFeriados:"feriados",cShPv:"shPrevendas",cDedup:"dedupMin",cRankSo:"rankSoCadastrados",cOrfas:"incluirOrfas",cEtapas:"etapasVenda",
+  cRefresh:"refresh",cSplitTC:"splitTC",cSplitTE:"splitTE",cMapTC:"mapTC",cMapTE:"mapTE",cIgnorar:"ignorar",cAgendada:"marcaAgendada",cStRe:"stRealizada",cStNs:"stNoShow",cStRm:"stRemarcada",cStFu:"stFuturo",cStCa:"stCancelado",cRegras:"regrasComissao",cEtAnt:"etapasAntesVigencia",cVigEt:"vigenciaEtapas",cAdmins:"admins",cArqReg:"arqRegras",cShReg:"shRegras",cGhPRepo:"ghPainelRepo",cGhPPath:"ghPainelPath",cGhPBr:"ghPainelBranch",cGhPTok:"ghTokenPainel",cArqMet:"arqMetas",cShMet:"shMetasCfg",cShEnt:"shEntrada",cArqCir:"arqCirurgias",cShCir:"shCirurgias",cCirDia:"cirPorDia",cCeleb:"celebrar",cCelebSom:"celebrarSom",cCelebSeg:"celebrarSeg",cHoriz:"cirHorizonte",cAlerta:"cirAlertaLivre",cFeriados:"feriados",cShPv:"shPrevendas",cDedup:"dedupMin",cRankSo:"rankSoCadastrados",cOrfas:"incluirOrfas",cEtapas:"etapasVenda",
   cOnlyPrimeira:"onlyPrimeira",cIgnoraZero:"ignoraZero",cCoorte:"coorte",cAutoEntrar:"autoEntrar",cGhRepo:"ghRepo",cGhWf:"ghWf",cGhToken:"ghToken"};
-function cfgToUI(){editorAcessos();for(const id in F){const el=$(id);if(el.type==="checkbox")el.checked=!!CFG[F[id]];else el.value=CFG[F[id]];}
+function cfgToUI(){editorMetas();editorPessoas(true);for(const id in F){const el=$(id);if(!el)continue;if(el.type==="checkbox")el.checked=!!CFG[F[id]];else el.value=CFG[F[id]];}
   $("cRedirect").textContent=REDIRECT;}
 function uiToCfg(){lerMetas();lerPessoas();for(const id in F){const el=$(id);if(!el)continue;
     CFG[F[id]]=el.type==="checkbox"?el.checked:(el.type==="number"?+el.value:el.value);}
