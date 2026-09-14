@@ -739,6 +739,9 @@ Não é subconjunto dos leads acima: inclui remarcações, retornos e quem agend
     <div class="stat"><div class="l">Meta total</div><div class="v num" id="mtTot">R$ 0</div></div>
     <div class="stat"><div class="l">Supermeta (+<span id="mtPctL">10</span>%)</div><div class="v num" id="mtSuper">R$ 0</div></div>
     <div class="stat"><div class="l">% da supermeta</div><input id="mtPct" type="number" step="1" style="width:90px"></div>
+    <div class="stat"><div class="l">Meta de entrada financeira (R$)</div>
+      <input id="mtMetaEnt" type="number" step="1000" style="width:170px">
+      <div class="l" id="mtMetaEntS" style="margin-top:3px"></div></div>
     <div class="stat"><div class="l">Colaboradores dos demais setores</div>
       <input id="mtColab" type="number" min="0" step="1" style="width:120px">
       <div class="l" style="margin-top:3px">fora vendedores e lideranças</div></div>
@@ -752,7 +755,7 @@ Não é subconjunto dos leads acima: inclui remarcações, retornos e quem agend
   <div class="rank-head"><h2>Meta individual por vendedor</h2><span class="eyebrow" id="mtSub"></span></div>
   <div style="overflow-x:auto">
   <table>
-    <thead><tr><th class="l">Vendedor</th><th>No ranking</th><th>Categoria</th><th class="sep">Meta transplante</th><th>Meta terapia</th>
+    <thead><tr><th class="l">Vendedor</th><th>No ranking</th><th>No prêmio</th><th>Categoria</th><th class="sep">Meta transplante</th><th>Meta terapia</th>
       <th>Meta total</th><th>Supermeta</th><th>% da clínica</th><th>Realizado</th><th class="sep">Atingido</th><th></th></tr></thead>
     <tbody id="mtBodyT"></tbody><tfoot id="mtFoot"></tfoot>
   </table>
@@ -763,8 +766,8 @@ Não é subconjunto dos leads acima: inclui remarcações, retornos e quem agend
     <button id="mtCopiar">Copiar metas do mês anterior</button>
     <button id="mtCalc">Calcular pelos pesos</button>
     <button class="primary" id="mtSalvar">Salvar metas do mês</button>
-    <button class="primary" id="mtGravar">Gravar na planilha de metas</button>
-    <button id="mtAbrir">Abrir planilha de metas</button>
+    <button class="primary" id="mtGravar">Gravar metas</button>
+    <button id="mtAbrir">Abrir banco de metas</button>
   </div>
 </section>
 </div>
@@ -2025,8 +2028,9 @@ function funilPrevendas(p,MC){
 
 function normVend(v){                       // aceita número antigo ou {tc,te,peso}
   if(v&&typeof v==="object")
-    return {tc:toNum(v.tc),te:toNum(v.te),peso:toNum(v.peso)||0,ativo:v.ativo!==false};
-  const n=toNum(v); return {tc:n,te:0,peso:0,ativo:true,semSplit:n>0};
+    return {tc:toNum(v.tc),te:toNum(v.te),peso:toNum(v.peso)||0,
+            ativo:v.ativo!==false,premio:v.premio!==false};
+  const n=toNum(v); return {tc:n,te:0,peso:0,ativo:true,premio:true,semSplit:n>0};
 }
 /* categorias e pesos da política de comissões */
 function tabelaPesos(){
@@ -2167,9 +2171,10 @@ function calcPremio(p,K){
   const meta=metaTC+metaTE, superM=meta*superF(p.mesChave);
   const tecMin=toNum(CFG.premioTecMinimo)||0;
   const vigEnt=toDate(CFG.vigenciaEntrada);
-  const limEnt=(vigEnt&&p.a<vigEnt)
+  const limPadrao=(vigEnt&&p.a<vigEnt)
     ? (toNum(CFG.premioEntradaMinAnterior)||0)
     : (toNum(CFG.premioEntradaMin)||0);
+  const limEnt=(m&&toNum(m.metaEntrada))?toNum(m.metaEntrada):limPadrao;
   const entradaVal=m?toNum(m.entradaVal):0;
   const entrada=entradaVal>=limEnt&&limEnt>0;
   const okTC=metaTC>0&&K.fatTC>=metaTC;
@@ -2220,6 +2225,7 @@ function metasDoMes(mes){
   return {tc:toNum(cru.tc),te:toNum(cru.te),vend,remota:!!r,superPct:cru.superPct,
           entradaOK:!!cru.entradaOK,
           colaboradores: toNum(cru.colaboradores)||0,
+          metaEntrada: toNum(cru.metaEntrada)||0,
           entradaVal: auto!=null ? auto : (toNum(cru.entradaVal)||(cru.entradaOK?Infinity:0)),
           entradaAuto: auto!=null};
 }
@@ -2584,6 +2590,8 @@ async function escreverMetas(){
     const tudo=Object.assign({},METAS_REM||{});
     const loc=(CFG.metas||{})[MT_MES];
     if(loc)tudo[MT_MES]={tc:toNum(loc.tc),te:toNum(loc.te),vend:loc.vend||{},entradaVal:toNum(loc.entradaVal)||0,
+                         colaboradores:toNum(loc.colaboradores)||0,
+                         metaEntrada:toNum(loc.metaEntrada)||0,
                          superPct:(METAS_REM&&METAS_REM[MT_MES]&&METAS_REM[MT_MES].superPct)||toNum(CFG.superPct)};
 
     const linhas=[["Mês","Item","Meta","Serviço"]];
@@ -2594,6 +2602,7 @@ async function escreverMetas(){
       if(m.superPct)linhas.push([ser,"Supermeta %",m.superPct,""]);
       linhas.push([ser,"Entrada financeira",toNum(m.entradaVal)||0,""]);
       linhas.push([ser,"Colaboradores demais setores",toNum(m.colaboradores)||0,""]);
+      if(toNum(m.metaEntrada))linhas.push([ser,"Meta de entrada financeira",toNum(m.metaEntrada),""]);
       for(const n of Object.keys(m.vend||{})){
         const v=normVend(m.vend[n]);
         if(v.tc)linhas.push([ser,n,v.tc,"Transplante"]);
@@ -2601,6 +2610,7 @@ async function escreverMetas(){
         if(!v.tc&&!v.te)linhas.push([ser,n,0,"Transplante"]);
         if(v.peso)linhas.push([ser,n,v.peso,"Peso"]);
         linhas.push([ser,n,v.ativo===false?0:1,"Ativo"]);
+        linhas.push([ser,n,v.premio===false?0:1,"Premio"]);
       }
     }
     nota("Gravando "+(linhas.length-1)+" linha(s) na planilha…");
@@ -2640,7 +2650,7 @@ function editorMetas(){
   $("mtAviso").style.display=soLocal?"":"none";
   if(soLocal)$("mtAviso").innerHTML=
     "<b>Estes valores estão só neste navegador.</b> Ninguém mais os vê. "+
-    "Clique em <b>Gravar na planilha de metas</b> para publicá-los para a equipe.";
+    "Clique em <b>Gravar metas</b> para publicá-los para a equipe.";
   $("mtTC").value=m.tc||""; $("mtTE").value=m.te||"";
   // o valor da aba Fechamentos vence qualquer rascunho local
   const mAuto=metasDoMes(MT_MES)||{};
@@ -2650,6 +2660,10 @@ function editorMetas(){
   $("mtEntrada").disabled=!podeEditar||auto;
   $("mtColab").value=toNum(rasc?rasc.colaboradores:mAuto.colaboradores)||"";
   $("mtColab").disabled=!podeEditar;
+  const me=toNum(rasc?rasc.metaEntrada:mAuto.metaEntrada);
+  $("mtMetaEnt").value=me||"";
+  $("mtMetaEnt").disabled=!podeEditar;
+  $("mtMetaEntS").textContent=me?"definida para este mês":"vazio usa o mínimo da política";
   const vigEnt=toDate(CFG.vigenciaEntrada);
   const iniMes=new Date(MT_MES+"-01T00:00:00Z");
   const lim=(vigEnt&&iniMes<vigEnt)?(toNum(CFG.premioEntradaMinAnterior)||0):(toNum(CFG.premioEntradaMin)||0);
@@ -2664,7 +2678,7 @@ function editorMetas(){
   ["mtAdd","mtImport","mtCopiar","mtCalc"].forEach(id=>$(id).style.display=podeEditar?"":"none");
   $("mtSalvar").style.display=(podeEditar&&!remoto)?"":"none";
   $("mtGravar").style.display=(podeEditar&&remoto)?"":"none";
-  $("mtGravar").textContent=soLocal?"Gravar na planilha de metas ⚠":"Gravar na planilha de metas";
+  $("mtGravar").textContent=soLocal?"Gravar metas ⚠":"Gravar metas";
   $("mtAbrir").style.display=CFG.arqMetas?"":"none";
   if(METAS_ERRO&&CFG.arqMetas)$("mtSub").textContent="Erro ao ler o arquivo de metas: "+METAS_ERRO;
 
@@ -2689,6 +2703,8 @@ function editorMetas(){
       '<tr><td class="l">'+seletorPessoa(n,podeEditar)+'</td>'+
       '<td style="text-align:center"><input type="checkbox" class="mta"'+(v.ativo?" checked":"")+
         (podeEditar?"":" disabled")+'></td>'+
+      '<td style="text-align:center"><input type="checkbox" class="mtq"'+(v.premio!==false?" checked":"")+
+        (podeEditar?"":" disabled")+'></td>'+
       '<td><select class="mtp" style="width:100%"'+(podeEditar?"":" disabled")+'>'+
         '<option value="0">—</option>'+
         tabelaPesos().map(c=>'<option value="'+c.peso+'"'+(Math.abs(c.peso-v.peso)<1e-9?" selected":"")+
@@ -2705,11 +2721,11 @@ function editorMetas(){
         (at==null?"—":fpct(at))+'</td>'+
       '<td>'+(podeEditar?'<button class="acx mtx" data-i="'+i+'">&times;</button>':"")+'</td></tr>');
   });
-  if(!nomes.length)tb.innerHTML='<tr><td class="l" colspan="11" style="color:var(--dim)">nenhum vendedor cadastrado neste mês — use "Puxar vendedores do mês"</td></tr>';
+  if(!nomes.length)tb.innerHTML='<tr><td class="l" colspan="12" style="color:var(--dim)">nenhum vendedor cadastrado neste mês — use "Puxar vendedores do mês"</td></tr>';
   const dif=(soma,alvo)=>soma&&alvo&&Math.abs(soma-alvo)>alvo*0.001
     ?' <span style="color:var(--neg)">('+(soma>alvo?"+":"")+fpct(pct(soma,alvo)-100)+')</span>':"";
   const somaPesos=nomes.reduce((a,n)=>a+normVend(m.vend[n]).peso,0);
-  $("mtFoot").innerHTML=nomes.length?'<tr><td class="l">Total</td><td></td>'+
+  $("mtFoot").innerHTML=nomes.length?'<tr><td class="l">Total</td><td></td><td></td>'+
     '<td class="num">'+(somaPesos?somaPesos.toFixed(2).replace(".",","):"—")+'</td>'+
     '<td class="sep num">'+BRL.format(somaTC)+dif(somaTC,toNum($("mtTC").value))+'</td>'+
     '<td class="num">'+BRL.format(somaTE)+dif(somaTE,toNum($("mtTE").value))+'</td>'+
@@ -2739,22 +2755,26 @@ function lerMetas(){
   const vend={};
   rs.forEach(r=>{
     const n=r.querySelector(".mtn"), a=r.querySelector(".mtc"),
-          b=r.querySelector(".mte"), pz=r.querySelector(".mtp"), at=r.querySelector(".mta");
+          b=r.querySelector(".mte"), pz=r.querySelector(".mtp"), at=r.querySelector(".mta"),
+          pq=r.querySelector(".mtq");
     if(!n||!n.value.trim())return;
     // o nome oficial manda: evita a mesma pessoa entrar duas vezes com grafias diferentes
     const nome=canon(n.value.trim());
     const ja=Object.keys(vend).find(k=>mesmaPessoa(k,nome));
     const alvo=ja||nome;
     const at2={tc:toNum(a?a.value:0),te:toNum(b?b.value:0),
-               peso:toNum(pz?pz.value:0),ativo:at?!!at.checked:true};
+               peso:toNum(pz?pz.value:0),ativo:at?!!at.checked:true,
+               premio:pq?!!pq.checked:true};
     if(ja){ const v=vend[ja];
-      vend[ja]={tc:v.tc+at2.tc,te:v.te+at2.te,peso:v.peso||at2.peso,ativo:v.ativo||at2.ativo}; }
+      vend[ja]={tc:v.tc+at2.tc,te:v.te+at2.te,peso:v.peso||at2.peso,
+                ativo:v.ativo||at2.ativo,premio:v.premio!==false||at2.premio}; }
     else vend[alvo]=at2;
   });
   CFG.metas=CFG.metas||{};
   CFG.metas[MT_MES]={tc:toNum($("mtTC").value),te:toNum($("mtTE").value),vend,
                      entradaVal:$("mtEntrada").disabled?0:toNum($("mtEntrada").value),
-                     colaboradores:toNum($("mtColab").value)};
+                     colaboradores:toNum($("mtColab").value),
+                     metaEntrada:toNum($("mtMetaEnt").value)};
   CFG.superPct=toNum($("mtPct").value)||0;
 }
 
@@ -3314,7 +3334,10 @@ function renderPremio(D,p){
   const cVend=P.premioColetivaVal+P.premioSuperVend;
   const cLider=P.premioColetivaVal+P.premioSuperLider;
   // só entram os vendedores que cumpriram a própria meta
+  const mMes2=metasDoMes(p.mesChave);
   const elegiveis=(D.com&&D.com.lista?D.com.lista:[]).filter(x=>{
+    const reg=mMes2&&Object.keys(mMes2.vend||{}).find(k=>mesmaPessoa(k,x.nome));
+    if(reg&&normVend(mMes2.vend[reg]).premio===false)return false;
     const mv=metaVendedorPeriodo(D.meta.fatorMes,x.nome).tot;
     return !(P.exigeMeta&&mv>0&&x.tot<mv);
   }).filter(x=>(CFG.pessoas||[]).some(p2=>p2.tipo==="vendedor"&&mesmaPessoa(p2.nome,x.nome)));
@@ -3395,8 +3418,12 @@ function renderComissoes(D,p){
     if(!PR)return {v:0,bloqueado:false,meta:0};
     const ehLider=(CFG.liderancas||[]).some(l=>mesmaPessoa(l.nome,nome));
     const mv=ehLider?0:metaVendedorPeriodo(D.meta.fatorMes,nome).tot;
+    const mm=metasDoMes(p.mesChave);
+    const reg=mm&&Object.keys(mm.vend||{}).find(k=>mesmaPessoa(k,nome));
+    const foraDoPremio=!ehLider&&reg&&normVend(mm.vend[reg]).premio===false;
+    if(foraDoPremio)return {v:0,bloqueado:true,motivo:"fora do prêmio",meta:mv};
     const bloqueado=!ehLider&&PR.exigeMeta&&mv>0&&fat<mv;
-    if(bloqueado)return {v:0,bloqueado:true,meta:mv};
+    if(bloqueado)return {v:0,bloqueado:true,motivo:"meta não atingida",meta:mv};
     return {v:PR.premioColetivaVal+(ehLider?PR.premioSuperLider:PR.premioSuperVend),
             bloqueado:false,meta:mv};
   };
@@ -3413,7 +3440,7 @@ function renderComissoes(D,p){
       '<td class="v-money num" style="color:var(--pos)">'+BRL2.format(x.com)+'</td>'+
       '<td class="v-sub num" style="color:'+(premioPessoa?"var(--tec)":"var(--dim)")+'" '+
         (pr.bloqueado?'title="não atingiu a meta individual de '+BRL.format(pr.meta)+'"':"")+'>'+
-        (pr.bloqueado?'<span style="color:var(--neg)">meta não atingida</span>':BRL2.format(premioPessoa))+'</td>'+
+        (pr.bloqueado?'<span style="color:var(--neg)">'+esc(pr.motivo)+'</span>':BRL2.format(premioPessoa))+'</td>'+
       '<td class="sep v-money num">'+BRL2.format(x.com+premioPessoa)+'</td>'+
       '<td class="v-sub num">'+(corrente?BRL2.format(K.prog(proj(x.tot))):"—")+'</td></tr>');
   }
@@ -3791,6 +3818,8 @@ async function token(){
 const GRAPH="https://graph.microsoft.com/v1.0";
 async function gget(url,tk,tries,hdr){
   tries=tries||0;
+  // evita resposta em cache do Graph nas leituras de intervalo
+  if(/\/range\(|usedRange/.test(url))url+=(url.includes("?")?"&":"?")+"_="+Date.now();
   const r=await fetch(url.startsWith("http")?url:GRAPH+url,
     {headers:Object.assign({Authorization:"Bearer "+tk},hdr||{})});
   if(r.status===429||r.status>=500){
@@ -3870,12 +3899,14 @@ function lerGradeMetas(rows){
     else if(n==="TERAPIA"||n==="TEC"||n==="META TEC")out[ym].te=v;
     else if(n.startsWith("SUPERMETA"))out[ym].superPct=v;
     else if(n.startsWith("COLABORADORES"))out[ym].colaboradores=v;
+    else if(n.startsWith("META DE ENTRADA"))out[ym].metaEntrada=v;
     else if(n.startsWith("ENTRADA FINANCEIRA"))out[ym].entradaVal=v;
     else if(n.startsWith("ENTRADA"))out[ym].entradaOK=(v>=1||norm(l[2])==="SIM");
     else {
       const at=out[ym].vend[item]&&typeof out[ym].vend[item]==="object"
                ?out[ym].vend[item]:{tc:0,te:0};
       if(srv==="ATIVO")at.ativo=(v>=1);
+      else if(srv==="PREMIO")at.premio=(v>=1);
       else if(srv==="PESO")at.peso=v;
       else if(srv==="TERAPIA"||srv==="TEC")at.te=v;
       else if(srv==="TRANSPLANTE"||srv==="TC")at.tc=v;
@@ -4045,6 +4076,7 @@ async function carregar(){
     if($("drawer")&&$("drawer").classList.contains("open"))editorPessoas(true);
     render();
     const atraso=Math.round((Date.now()-new Date(ref.mod).getTime())/60000);
+    ULTIMA_LEITURA=Date.now();
     setStatus(atraso>45?"warn":"ok",
       saudacao()+" · upload "+hm(ref.mod)+(atraso>=1?" ("+atraso+" min)":" (agora)")+" · painel "+hm(Date.now()));
     $("btnSync").style.display=(CFG.ghToken&&CFG.ghRepo)?"":"none";
@@ -4073,9 +4105,37 @@ function openCfg(msg){
 
 /* ============================ boot ============================ */
 let timer=null;
-function agenda(){if(timer)clearInterval(timer);
-  if(CFG.refresh>0)timer=setInterval(()=>{const v=mostrarAvisos;mostrarAvisos=false;
-    Promise.resolve(carregar()).finally(()=>{mostrarAvisos=v;});},CFG.refresh*60000);}
+/* Navegadores estrangulam temporizadores em abas em segundo plano: um ciclo de
+   10 minutos pode virar 40. Por isso conferimos o relógio a cada minuto e também
+   quando a aba volta ao primeiro plano. */
+let ULTIMA_LEITURA=0, recarregando=false;
+
+function recarregaSilencioso(){
+  if(recarregando)return;
+  recarregando=true;
+  const v=mostrarAvisos; mostrarAvisos=false;
+  Promise.resolve(carregar()).finally(()=>{
+    mostrarAvisos=v; recarregando=false; ULTIMA_LEITURA=Date.now();
+  });
+}
+
+function venceu(){
+  const min=toNum(CFG.refresh)||0;
+  return min>0 && (Date.now()-ULTIMA_LEITURA) >= min*60000;
+}
+
+function agenda(){
+  if(timer)clearInterval(timer);
+  ULTIMA_LEITURA=ULTIMA_LEITURA||Date.now();
+  if(!(toNum(CFG.refresh)>0))return;
+  timer=setInterval(()=>{ if(venceu())recarregaSilencioso(); },60000);
+}
+
+// a aba voltou ao primeiro plano: se passou do intervalo, lê na hora
+document.addEventListener("visibilitychange",()=>{
+  if(!document.hidden&&venceu())recarregaSilencioso();
+});
+window.addEventListener("focus",()=>{ if(venceu())recarregaSilencioso(); });
 $("btnTema").onclick=()=>{TEMA=TEMAS[(TEMAS.indexOf(TEMA)+1)%TEMAS.length];
   store.set("rjv.tema",TEMA); aplicaTema(TEMA);};
 $("btnCfg").onclick=()=>{cfgToUI();openCfg();};
@@ -4210,7 +4270,7 @@ $("tabPre").onclick=()=>aba("pre");
 $("tabCom2").onclick=()=>aba("cms");
 $("tabCir").onclick=()=>aba("cir");
 $("tabMts").onclick=()=>aba("mts");
-["mtTC","mtTE","mtPct","mtEntrada","mtColab"].forEach(id=>$(id).onchange=()=>{lerMetas();editorMetas();});
+["mtTC","mtTE","mtPct","mtEntrada","mtColab","mtMetaEnt"].forEach(id=>$(id).onchange=()=>{lerMetas();editorMetas();});
 $("mtGravar").onclick=escreverMetas;
 $("mtAbrir").onclick=()=>{if(CFG.arqMetas)window.open(CFG.arqMetas,"_blank");};
 $("mtAdd").onclick=()=>{lerMetas();const m=metasDoMes(MT_MES)||{tc:0,te:0,vend:{}};
