@@ -2688,9 +2688,16 @@ function lerMetas(){
   rs.forEach(r=>{
     const n=r.querySelector(".mtn"), a=r.querySelector(".mtc"),
           b=r.querySelector(".mte"), pz=r.querySelector(".mtp"), at=r.querySelector(".mta");
-    if(n&&n.value.trim())vend[n.value.trim()]=
-      {tc:toNum(a?a.value:0),te:toNum(b?b.value:0),peso:toNum(pz?pz.value:0),
-       ativo:at?!!at.checked:true};
+    if(!n||!n.value.trim())return;
+    // o nome oficial manda: evita a mesma pessoa entrar duas vezes com grafias diferentes
+    const nome=canon(n.value.trim());
+    const ja=Object.keys(vend).find(k=>mesmaPessoa(k,nome));
+    const alvo=ja||nome;
+    const at2={tc:toNum(a?a.value:0),te:toNum(b?b.value:0),
+               peso:toNum(pz?pz.value:0),ativo:at?!!at.checked:true};
+    if(ja){ const v=vend[ja];
+      vend[ja]={tc:v.tc+at2.tc,te:v.te+at2.te,peso:v.peso||at2.peso,ativo:v.ativo||at2.ativo}; }
+    else vend[alvo]=at2;
   });
   CFG.metas=CFG.metas||{};
   CFG.metas[MT_MES]={tc:toNum($("mtTC").value),te:toNum($("mtTE").value),vend,
@@ -3109,45 +3116,76 @@ function destravaAudio(){
   document.addEventListener(ev,()=>{ const a=destravaAudio(); if(a&&a.state==="suspended")a.resume(); },
     {once:false,passive:true}));
 
-async function somDeFogos(n){
+/* Fogos durante toda a exibição do aviso, em rajadas irregulares. */
+let FESTA_TIMERS=[];
+function pararFogos(){ FESTA_TIMERS.forEach(t=>clearTimeout(t)); FESTA_TIMERS=[]; }
+
+function umFoguete(ctx,t){
+  // subida
+  const o=ctx.createOscillator(), g=ctx.createGain();
+  o.type="sawtooth";
+  const f0=140+Math.random()*120;
+  o.frequency.setValueAtTime(f0,t);
+  o.frequency.exponentialRampToValueAtTime(f0*6,t+0.40);
+  g.gain.setValueAtTime(0.0001,t);
+  g.gain.exponentialRampToValueAtTime(0.14,t+0.30);
+  g.gain.exponentialRampToValueAtTime(0.0001,t+0.46);
+  o.connect(g).connect(ctx.destination); o.start(t); o.stop(t+0.5);
+
+  // estouro: ruído filtrado com estalos
+  const dur=1.3, sr=ctx.sampleRate, buf=ctx.createBuffer(1,Math.floor(sr*dur),sr);
+  const d=buf.getChannelData(0);
+  for(let i=0;i<d.length;i++){
+    const x=i/d.length;
+    const env=Math.pow(1-x,2.4);
+    const estalo=x>0.12?(Math.random()<0.012?1.6:0.5):1;
+    d[i]=(Math.random()*2-1)*env*estalo;
+  }
+  const src=ctx.createBufferSource(); src.buffer=buf;
+  const bp=ctx.createBiquadFilter();
+  bp.type="bandpass"; bp.frequency.value=800+Math.random()*1400; bp.Q.value=0.7;
+  const gb=ctx.createGain();
+  gb.gain.setValueAtTime(0.75,t+0.45);
+  gb.gain.exponentialRampToValueAtTime(0.0001,t+0.45+dur);
+  src.connect(bp).connect(gb).connect(ctx.destination); src.start(t+0.45);
+
+  // corpo grave do estouro
+  const bo=ctx.createOscillator(), bg=ctx.createGain();
+  bo.type="sine";
+  bo.frequency.setValueAtTime(160,t+0.45);
+  bo.frequency.exponentialRampToValueAtTime(42,t+0.80);
+  bg.gain.setValueAtTime(0.55,t+0.45);
+  bg.gain.exponentialRampToValueAtTime(0.0001,t+0.85);
+  bo.connect(bg).connect(ctx.destination); bo.start(t+0.45); bo.stop(t+0.9);
+}
+
+async function somDeFogos(segundos){
   if(!CFG.celebrarSom)return;
   try{
     const ctx=destravaAudio(); if(!ctx)return;
     if(ctx.state==="suspended"){ try{ await ctx.resume(); }catch(e){} }
     if(ctx.state!=="running")return;
-    const t0=ctx.currentTime+0.06;
-    for(let k=0;k<Math.min(3,n+1);k++){
-      const t=t0+k*0.55+Math.random()*0.15;
-      // subida do foguete
-      const o=ctx.createOscillator(), g=ctx.createGain();
-      o.type="sawtooth";
-      o.frequency.setValueAtTime(180,t); o.frequency.exponentialRampToValueAtTime(950,t+0.42);
-      g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(0.09,t+0.3);
-      g.gain.exponentialRampToValueAtTime(0.0001,t+0.45);
-      o.connect(g).connect(ctx.destination); o.start(t); o.stop(t+0.5);
-      // estouro
-      const dur=1.1, sr=ctx.sampleRate, buf=ctx.createBuffer(1,sr*dur,sr), d=buf.getChannelData(0);
-      for(let i=0;i<d.length;i++){
-        const x=i/d.length;
-        d[i]=(Math.random()*2-1)*Math.pow(1-x,3)*(x<0.02?1:0.55+0.45*Math.sin(i/90));
-      }
-      const src=ctx.createBufferSource(); src.buffer=buf;
-      const bp=ctx.createBiquadFilter(); bp.type="bandpass"; bp.frequency.value=1100; bp.Q.value=0.8;
-      const gb=ctx.createGain(); gb.gain.setValueAtTime(0.42,t+0.45);
-      gb.gain.exponentialRampToValueAtTime(0.0001,t+0.45+dur);
-      src.connect(bp).connect(gb).connect(ctx.destination); src.start(t+0.45);
+    const total=Math.max(2,toNum(segundos)||toNum(CFG.celebrarSeg)||10);
+    let t=ctx.currentTime+0.05;
+    const fim=ctx.currentTime+total-0.6;
+    let n=0;
+    while(t<fim&&n<40){
+      umFoguete(ctx,t);
+      if(Math.random()<0.35)umFoguete(ctx,t+0.12+Math.random()*0.2);  // rajada dupla
+      t+=0.45+Math.random()*0.75;
+      n++;
     }
   }catch(e){}
 }
 
 function fagulhas(){
   const cores=["var(--tc)","var(--pos)","var(--tec)","var(--neg)"];
-  for(let i=0;i<46;i++){
+  for(let i=0;i<34;i++){
     const el=document.createElement("div");
     el.className="fagulha";
     el.style.background=cores[i%cores.length];
-    el.style.left=(45+Math.random()*10)+"vw";
-    el.style.top=(40+Math.random()*10)+"vh";
+    el.style.left=(15+Math.random()*70)+"vw";
+    el.style.top=(20+Math.random()*45)+"vh";
     document.body.appendChild(el);
     const ang=Math.random()*Math.PI*2, dist=120+Math.random()*260;
     el.animate([{transform:"translate(0,0) scale(1)",opacity:1},
@@ -3166,8 +3204,14 @@ function mostraFesta(){
   const box=$("festa"); box.style.display="flex";
   const barra=box.querySelector("#festaBar i");
   barra.animate([{width:"100%"},{width:"0%"}],{duration:seg*1000,easing:"linear"});
-  somDeFogos(FILA_FESTA.length); fagulhas();
-  setTimeout(()=>{ box.style.display="none"; FESTA_ATIVA=false; mostraFesta(); }, seg*1000);
+  somDeFogos(seg); fagulhas();
+  pararFogos();
+  // fagulhas novas enquanto o aviso estiver na tela
+  for(let t=600;t<seg*1000-400;t+=500+Math.floor(Math.random()*500))
+    FESTA_TIMERS.push(setTimeout(fagulhas,t));
+  FESTA_TIMERS.push(setTimeout(()=>{
+    pararFogos(); box.style.display="none"; FESTA_ATIVA=false; mostraFesta();
+  }, seg*1000));
 }
 
 function checaVendasNovas(V,cv,p){
@@ -4073,7 +4117,7 @@ $("cLink").onclick=()=>{uiToCfg();const c=Object.assign({},CFG);delete c.autoEnt
 $("fechaAv").onclick=()=>{mostrarAvisos=false;$("avisos").style.display="none";};
 $("pilha").onclick=()=>{mostrarAvisos=true;if(AVISOS.length)$("avisos").style.display="";};
 $("btnRefresh").onclick=()=>{mostrarAvisos=true;carregar();};
-$("festa").onclick=()=>{ $("festa").style.display="none"; FESTA_ATIVA=false; mostraFesta(); };
+$("festa").onclick=()=>{ pararFogos(); $("festa").style.display="none"; FESTA_ATIVA=false; mostraFesta(); };
 let ABA_ATUAL="com";
 function aba(q){
   ABA_ATUAL=q;
@@ -4103,7 +4147,9 @@ $("mtAbrir").onclick=()=>{if(CFG.arqMetas)window.open(CFG.arqMetas,"_blank");};
 $("mtAdd").onclick=()=>{lerMetas();const m=metasDoMes(MT_MES)||{tc:0,te:0,vend:{}};
   m.vend["Novo vendedor "+(Object.keys(m.vend).length+1)]={tc:0,te:0,ativo:true};CFG.metas[MT_MES]=m;editorMetas();};
 $("mtImport").onclick=()=>{lerMetas();const m=metasDoMes(MT_MES)||{tc:0,te:0,vend:{}};
-  try{ for(const r of computar().rank)if(r.tot.q&&!(r.nome in m.vend))m.vend[r.nome]={tc:0,te:0,ativo:true}; }catch(e){}
+  try{ for(const r of computar().rank)if(!r.tot.q)return;
+    const nome=canon(r.nome);
+    if(!Object.keys(m.vend).some(k=>mesmaPessoa(k,nome)))m.vend[nome]={tc:0,te:0,ativo:true}; }catch(e){}
   CFG.metas[MT_MES]=m;editorMetas();};
 $("mtCalc").onclick=()=>{
   lerMetas();
