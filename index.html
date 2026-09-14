@@ -2908,30 +2908,6 @@ function lerPessoas(){
   gravaPessoas(PESSOAS_ED);
 }
 
-function editorAcessos(){
-  const cx=$("acList"); if(!cx)return;
-  cx.innerHTML="";
-  const lista=Array.isArray(CFG.acessos)?CFG.acessos:[];
-  lista.forEach((x,i)=>cx.insertAdjacentHTML("beforeend",
-    '<div class="acr"><input type="text" class="ace" value="'+esc(x.e||"")+'" placeholder="email@clinicarejuvenesce.com.br">'+
-    '<button class="acx" data-i="'+i+'" title="Remover">&times;</button>'+
-    '<div class="tp">'+ABAS.map(([k,r])=>'<label><input type="checkbox" class="acc" data-t="'+k+'"'+
-      ((x.t||[]).includes(k)?" checked":"")+'> '+r+"</label>").join("")+'</div></div>'));
-  cx.querySelectorAll(".acx").forEach(b=>b.onclick=()=>{lerEditor();CFG.acessos.splice(+b.dataset.i,1);editorAcessos();});
-  const pad=$("acPadrao");
-  pad.innerHTML=ABAS.map(([k,r])=>'<label style="display:flex;gap:6px;align-items:center"><input type="checkbox" class="acp" data-t="'+k+'"'+
-    ((CFG.acessoPadrao||[]).includes(k)?" checked":"")+'> '+r+"</label>").join("");
-}
-
-function lerEditor(){
-  const cx=$("acList"); if(!cx)return;
-  CFG.acessos=[...cx.querySelectorAll(".acr")].map(r=>({
-    e:r.querySelector(".ace").value.trim(),
-    t:[...r.querySelectorAll(".acc")].filter(c=>c.checked).map(c=>c.dataset.t)
-  })).filter(x=>x.e);
-  CFG.acessoPadrao=[...$("acPadrao").querySelectorAll(".acp")].filter(c=>c.checked).map(c=>c.dataset.t);
-}
-
 function ehAdmin(){
   const lista=(CFG.admins||"").split(",").map(norm).filter(Boolean);
   if(!lista.length)return true;
@@ -4031,6 +4007,27 @@ async function publicarGitHub(){
 $("cPublicar").onclick=publicarGitHub;
 $("cSairAdmin").onclick=()=>{store.del("rjv.destrava");$("drawer").classList.remove("open");atualizaAdmin();};
 document.querySelectorAll("#cfgTabs button").forEach(b=>b.onclick=()=>aplicaCfgTabs(b.dataset.g));
+$("peAdd").onclick=()=>{ lerPessoas();
+  PESSOAS_ED=(PESSOAS_ED||[]).concat([{e:"",nome:"",tipo:"vendedor",paineis:["com"],vars:[]}]);
+  editorPessoas(); };
+$("cTestaSom").onclick=async()=>{
+  CFG.celebrarSom=$("cCelebSom").checked;
+  CFG.celebrarSeg=toNum($("cCelebSeg").value)||10;
+  const nota=t=>{ $("cfgNotes").textContent=t; };
+  if(!CFG.celebrarSom)nota("O som está desligado nesta configuração.");
+  const ctx=destravaAudio();
+  if(!ctx)nota("Este navegador não expõe a API de áudio.");
+  else{
+    if(ctx.state==="suspended"){ try{ await ctx.resume(); }catch(e){} }
+    nota(ctx.state==="running"
+      ? "Áudio liberado. Tocando "+CFG.celebrarSeg+" segundos de aviso."
+      : "O navegador manteve o áudio suspenso (estado: "+ctx.state+
+        "). Clique em qualquer lugar da página e tente de novo.");
+  }
+  FILA_FESTA.push({vendedor:"Teste do painel",valor:18500,
+                   produto:"Transplante Capilar",nome:"conferência de som"});
+  mostraFesta();
+};
 $("peSugerir").onclick=()=>{
   lerPessoas();
   const todos=nomesDeTodasAsFontes();
