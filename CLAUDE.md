@@ -177,3 +177,15 @@ tem que ir para o SharePoint ou para o bloco NATIVO publicado.
   Arquivar 2025 ou ler só os últimos N registros.
 - Colunas fantasma em `Vendas` (até R) e `Marcações` (até S) estendem o `usedRange`.
 - Prêmio de meta coletiva não distingue quem já recebeu — não há histórico de pagamento.
+
+## Fluxo de trabalho obrigatório
+
+1. **`git pull` antes de qualquer alteração.** Sem exceção.
+2. **Depois de mexer no `index.html`, rodar `node testar.js`.** Baseline: `APROVADO`
+   com 1 aviso (108 ids sem uso). Se reprovar, corrigir e rodar de novo antes de
+   seguir adiante.
+3. **Nunca commitar nem dar push sem autorização explícita minha na conversa.**
+4. **Preview local:** `npx.cmd serve -l 8080` a partir da pasta do repositório, e
+   abrir `http://localhost:8080/` com a barra final. Nunca subir servidor a partir da
+   raiz do perfil do usuário.
+5. **Uma alteração por vez.**
