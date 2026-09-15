@@ -1,7 +1,9 @@
 # Painel Comercial — Clínica Rejuvenesce
 
-Arquivo único: `index.html` (~270 KB). HTML, CSS e JavaScript no mesmo arquivo, sem
-build e sem dependências. Publicado em GitHub Pages.
+`index.html` (~478 KB) concentra HTML, CSS e JavaScript, sem build e sem dependências.
+Ao lado dele mora só o `manifest.webmanifest`, com os ícones embutidos como data URI:
+ele torna o painel instalável, e é assim que o minipc da TV ganha som sem gesto do
+usuário. Publicado em GitHub Pages.
 
 URL: https://rejuvenesce5513.github.io/painel-rejuvenesce/
 
@@ -170,6 +172,12 @@ do sync marca com `[texto]`.
 
 **`localStorage` não é fonte de verdade.** Se o dado precisa ser visto por outra pessoa,
 tem que ir para o SharePoint ou para o bloco NATIVO publicado.
+
+**`pause()` que chega depois do `play()`.** `play()` devolve promessa; o som só começa
+quando ela resolve. Um `pause()` escrito logo abaixo — ou dentro do `.then()` de outro
+`play()` — chega depois e mata a trilha sem erro nenhum. Já silenciou a comemoração
+duas vezes, por caminhos diferentes. A bandeira `SOM_QUERENDO` marca que há som
+intencional tocando; quem for pausar precisa olhar para ela antes.
 
 ## Pendências
 
