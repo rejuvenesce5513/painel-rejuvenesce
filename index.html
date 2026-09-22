@@ -78,6 +78,15 @@ button.primary{background:var(--tc);color:var(--onTc);border-color:var(--tc);fon
 .tabs button{background:none;border:none;padding:6px 14px;font-size:13px;color:var(--muted);border-radius:2px}
 .tabs button.on{background:var(--tc);color:var(--onTc);font-weight:600}
 .tabs button:hover:not(.on){color:var(--txt);border-color:transparent}
+.chave{display:inline-flex;align-items:center;gap:8px;background:var(--panel2);border:1px solid var(--line);
+  border-radius:999px;padding:6px 13px 6px 8px;font-size:12.5px;color:var(--muted);white-space:nowrap}
+.chave i{width:28px;height:15px;border-radius:999px;background:var(--dim);position:relative;flex:none;
+  transition:background .18s}
+.chave i::after{content:"";position:absolute;top:2px;left:2px;width:11px;height:11px;border-radius:50%;
+  background:var(--panel);transition:transform .18s}
+.chave.on{color:var(--txt);border-color:var(--tc)}
+.chave.on i{background:var(--tc)}
+.chave.on i::after{transform:translateX(13px)}
 .status{font-size:11.5px;color:var(--muted);display:flex;align-items:center;gap:7px;white-space:nowrap}
 .dot{width:7px;height:7px;border-radius:50%;background:var(--dim);flex:none}
 .dot.ok{background:var(--pos)} .dot.err{background:var(--neg)} .dot.warn{background:var(--tec)}
@@ -308,6 +317,8 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
     <button id="tabCom2">Comissões</button>
     <button id="tabMts">Metas</button>
   </div>
+  <button id="btnGiro" class="chave" aria-pressed="false"
+    title="Girar automaticamente entre as abas a cada 1 minuto"><i></i>Giro de abas</button>
   <div class="ctl">
     <select id="periodo">
       <option value="mes">Mês atual</option>
@@ -2659,6 +2670,7 @@ function aplicaAcessos(){
   const ok=abasPermitidas();
   const bt={com:"tabCom",pre:"tabPre",cir:"tabCir",cms:"tabCom2",mts:"tabMts"};
   for(const [k] of ABAS)$(bt[k]).style.display=ok.includes(k)?"":"none";
+  aplicaGiro();
   if(!ok.length){
     $("viewComercial").style.display=$("viewPre").style.display=$("viewCom").style.display=
       $("viewMts").style.display=$("viewCir").style.display="none";
@@ -4387,7 +4399,42 @@ function aba(q){
   $("tabCir").className=q==="cir"?"on":"";
   if(q==="mts")editorMetas();
   montaVisao();
+  agendaGiro();
 }
+
+/* Giro de abas: rodizio automatico para a TV da recepcao. Passa apenas por
+   Comercial, Pre-vendas e Cirurgias — Comissoes e Metas ficam fora, sempre.
+   Preferencia do aparelho, como o tema: vive no localStorage, nao no CFG. */
+const GIRO_ABAS=["com","pre","cir"], GIRO_MS=60000;
+let GIRO_LIGADO=store.get("rjv.giro")==="1", GIRO_TIMER=null;
+
+function girosDisponiveis(){
+  const ok=abasPermitidas();
+  return GIRO_ABAS.filter(k=>ok.includes(k));
+}
+function agendaGiro(){
+  if(GIRO_TIMER){clearTimeout(GIRO_TIMER);GIRO_TIMER=null;}
+  if(GIRO_LIGADO)GIRO_TIMER=setTimeout(giroPassa,GIRO_MS);
+}
+function giroPassa(){
+  GIRO_TIMER=null;
+  if(!GIRO_LIGADO)return;
+  const lista=girosDisponiveis(), i=lista.indexOf(ABA_ATUAL);
+  // fora do rodizio (Comissoes, Metas) ou com o Configurar aberto: espera a
+  // proxima volta, em vez de arrastar quem esta trabalhando para outra aba
+  const espera=i<0||lista.length<2||($("drawer")&&$("drawer").classList.contains("open"));
+  if(espera)agendaGiro(); else aba(lista[(i+1)%lista.length]);
+}
+function aplicaGiro(){
+  const b=$("btnGiro");
+  b.style.display=girosDisponiveis().length>1?"":"none";
+  b.className="chave"+(GIRO_LIGADO?" on":"");
+  b.setAttribute("aria-pressed",GIRO_LIGADO?"true":"false");
+  b.title=GIRO_LIGADO?"Girando entre as abas a cada 1 minuto — clique para desligar"
+                     :"Girar automaticamente entre as abas a cada 1 minuto";
+  agendaGiro();
+}
+$("btnGiro").onclick=()=>{GIRO_LIGADO=!GIRO_LIGADO;store.set("rjv.giro",GIRO_LIGADO?"1":"0");aplicaGiro();};
 $("tabCom").onclick=()=>aba("com");
 $("tabPre").onclick=()=>aba("pre");
 $("tabCom2").onclick=()=>aba("cms");
