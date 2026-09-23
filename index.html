@@ -284,6 +284,26 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
 #somTrava{position:fixed;left:16px;bottom:16px;z-index:92;display:none;align-items:center;gap:8px;
   background:var(--wBg);border:1px solid var(--wLn);color:var(--wTx);border-radius:var(--r);
   padding:9px 13px;font-size:13px;cursor:pointer;box-shadow:0 8px 24px #0006}
+.temExtrato{position:relative}
+.extrato{display:none;position:absolute;right:0;top:calc(100% - 10px);z-index:70;width:330px;
+  background:var(--panel2);border:1px solid var(--line);border-radius:var(--r);
+  box-shadow:0 14px 38px #0007;padding:12px 14px;text-align:left;color:var(--txt);
+  font-family:"IBM Plex Sans";font-size:12px;font-weight:400;line-height:1.4;
+  letter-spacing:normal;text-transform:none}
+.temExtrato:hover .extrato{display:block}
+/* dentro do ranking o balão não pode ser absoluto: o contêiner da tabela tem
+   overflow-x:auto, que recorta. Este fica fixo e é posicionado no hover. */
+.extrato.flut{position:fixed;right:auto;top:auto;z-index:120;pointer-events:none}
+.extrato .ext{color:var(--muted);font-size:11px;letter-spacing:.06em;
+  text-transform:uppercase;margin-bottom:9px}
+.extrato .exli{display:flex;gap:10px;align-items:baseline;margin-bottom:5px}
+.extrato .exv{font-family:"IBM Plex Mono";font-size:12px;min-width:94px;text-align:right}
+.extrato .exf{flex:1;font-size:12px}
+.extrato .exp{font-family:"IBM Plex Mono";font-size:12px;color:var(--muted);
+  min-width:44px;text-align:right}
+.extrato .exfora .exv,.extrato .exfora .exf,.extrato .exfora .exp{color:var(--dim)}
+.extrato .exr{color:var(--dim);font-size:11px;margin-top:10px;line-height:1.5;
+  border-top:1px solid var(--line);padding-top:8px}
 #avisos{position:fixed;top:14px;right:16px;width:min(560px,calc(100% - 32px));z-index:60;
   background:var(--panel);border:1px solid var(--wLn);border-radius:var(--r);box-shadow:var(--shadow)}
 #avisos header{display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid var(--line);background:none}
@@ -362,6 +382,7 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
   <div class="det" id="festaDet"></div>
   <div id="festaBar"><i></i></div>
 </div></div>
+<div id="extFlut" class="extrato flut"></div>
 <div id="somTrava" title="O navegador só libera som depois de alguém interagir com a página">
   <span>&#128263;</span><span>Som da comemoração bloqueado — clique para ativar</span></div>
 <div id="avisos" style="display:none">
@@ -422,7 +443,7 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
 <section class="evals" style="grid-template-columns:repeat(3,1fr)">
   <div class="ev b"><div class="l">Cirurgias agendadas</div><div class="v disp num" id="cgAg">0</div><div class="s" id="cgAgS">—</div></div>
   <div class="ev c"><div class="l">Cirurgias sem data</div><div class="v disp num" id="cgSem">0</div><div class="s" id="cgSemS">—</div></div>
-  <div class="ev a"><div class="l">Entrada financeira</div><div class="v disp num" id="cgProx" style="font-size:26px">—</div><div class="s" id="cgProxS">—</div></div>
+  <div class="ev a" id="cardEntrada"><div class="l">Entradas financeiras à vista <span style="color:var(--dim)">(excluído crédito à vista)</span></div><div class="v disp num" id="cgProx" style="font-size:26px">—</div><div class="s" id="cgProxS">—</div></div>
 </section>
 
 <!-- BLOCO 2 -->
@@ -452,6 +473,7 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
         <th colspan="3" class="g-tec sep">Terapia capilar</th>
         <th colspan="4" class="sep">Total</th>
         <th colspan="1" class="sep">Conversão</th>
+        <th colspan="1" class="sep">Entradas financeiras</th>
       </tr>
       <tr>
         <th class="l" colspan="2">Vendedor</th>
@@ -459,6 +481,7 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
         <th class="sep">R$</th><th>Qtd</th><th>Ticket</th>
         <th class="sep">R$</th><th>Qtd</th><th>Meta</th><th>Atingido</th>
         <th class="sep">Fech. / Aval.</th>
+        <th class="sep">À vista / Recebido</th>
       </tr>
     </thead>
     <tbody id="rankBody"></tbody>
@@ -1360,6 +1383,14 @@ const INT=new Intl.NumberFormat("pt-BR");
 const pct=(a,b)=>b>0?(a/b*100):0;
 const fpct=v=>INT.format(Math.round(v))+"%";
 const norm=s=>(s==null?"":String(s)).normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/\s+/g," ").trim().toUpperCase();
+
+/* Formas de pagamento que contam como entrada à vista. Uma lista só, usada pelo
+   card do Comercial e pela coluna do ranking. chaveForma tira os espaços para que
+   "Pix + Dinheiro" e "Pix +Dinheiro" caiam na mesma chave. */
+const FORMAS_ENTRADA=["Pix","Dinheiro","TED","Pix +Dinheiro","Débito","Depósito"];
+const chaveForma=s=>norm(s).split(" ").join("");
+const FORMAS_VISTA=new Set(FORMAS_ENTRADA.map(chaveForma));
+const ehVista=s=>FORMAS_VISTA.has(chaveForma(s));
 const titled=s=>String(s||"").replace(/\s+/g," ").trim();
 
 function toDate(v){
@@ -1489,7 +1520,9 @@ function computar(){
   const cv=colmap(V.headers);
   const iEt=pick(cv,"Etapa"), iVal=pick(cv,"Valor Único","Valor unico","Valor"),
         iDt=pick(cv,"Data de fechamento"), iResp=pick(cv,"Responsável"), iSrv=pick(cv,"Serviço"),
-        iProdV=pick(cv,"Produtos");
+        iProdV=pick(cv,"Produtos"),
+        iEntV=pick(cv,"Valor Entrada","Valor de entrada","Valor da entrada"),
+        iFormaV=pick(cv,"Forma de Pgto Entrada","Forma de pagamento entrada","Forma de pagamento");
   const zero={n:0};
   const agg={tc:novo(),te:novo(),outro:novo(),tot:novo()};
   const vend=new Map(), nomes=new Map();
@@ -1505,11 +1538,21 @@ function computar(){
     add(agg[g],val,contaTicket); add(agg.tot,val,contaTicket);
     const bruto=canon(titled(iResp>=0?r[iResp]:"")||"—");
     const key=chaveUnica(vend,bruto);
-    if(!vend.has(key))vend.set(key,{tc:novo(),te:novo(),outro:novo(),tot:novo(),fech:0,aval:0});
+    if(!vend.has(key))vend.set(key,{tc:novo(),te:novo(),outro:novo(),tot:novo(),fech:0,aval:0,ent:{vista:0,total:0,formas:new Map()}});
     const s=vend.get(key); add(s[g],val,contaTicket); add(s.tot,val,contaTicket);
+    if(iEntV>=0){
+      const ve=toNum(r[iEntV]);
+      if(ve){
+        const rot=String((iFormaV>=0?r[iFormaV]:"")??"").trim()||"Sem forma informada";
+        const kf=chaveForma(rot), conta=FORMAS_VISTA.has(kf);
+        s.ent.total+=ve; if(conta)s.ent.vista+=ve;
+        const of=s.ent.formas.get(kf)||{rot,v:0,q:0,conta};
+        of.v+=ve; of.q++; s.ent.formas.set(kf,of);
+      }
+    }
     nomes.set(key,nomeMaisCompleto(nomes.get(key),bruto));
   }
-  out.agg=agg; out.zero=zero.n;
+  out.agg=agg; out.zero=zero.n; out.temEntrada=iEntV>=0;
 
   /* ---- metas ---- */
   const ct=colmap((T&&T.headers)||[]);
@@ -1620,7 +1663,7 @@ function computar(){
     if(fechou)ev.convMarc++; else if(et.includes("PERDID"))ev.perd++;
     const brutoVc=canon(titled(r[iVc])||"—");
     const key=chaveUnica(vend,brutoVc);
-    if(!vend.has(key))vend.set(key,{tc:novo(),te:novo(),outro:novo(),tot:novo(),fech:0,aval:0});
+    if(!vend.has(key))vend.set(key,{tc:novo(),te:novo(),outro:novo(),tot:novo(),fech:0,aval:0,ent:{vista:0,total:0,formas:new Map()}});
     const s=vend.get(key); s.aval++;
     if(comprou){ s.fech++; convTot++; }
     nomes.set(key,nomeMaisCompleto(nomes.get(key),brutoVc));
@@ -1635,7 +1678,7 @@ function computar(){
       ev.tot++; convTot++;
       const brutoOr=canon(titled(o.nome||o.resp||"—"));
       const key=chaveUnica(vend,brutoOr);
-      if(!vend.has(key))vend.set(key,{tc:novo(),te:novo(),outro:novo(),tot:novo(),fech:0,aval:0});
+      if(!vend.has(key))vend.set(key,{tc:novo(),te:novo(),outro:novo(),tot:novo(),fech:0,aval:0,ent:{vista:0,total:0,formas:new Map()}});
       const sv=vend.get(key); sv.aval++; sv.fech++;
       nomes.set(key,nomeMaisCompleto(nomes.get(key),brutoOr));
     }
@@ -1913,7 +1956,12 @@ function comissoes(V,cv,p){
   const iEt=pick(cv,"Etapa"), iVal=pick(cv,"Valor Único","Valor unico"),
         iDt=pick(cv,"Data de fechamento"), iResp=pick(cv,"Responsável"),
         iSrv=pick(cv,"Serviço"), iProd=pick(cv,"Produtos"),
-        iCir=pick(cv,"Data Prevista de Cirurgia"), iMarc=pick(cv,"Data Cirurgia foi marcada?");
+        iCir=pick(cv,"Data Prevista de Cirurgia"), iMarc=pick(cv,"Data Cirurgia foi marcada?"),
+        iEnt=pick(cv,"Valor Entrada","Valor de entrada","Valor da entrada"),
+        iForma=pick(cv,"Forma de Pgto Entrada","Forma de pagamento entrada","Forma de pagamento");
+  /* Entrada financeira das vendas do recorte. Só as formas de FORMAS_ENTRADA somam
+     no valor do card; o extrato do hover lista todas as que aparecerem. */
+  const entFormas=new Map(); let entConta=0, entGeral=0;
   const gTC=new Set(P.grpTC.split(",").map(norm)), gTE=new Set(P.grpTE.split(",").map(norm));
   // antes da vigência, Revisão de Pendências também conta: a venda existe,
   // falta só acerto documental. Se a fonte das regras não define, vale a configuração.
@@ -1937,6 +1985,16 @@ function comissoes(V,cv,p){
     if(!eleg.has(norm(iEt>=0?r[iEt]:"")))continue;
     const d=toDate(r[iDt]); if(!d||d<p.a||d>p.b)continue;
     const g=grupo(r), val=toNum(r[iVal]);
+    if(iEnt>=0){
+      const ve=toNum(r[iEnt]);
+      if(ve){
+        const rot=String((iForma>=0?r[iForma]:"")??"").trim()||"Sem forma informada";
+        const kf=chaveForma(rot);
+        const of=entFormas.get(kf)||{rot,v:0,q:0,conta:FORMAS_VISTA.has(kf)};
+        of.v+=ve; of.q++; entFormas.set(kf,of);
+        entGeral+=ve; if(of.conta)entConta+=ve;
+      }
+    }
     const brutoV=canon(titled(iResp>=0?r[iResp]:"")||"—");
     const k=chaveUnica(V2,brutoV);
     if(!V2.has(k))V2.set(k,{nome:brutoV,tot:0,tc:0,te:0});
@@ -1971,7 +2029,10 @@ function comissoes(V,cv,p){
     const k=ymUTC(m); prov.set(k,(prov.get(k)||0)+v);
   }
   const mesPag=new Date(Date.UTC(p.a.getUTCFullYear(),p.a.getUTCMonth()+P.defas,1));
-  return {P,lista,fatTC,fatTE,fatTot,pcTC,pcTE,honTC,honTE,supAtivo,novaRegra,listaEtapas,
+  const entrada={temColuna:iEnt>=0, val:entConta, geral:entGeral,
+                 formas:[...entFormas.values()].sort((a,b)=>b.v-a.v),
+                 rotulos:FORMAS_ENTRADA.join(", ")};
+  return {P,lista,fatTC,fatTE,fatTot,pcTC,pcTE,honTC,honTE,supAtivo,novaRegra,listaEtapas,entrada,
           aPagar:honTC*P.pIni+honTE*P.pTE, mesPag, prov:[...prov.entries()].sort(), semData,
           totVend:lista.reduce((a,x)=>a+x.com,0), prog};
 }
@@ -2436,6 +2497,28 @@ function render(){
   const soCad=!!CFG.rankSoCadastrados&&cadastrados.length>0;
   const visiveis=D.rank.filter(r=>focoTem(r.nome,"prevendas"));
   const daCasa=r=>!soCad||cadastrados.some(n=>mesmaPessoa(r.nome,n));
+  /* À vista sobre o total recebido em entrada. O total aqui é tudo que estiver em
+     Valor Entrada no recorte, qualquer forma de pagamento. */
+  const exLinhas=[];
+  const somaFormas=lista=>{
+    const m=new Map();
+    for(const x of lista)for(const [k,o] of ((x.ent&&x.ent.formas)||new Map())){
+      const a=m.get(k)||{rot:o.rot,v:0,q:0,conta:o.conta};
+      a.v+=o.v; a.q+=o.q; m.set(k,a);
+    }
+    return [...m.values()].sort((a,b)=>b.v-a.v);
+  };
+  const extratoDe=(formas,total,titulo)=>extratoEntrada(formas,total,titulo,
+    "Conta como à vista: "+esc(FORMAS_ENTRADA.join(", "))+".<br>"+
+    "Recebido no período: "+BRL.format(total)+".");
+  const celEnt=(vista,total)=>{
+    if(!D.temEntrada)return '<td class="sep v-sub num">—</td>';
+    const pv=total?pct(vista,total):null;
+    const cor=pv==null?"var(--dim)":pv>=50?"var(--pos)":pv>0?"var(--tec)":"var(--dim)";
+    return '<td class="sep"><span class="conv"><span class="f num">'+
+      BRL.format(vista)+" / "+BRL.format(total)+'</span><span class="p num" style="color:'+cor+'">'+
+      (pv==null?"—":fpct(pv))+"</span></span></td>";
+  };
   const outros=visiveis.filter(r=>!daCasa(r));
   visiveis.filter(daCasa).forEach((r,i)=>{
     const cv=pct(r.fech,r.aval);
@@ -2455,12 +2538,16 @@ function render(){
       '<td class="sep"><span class="conv"><span class="f num">'+r.fech+"/"+r.aval+
       '</span><span class="p num" style="color:'+(cv>=25?"var(--pos)":cv>0?"var(--tec)":"var(--dim)")+'">'+
       (r.aval?fpct(cv):"—")+'</span></span>'+
-      (r.aval?'<span class="bar-inline"><i style="width:'+(cv/maxConv*100)+'%"></i></span>':"")+'</td></tr>');
+      (r.aval?'<span class="bar-inline"><i style="width:'+(cv/maxConv*100)+'%"></i></span>':"")+'</td>'+
+      celEnt((r.ent||{}).vista||0,(r.ent||{}).total||0)+"</tr>");
+    exLinhas.push(D.temEntrada?extratoDe(somaFormas([r]),(r.ent||{}).total||0,
+      "Entradas de "+r.nome):"");
   });
   if(outros.length){
     const som=outros.reduce((a,x)=>({v:a.v+x.tot.v,q:a.q+x.tot.q,
-      tcv:a.tcv+x.tc.v,tcq:a.tcq+x.tc.q,tev:a.tev+x.te.v,teq:a.teq+x.te.q}),
-      {v:0,q:0,tcv:0,tcq:0,tev:0,teq:0});
+      tcv:a.tcv+x.tc.v,tcq:a.tcq+x.tc.q,tev:a.tev+x.te.v,teq:a.teq+x.te.q,
+      entV:a.entV+((x.ent||{}).vista||0),entT:a.entT+((x.ent||{}).total||0)}),
+      {v:0,q:0,tcv:0,tcq:0,tev:0,teq:0,entV:0,entT:0});
     tb.insertAdjacentHTML("beforeend",
       '<tr style="opacity:.55"><td class="l name" colspan="2">Outros ('+outros.length+
       ') <span class="l">fora da lista de vendedores</span></td>'+
@@ -2468,7 +2555,9 @@ function render(){
       '<td class="v-money sep num">'+BRL.format(som.tev)+'</td><td class="v-sub num">'+INT.format(som.teq)+'</td><td></td>'+
       '<td class="v-money sep num">'+BRL.format(som.v)+'</td><td class="v-sub num">'+INT.format(som.q)+'</td>'+
       '<td class="v-sub num">—</td><td class="num">—</td>'+
-      '<td class="sep v-sub num">—</td><td class="v-sub num">—</td><td class="sep num">—</td></tr>');
+      '<td class="sep v-sub num">—</td>'+celEnt(som.entV,som.entT)+"</tr>");
+    exLinhas.push(D.temEntrada?extratoDe(somaFormas(outros),som.entT,
+      "Entradas de outros ("+outros.length+")"):"");
   }
   const T=D.rank.reduce((a,r)=>{["tc","te","tot"].forEach(k=>{a[k].v+=r[k].v;a[k].q+=r[k].q;a[k].vTicket+=r[k].vTicket;a[k].qTicket+=r[k].qTicket;});
     a.fech+=r.fech;a.aval+=r.aval;return a;},{tc:{v:0,q:0,vTicket:0,qTicket:0},te:{v:0,q:0,vTicket:0,qTicket:0},tot:{v:0,q:0,vTicket:0,qTicket:0},fech:0,aval:0});
@@ -2478,7 +2567,21 @@ function render(){
     '<td class="sep num">'+BRL.format(T.tot.v)+'</td><td class="num">'+INT.format(T.tot.q)+
     '</td><td class="num">'+(metaSoma?BRL.format(metaSoma):"—")+
     '</td><td class="num">'+(metaSoma?fpct(pct(T.tot.v,metaSoma)):"—")+'</td>'+
-    '<td class="sep num">'+T.fech+"/"+T.aval+" · "+(T.aval?fpct(pct(T.fech,T.aval)):"—")+"</td></tr>";
+    '<td class="sep num">'+T.fech+"/"+T.aval+" · "+(T.aval?fpct(pct(T.fech,T.aval)):"—")+"</td>"+
+    celEnt(D.rank.reduce((a,x)=>a+((x.ent||{}).vista||0),0),
+           D.rank.reduce((a,x)=>a+((x.ent||{}).total||0),0))+"</tr>";
+  [...tb.rows].forEach((tr,i)=>{
+    const ex=exLinhas[i];
+    tr.onmouseenter=ex?(()=>abreExtrato(tr,ex)):null;
+    tr.onmouseleave=ex?fechaExtrato:null;
+  });
+  const trFoot=$("rankFoot").rows[0];
+  const exFoot=D.temEntrada?extratoDe(somaFormas(D.rank),
+    D.rank.reduce((a,x)=>a+((x.ent||{}).total||0),0),"Entradas de todos"):"";
+  if(trFoot){
+    trFoot.onmouseenter=exFoot?(()=>abreExtrato(trFoot,exFoot)):null;
+    trFoot.onmouseleave=exFoot?fechaExtrato:null;
+  }
   $("rankSub").textContent="ordenado por total em R$ · conversão por "+(CFG.coorte==="fechamento"?"data de fechamento":"coorte de avaliação");
 
   const C=D.cir, cgTot=C.ag+C.sem;
@@ -2487,15 +2590,30 @@ function render(){
   $("cgSem").textContent=INT.format(C.sem);
   $("cgSemS").textContent=cgTot?fpct(pct(C.sem,cgTot))+" · "+BRL.format(C.vSem):"—";
   const PE=D.premio;
+  /* À vista sai das vendas do recorte. O total continua vindo da aba Metas, que é
+     onde está tudo que de fato entrou na conta — e é ele que vale para o prêmio. */
+  const EN=D.com&&D.com.entrada;
+  const temVista=!!(EN&&EN.temColuna&&EN.formas.length);
   if(PE&&PE.limEnt>0){
     const at=pct(PE.entradaVal,PE.limEnt);
-    $("cgProx").textContent=PE.entradaVal?BRL.format(PE.entradaVal):"—";
+    const total=PE.entradaVal?BRL.format(PE.entradaVal):"—";
+    $("cgProx").textContent=temVista?BRL.format(EN.val)+" / "+total:total;
+    $("cgProx").style.fontSize=temVista?"21px":"26px";
     $("cgProx").style.color=PE.entrada?"var(--pos)":at>=70?"var(--tec)":"var(--neg)";
     $("cgProxS").innerHTML=fpct(at)+" de "+BRL.format(PE.limEnt)+
       (PE.entradaAuto?"":' <span style="color:var(--dim)">· informado na aba Metas</span>');
   }else{
     $("cgProx").textContent="—"; $("cgProxS").textContent="mínimo não configurado";
   }
+  const cardEnt=$("cardEntrada");
+  const exVelho=cardEnt.querySelector(".extrato"); if(exVelho)exVelho.remove();
+  const mioloEnt=temVista?extratoEntrada(EN.formas,EN.geral,"Das vendas do período",
+    "Entram no valor à vista: "+esc(EN.rotulos)+".<br>"+
+    "Total que entrou na conta, da aba Metas: "+
+    (PE.entradaVal?BRL.format(PE.entradaVal):"não informado")+"."):"";
+  const exNovo=mioloEnt?'<div class="extrato">'+mioloEnt+"</div>":"";
+  cardEnt.classList.toggle("temExtrato",!!exNovo);
+  if(exNovo)cardEnt.insertAdjacentHTML("beforeend",exNovo);
 
   const cb=$("cirBody"); cb.innerHTML="";
   const linhasCir=[...C.meses.entries()].sort((a,b)=>a[0].localeCompare(b[0]));
@@ -3442,6 +3560,33 @@ function checaVendasNovas(V,cv,p){
   }
   if(FILA_FESTA.length)mostraFesta();
 }
+
+/* Extrato de entrada: uma linha por forma de pagamento, o que conta como à vista
+   em destaque e o resto esmaecido. Serve ao card do Comercial e às linhas do
+   ranking — mudam só o título e o rodapé. */
+function extratoEntrada(formas,base,titulo,rodape){
+  if(!formas||!formas.length)return "";
+  const porc=v=>base?(v/base*100).toFixed(1).replace(".",",")+"%":"—";
+  const linha=x=>'<div class="exli'+(x.conta?"":" exfora")+'">'+
+    '<span class="exv">'+BRL2.format(x.v)+"</span>"+
+    '<span class="exf">'+esc(x.rot)+"</span>"+
+    '<span class="exp">'+porc(x.v)+"</span></div>";
+  return '<div class="ext">'+esc(titulo)+"</div>"+
+    formas.map(linha).join("")+'<div class="exr">'+rodape+"</div>";
+}
+
+/* O balão do ranking segue a linha sob o mouse. Abre para baixo; se não couber,
+   sobe. Nunca passa das bordas da janela. */
+function abreExtrato(alvo,html){
+  const el=$("extFlut"); if(!el)return;
+  el.innerHTML=html; el.style.display="block";
+  const r=alvo.getBoundingClientRect(), c=el.getBoundingClientRect();
+  let top=r.bottom-4, left=r.right-c.width;
+  if(top+c.height>window.innerHeight-8)top=r.top-c.height+4;
+  el.style.top=Math.max(8,top)+"px";
+  el.style.left=Math.max(8,Math.min(left,window.innerWidth-c.width-8))+"px";
+}
+function fechaExtrato(){ const el=$("extFlut"); if(el)el.style.display="none"; }
 
 function renderPremio(D,p){
   const P=D.premio, box=$("cmPremio"); if(!box)return;
