@@ -341,22 +341,17 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
     title="Girar automaticamente entre as abas a cada 1 minuto"><i></i>Giro de abas</button>
   <div class="ctl">
     <select id="periodo">
-      <option value="mes">Mês atual</option>
+      <option value="custom">Período personalizado</option>
+      <option value="mes" selected>Mês atual</option>
       <option value="mesant">Mês anterior</option>
       <optgroup label="Passado">
         <option value="hoje">Hoje</option>
         <option value="ontem">Ontem</option>
-        <option value="-7">Últimos 7 dias</option>
-        <option value="-15">Últimos 15 dias</option>
-        <option value="-30">Últimos 30 dias</option>
       </optgroup>
       <optgroup label="Futuro">
         <option value="amanha">Amanhã</option>
-        <option value="+7">Próximos 7 dias</option>
-        <option value="+15">Próximos 15 dias</option>
-        <option value="+30">Próximos 30 dias</option>
       </optgroup>
-      <option value="custom">Período personalizado</option>
+      <optgroup label="Meses" id="grpMeses"></optgroup>
     </select>
     <input type="date" id="dtIni" style="display:none">
     <input type="date" id="dtFim" style="display:none">
@@ -1416,6 +1411,30 @@ const ymUTC=d=>d.toISOString().slice(0,7);
 const ymdUTC=d=>d.toISOString().slice(0,10);
 
 /* ============================ período ============================ */
+/* Grupo "Meses": todo mês fechado da base, do primeiro fechamento em Vendas até o
+   mês anterior ao atual. Refeito só quando a base ou o mês corrente mudam. */
+let MESES_CHAVE="";
+function montaMeses(){
+  const g=$("grpMeses"); if(!g)return;
+  const now=new Date(), fim=new Date(Date.UTC(now.getFullYear(),now.getMonth()-1,1));
+  let ini=new Date(Date.UTC(2025,0,1));
+  const V=RAW&&RAW[CFG.shVendas];
+  if(V&&V.headers&&V.rows){
+    const iDt=pick(colmap(V.headers),"Data de fechamento");
+    if(iDt>=0){ let min=null;
+      for(const r of V.rows){ const d=toDate(r[iDt]);
+        if(d&&d.getUTCFullYear()>=2015&&d<=fim&&(!min||d<min))min=d; }
+      if(min)ini=new Date(Date.UTC(min.getUTCFullYear(),min.getUTCMonth(),1)); }
+  }
+  const chave=ymUTC(ini)+"|"+ymUTC(fim); if(chave===MESES_CHAVE)return; MESES_CHAVE=chave;
+  const nomes=["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto",
+    "Setembro","Outubro","Novembro","Dezembro"];
+  const sel=$("periodo").value; let h="";
+  for(let d=new Date(fim);d>=ini;d=new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth()-1,1)))
+    h+='<option value="m'+ymUTC(d)+'">'+nomes[d.getUTCMonth()]+" "+d.getUTCFullYear()+"</option>";
+  g.innerHTML=h; g.style.display=h?"":"none";
+  $("periodo").value=sel; if($("periodo").value!==sel)$("periodo").value="mes";
+}
 function periodo(){
   const t=$("periodo").value, now=new Date();
   let aLit=null,bLit=null;
@@ -1424,9 +1443,9 @@ function periodo(){
   if(t==="mesant"){a=new Date(Date.UTC(now.getFullYear(),now.getMonth()-1,1));b=new Date(Date.UTC(now.getFullYear(),now.getMonth(),0));}
   const hj0=new Date(Date.UTC(now.getFullYear(),now.getMonth(),now.getDate()));
   const dia=n=>new Date(+hj0+n*864e5);
-  const atalhos={hoje:[hj0,hj0], ontem:[dia(-1),dia(-1)], amanha:[dia(1),dia(1)],
-    "-7":[dia(-6),hj0], "-15":[dia(-14),hj0], "-30":[dia(-29),hj0],
-    "+7":[hj0,dia(6)], "+15":[hj0,dia(14)], "+30":[hj0,dia(29)]};
+  const mm=/^m(\d{4})-(\d{2})$/.exec(t); // mês concreto, ex. m2026-01
+  if(mm){a=new Date(Date.UTC(+mm[1],+mm[2]-1,1));b=new Date(Date.UTC(+mm[1],+mm[2],0));}
+  const atalhos={hoje:[hj0,hj0], ontem:[dia(-1),dia(-1)], amanha:[dia(1),dia(1)]};
   if(atalhos[t]){ a=atalhos[t][0]; b=atalhos[t][1]; aLit=a; bLit=b; }
   let expandido=false;
   if(t==="custom"){
@@ -2419,6 +2438,7 @@ const superF=(mes)=>1+superPctDoMes(mes||(MT_MES||""))/100;
 
 function tm(o){return o.qTicket>0?o.vTicket/o.qTicket:0;}
 function render(){
+  montaMeses();
   if(!RAW)return;
   let D; try{ D=computar(); }catch(e){ $("banner").innerHTML='<div class="msg err">'+esc(e.message)+'</div>'; return; }
   const p=D.p, m=D.meta, A=D.agg;
