@@ -604,7 +604,7 @@ Não é subconjunto dos leads acima: inclui remarcações, retornos e quem agend
   <div class="rank-head"><h2>Conversão por avaliador</h2><span class="eyebrow">profissional que atendeu · conversão = paciente comprou no mês</span></div>
   <div style="overflow-x:auto"><table>
     <thead><tr><th class="l">Avaliador</th><th class="sep">Avaliações</th><th>% do total</th>
-      <th>Convertidas</th><th class="sep">Conversão</th></tr></thead>
+      <th>Convertidas</th><th>Faturamento</th><th class="sep">Conversão</th></tr></thead>
     <tbody id="fnAval"></tbody><tfoot id="fnAvalF"></tfoot>
   </table></div>
   <div class="h" id="fnAvalNota" style="padding:10px 18px;border-top:1px solid var(--line)"></div>
@@ -1643,8 +1643,9 @@ function computar(){
     if(!ehVenda(iEt>=0?r[iEt]:null))continue;
     const dk=toDate(r[iK]); if(!dk)continue;
     const fid=feeDe(r);
-    if(fid){ porFeegow.set(fid+"|"+ymUTC(dk),true); comFee++; }
     const k=pacKey(r[iNome>=0?iNome:0])+"|"+ymUTC(dk);
+    if(fid){ const fk=fid+"|"+ymUTC(dk);       // aponta para a(s) venda(s) do paciente
+      if(!porFeegow.has(fk))porFeegow.set(fk,new Set()); porFeegow.get(fk).add(k); comFee++; }
     if(!compradores.has(k))compradores.set(k,{v:0,pac:pacKey(r[iNome>=0?iNome:0]),ym:ymUTC(dk),
       resp:norm(iResp>=0?r[iResp]:""),nome:titled(iResp>=0?r[iResp]:"")});
     compradores.get(k).v+=toNum(r[iVal]);
@@ -2140,7 +2141,7 @@ function funilPrevendas(p,MC){
            dup:dupCopia+dupJanela,dupCopia,dupJanela,
            tPri:[],tGanho:[],tPerda:[],
            resp:new Map(),fonte:new Map(),meio:new Map(),avaliador:new Map(),motivos:new Map()};
-  const bump=(m,k,f)=>{ if(!m.has(k))m.set(k,{tot:0,ganho:0,perda:0,and:0,aval:0}); f(m.get(k)); };
+  const bump=(m,k,f)=>{ if(!m.has(k))m.set(k,{tot:0,ganho:0,perda:0,and:0,aval:0,fat:0}); f(m.get(k)); };
   const bumpP=(m,nome,f)=>{ const k=chaveUnica(m,nome); bump(m,k,f);
     const o=m.get(k); o.rot=nomeMaisCompleto(o.rot,nome); };
   const grafias=new Map();
@@ -2179,6 +2180,7 @@ function funilPrevendas(p,MC){
   if(MC&&MC.M&&MC.M.rows){
     const iProf=pick(MC.cm,"Profissional");
     const stOk=norm(CFG.stRealizada);
+    const vendaContada=new Set();                // valor entra uma vez, mesmo com reavaliacao
     for(const r of MC.M.rows){
       if(norm(MC.iSt>=0?r[MC.iSt]:"")!==stOk)continue;
       const d=toDate(MC.iDc>=0?r[MC.iDc]:null);
@@ -2196,7 +2198,14 @@ function funilPrevendas(p,MC){
                      ||(MC.compradores&&MC.compradores.has(pk+"|"+ym)));
       bump(o.meio,me,x=>{x.tot++;if(comprou)x.ganho++;});
       const av=canon(titled(iProf>=0?r[iProf]:"")||"(sem avaliador)");
-      bump(o.avaliador,av,x=>{x.tot++;if(comprou)x.ganho++;});
+      let fat=0;
+      if(comprou){
+        const ks=new Set(fid&&MC.porFeegow&&MC.porFeegow.get(fid+"|"+ym)||[]);
+        if(MC.compradores&&MC.compradores.has(pk+"|"+ym))ks.add(pk+"|"+ym);
+        for(const k of ks){ if(vendaContada.has(k))continue; vendaContada.add(k);
+          const c=MC.compradores&&MC.compradores.get(k); if(c)fat+=c.v||0; }
+      }
+      bump(o.avaliador,av,x=>{x.tot++;if(comprou)x.ganho++;x.fat+=fat;});
     }
   }
   o.mPri=mediaH(o.tPri); o.mGanho=mediaH(o.tGanho); o.mPerda=mediaH(o.tPerda);
@@ -4043,9 +4052,10 @@ function renderFunil(F,EV){
     ta.insertAdjacentHTML("beforeend",'<tr><td class="l name">'+esc(k)+'</td>'+
       '<td class="sep v-money num">'+INT.format(x.tot)+'</td><td class="v-sub num">'+fpct(pct(x.tot,F.avalPeriodo||1))+'</td>'+
       '<td class="v-sub num" style="color:var(--pos)">'+INT.format(x.ganho||0)+'</td>'+
+      '<td class="v-money num">'+BRL.format(x.fat||0)+'</td>'+
       '<td class="sep num" style="color:'+(cv>=70?"var(--pos)":cv>=40?"var(--tec)":"var(--neg)")+'">'+fpct(cv)+'</td></tr>');
   }
-  const somaAv=[...F.avaliador.values()].reduce((a,x)=>({t:a.t+x.tot,g:a.g+(x.ganho||0)}),{t:0,g:0});
+  const somaAv=[...F.avaliador.values()].reduce((a,x)=>({t:a.t+x.tot,g:a.g+(x.ganho||0),f:a.f+(x.fat||0)}),{t:0,g:0,f:0});
   if($("fnAvalNota")&&EV){
     const dif=(EV.conv||0)-somaAv.g;
     $("fnAvalNota").innerHTML=
@@ -4059,6 +4069,7 @@ function renderFunil(F,EV){
   }
   $("fnAvalF").innerHTML=somaAv.t?'<tr><td class="l">Total</td><td class="sep num">'+INT.format(somaAv.t)+
     '</td><td class="num">100%</td><td class="num">'+INT.format(somaAv.g)+
+    '</td><td class="num">'+BRL.format(somaAv.f)+
     '</td><td class="sep num">'+fpct(pct(somaAv.g,somaAv.t))+'</td></tr>':"";
 }
 
