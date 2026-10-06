@@ -391,7 +391,7 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
   <div class="goal-top">
     <div class="goal-val disp num" id="gVal">R$ 0</div>
     <div class="goal-of">de <span class="num" id="gMeta">R$ 0</span> · <span class="num" id="gQtd">0</span> negócios</div>
-    <div class="goal-pct disp num" id="gPct">0%</div>
+    <div class="goal-pct disp num" id="gPct">0,00%</div>
   </div>
   <div style="position:relative">
     <div class="pace-lbl" id="paceLbl">Ritmo</div>
@@ -414,7 +414,7 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
 
 <section class="aux">
   <div class="card tc">
-    <div class="card-head"><h2>Transplante Capilar</h2><span class="card-pct disp num" id="tcPct">0%</span></div>
+    <div class="card-head"><h2>Transplante Capilar</h2><span class="card-pct disp num" id="tcPct">0,00%</span></div>
     <div class="minitrack"><div class="minifill" id="tcFill" style="width:0%"></div><div class="minipace" id="tcPace" style="left:0%"></div></div>
     <div class="stats">
       <div class="stat"><div class="l">Valor</div><div class="v num" id="tcVal">R$ 0</div></div>
@@ -424,7 +424,7 @@ hr{border:none;border-top:1px solid var(--line);margin:18px 0}
     </div>
   </div>
   <div class="card tec">
-    <div class="card-head"><h2>Terapia Capilar</h2><span class="card-pct disp num" id="tePct">0%</span></div>
+    <div class="card-head"><h2>Terapia Capilar</h2><span class="card-pct disp num" id="tePct">0,00%</span></div>
     <div class="minitrack"><div class="minifill" id="teFill" style="width:0%"></div><div class="minipace" id="tePace" style="left:0%"></div></div>
     <div class="stats">
       <div class="stat"><div class="l">Valor</div><div class="v num" id="teVal">R$ 0</div></div>
@@ -1376,7 +1376,8 @@ const BRL=new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL",maximum
 const BRL2=new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL",minimumFractionDigits:2,maximumFractionDigits:2});
 const INT=new Intl.NumberFormat("pt-BR");
 const pct=(a,b)=>b>0?(a/b*100):0;
-const fpct=v=>INT.format(Math.round(v))+"%";
+const PCT2=new Intl.NumberFormat("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});
+const fpct=v=>PCT2.format(v)+"%";
 const norm=s=>(s==null?"":String(s)).normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/\s+/g," ").trim().toUpperCase();
 
 /* Formas de pagamento que contam como entrada à vista. Uma lista só, usada pelo
@@ -3595,7 +3596,7 @@ function checaVendasNovas(V,cv,p){
    ranking — mudam só o título e o rodapé. */
 function extratoEntrada(formas,base,titulo,rodape){
   if(!formas||!formas.length)return "";
-  const porc=v=>base?(v/base*100).toFixed(1).replace(".",",")+"%":"—";
+  const porc=v=>base?fpct(v/base*100):"—";
   const linha=x=>'<div class="exli'+(x.conta?"":" exfora")+'">'+
     '<span class="exv">'+BRL2.format(x.v)+"</span>"+
     '<span class="exf">'+esc(x.rot)+"</span>"+
@@ -3742,7 +3743,7 @@ function renderComissoes(D,p){
       '<td class="v-sub num">'+BRL.format(x.tc)+'</td>'+
       '<td class="v-sub num">'+BRL.format(x.te)+'</td>'+
       '<td class="sep v-sub">'+esc(x.regra)+'</td>'+
-      '<td class="v-sub num">'+(x.taxa*100).toFixed(3).replace(".",",")+'%</td>'+
+      '<td class="v-sub num">'+fpct(x.taxa*100)+'</td>'+
       '<td class="v-money num" style="color:var(--pos)">'+BRL2.format(x.com)+'</td>'+
       '<td class="v-sub num" style="color:'+(premioPessoa?"var(--tec)":"var(--dim)")+'" '+
         (pr.bloqueado?'title="não atingiu a meta individual de '+BRL.format(pr.meta)+'"':"")+'>'+
@@ -3917,7 +3918,7 @@ function renderCirurgias(K,p){
       const p2=x.pctLivre;
       const cls=(p2>=71?"vermelho":p2>=60?"ambar":"amarelo")+(x.n===0?" zero":"");
       return '<span class="diaChip '+cls+'" title="'+x.livres+" de "+K.porDia+
-        " vagas livres · "+Math.round(p2)+'% livre">'+esc(dd)+
+        " vagas livres · "+fpct(p2)+' livre">'+esc(dd)+
         " <b>"+x.n+"/"+K.porDia+"</b></span>";
     }).join("");
   }
